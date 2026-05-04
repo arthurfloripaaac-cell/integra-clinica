@@ -6,7 +6,6 @@ const GOLD = "#B8962E", GOLD_DARK = "#7A6020", GOLD_LIGHT = "#D4B96A";
 const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D8E";
 
 const fmt = v => "R$ " + (v||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
-const parseMoeda = v => parseFloat(String(v).replace(/[^0-9,]/g,"").replace(",",".")) || 0;
 
 // ─── NOMENCLATURA DENTAL ─────────────────────────
 const NOMES_DENTES = {
@@ -1560,6 +1559,7 @@ const TODOS = Object.values(QUADRANTES).flat();
 const SUP = [...QUADRANTES.q1, ...QUADRANTES.q2];
 const INF = [...QUADRANTES.q3, ...QUADRANTES.q4];
 
+const parseMoeda = v => parseFloat(String(v).replace(/[^0-9,]/g, "").replace(",", ".")) || 0;
 
 function MiniDente({ numero, selecionado, onClick }) {
   const tipo = tipoDente(numero);
@@ -1583,6 +1583,14 @@ function MiniDente({ numero, selecionado, onClick }) {
   );
 }
 
+function SectionTitle({ children }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+      <span style={{ fontSize: 9, letterSpacing: 2.5, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, whiteSpace: "nowrap" }}>{children}</span>
+      <div style={{ flex: 1, height: 1, background: BORDER }} />
+    </div>
+  );
+}
 
 function OdontogramaMini({ selecionados, onToggle }) {
   return (
