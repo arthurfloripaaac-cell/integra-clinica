@@ -1583,14 +1583,6 @@ function MiniDente({ numero, selecionado, onClick }) {
   );
 }
 
-function SectionTitle({ children }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-      <span style={{ fontSize: 9, letterSpacing: 2.5, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, whiteSpace: "nowrap" }}>{children}</span>
-      <div style={{ flex: 1, height: 1, background: BORDER }} />
-    </div>
-  );
-}
 
 function OdontogramaMini({ selecionados, onToggle }) {
   return (
