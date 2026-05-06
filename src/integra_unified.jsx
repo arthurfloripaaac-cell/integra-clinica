@@ -575,8 +575,12 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
 
   const toggleForma=id=>{
     const wasChecked = formasChecked.includes(id);
-    setFormasChecked(wasChecked ? formasChecked.filter(x=>x!==id) : [...formasChecked, id]);
+    if(!wasChecked) setFormasChecked([...formasChecked, id]);
     setFormaAtiva(formaAtiva===id ? null : id);
+  };
+  const desmarcarForma=id=>{
+    setFormasChecked(formasChecked.filter(x=>x!==id));
+    if(formaAtiva===id) setFormaAtiva(null);
   };
 
   const calcBoleto=()=>{
@@ -807,14 +811,16 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {FORMAS.map(f=>{
               const checked=formasChecked.includes(f.id),ativo=formaAtiva===f.id;
-              return(<div key={f.id} onClick={()=>toggleForma(f.id)} style={{padding:"12px 16px",borderRadius:3,cursor:"pointer",border:"1.5px solid "+(ativo?GOLD_DARK:checked?GOLD_LIGHT:BORDER),background:ativo?GOLD_PALE:checked?"#FFFDF7":"#fff",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"all 0.15s"}}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
+              return(<div key={f.id} style={{padding:"12px 16px",borderRadius:3,border:"1.5px solid "+(ativo?GOLD_DARK:checked?GOLD_LIGHT:BORDER),background:ativo?GOLD_PALE:checked?"#FFFDF7":"#fff",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"all 0.15s"}}>
+                <div onClick={()=>toggleForma(f.id)} style={{display:"flex",alignItems:"center",gap:10,flex:1,cursor:"pointer"}}>
                   <span style={{fontSize:18}}>{f.icon}</span>
                   <span style={{fontSize:13,fontWeight:checked?700:500,color:checked?GOLD_DARK:"#1C1410"}}>{f.label}</span>
                   {f.id==="debito"&&<span style={{fontSize:10,color:"#9A8060"}}>taxa {f.taxa}% PagBank</span>}
                   {f.id==="credito"&&<span style={{fontSize:10,color:"#9A8060"}}>4,99% + juros 3,49% a.m.</span>}
                 </div>
-                {checked&&<span style={{color:GOLD_DARK,fontWeight:700}}>✓</span>}
+                {checked
+                  ?<div style={{display:"flex",alignItems:"center",gap:8}}><span style={{color:GOLD_DARK,fontWeight:700}}>✓</span><div onClick={e=>{e.stopPropagation();desmarcarForma(f.id);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer",padding:"2px 6px",border:"1px solid "+BORDER,borderRadius:10}}>✕</div></div>
+                  :<span style={{fontSize:10,color:"#9A8060"}}>selecionar</span>}
               </div>);
             })}
           </div>
@@ -1711,92 +1717,113 @@ function P4({onTotalChange, p4State, setP4State}) {
           </div>
         )}
 
-        {/* Procedimentos — com modo edição */}
+        {/* Procedimentos — chips igual achados clínicos */}
         <div style={{ background: "#fff", border: "1px solid " + BORDER, borderRadius: 4, padding: 18, marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, paddingBottom: 12, borderBottom: "1px solid " + BORDER }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 9, letterSpacing: 2.5, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>Procedimentos</span>
-              <div style={{ flex: 1, height: 1, background: BORDER, width: 40 }} />
+              <span style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>Plano de Tratamento</span>
             </div>
-            <div onClick={() => setEditandoProcs(!editandoProcs)} style={{
-              fontSize: 10, color: editandoProcs ? GOLD_DARK : "#9A8060", cursor: "pointer",
-              padding: "2px 8px", border: "1px solid " + (editandoProcs ? GOLD : BORDER), borderRadius: 20,
-            }}>{editandoProcs ? "✓ Concluir" : "✎ Editar"}</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <div onClick={() => setEditandoProcs(!editandoProcs)} style={{ fontSize: 10, color: editandoProcs ? GOLD_DARK : "#9A8060", cursor: "pointer", padding: "2px 8px", border: "1px solid " + (editandoProcs ? GOLD : BORDER), borderRadius: 20 }}>
+                {editandoProcs ? "✓ Concluir" : "✎ Editar"}
+              </div>
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {procsBase.map((proc) => {
-              const itemIdx = itens.findIndex(it => it.id === proc.id);
-              const item = itens[itemIdx] || { id: proc.id, ativo: false, valor: String(proc.valorPadrao).replace(".", ","), dentes: [], subtipos: {}, regiao: null, qtd: 1 };
+
+          {/* Chips de procedimentos — igual achados clínicos */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            {[...procsBase, ...customProcs.map(c => ({...c, isCustom: true}))].map((proc, idx) => {
+              const isCustom = proc.isCustom;
+              const itemIdx = isCustom ? -1 : itens.findIndex(it => it.id === proc.id);
+              const item = isCustom
+                ? customProcs.find(c => c.id === proc.id)
+                : (itens[itemIdx] || { id: proc.id, ativo: false, valor: String(proc.valorPadrao||0).replace(".", ","), dentes: [], subtipos: {}, regiao: null, qtd: 1 });
+              const ativo = item?.ativo || false;
+              const customIdx = isCustom ? customProcs.findIndex(c => c.id === proc.id) : -1;
               return (
                 <div key={proc.id} style={{ position: "relative" }}>
                   {editandoProcs && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                      <input
-                        style={{ flex: 1, padding: "5px 8px", border: "1px solid " + GOLD, borderRadius: 2, fontSize: 12, fontWeight: 600, color: GOLD_DARK, background: GOLD_PALE, outline: "none", fontFamily: "inherit" }}
-                        value={proc.nome}
-                        onChange={e => editarNomeProcBase(proc.id, e.target.value)}
-                      />
-                      <div onClick={() => removerProcBase(proc.id)} style={{
-                        fontSize: 10, color: "#9A8060", cursor: "pointer", padding: "4px 8px",
-                        border: "1px solid " + BORDER, borderRadius: 2, whiteSpace: "nowrap",
-                      }}>✕ Remover</div>
-                    </div>
+                    <div onClick={() => isCustom ? removerCustom(customIdx) : removerProcBase(proc.id)}
+                      style={{ position: "absolute", top: -6, right: -6, width: 16, height: 16, borderRadius: "50%", background: "#9A8060", color: "#fff", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10, lineHeight: 1 }}>✕</div>
                   )}
-                  <ProcedimentoItem
-                    proc={proc}
-                    item={item}
-                    onChange={novo => {
-                      if (itemIdx >= 0) {
-                        atualizarItem(itemIdx, novo);
+                  <div
+                    onClick={() => {
+                      if (editandoProcs) return;
+                      const newAtivo = !ativo;
+                      if (isCustom) {
+                        atualizarCustom(customIdx, { ...item, ativo: newAtivo });
+                      } else if (itemIdx >= 0) {
+                        atualizarItem(itemIdx, { ...item, ativo: newAtivo });
                       } else {
-                        setItens(prev => [...(prev || []), novo]);
+                        setItens(prev => [...(prev || []), { id: proc.id, ativo: true, valor: String(proc.valorPadrao||0).replace(".", ","), dentes: [], subtipos: {}, regiao: null, qtd: 1 }]);
                       }
                     }}
-                  />
+                    style={{
+                      padding: "7px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer",
+                      border: "2px solid " + (ativo ? GOLD_DARK : BORDER),
+                      background: ativo ? GOLD : "#fff",
+                      color: ativo ? "#fff" : "#5C4A2A",
+                      fontWeight: ativo ? 700 : 400,
+                      display: "flex", alignItems: "center", gap: 6,
+                      transition: "all 0.15s",
+                    }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: ativo ? "#fff" : BORDER, flexShrink: 0 }} />
+                    {editandoProcs ? (
+                      <input
+                        style={{ background: "transparent", border: "none", outline: "none", fontSize: 12, fontWeight: ativo ? 700 : 400, color: ativo ? "#fff" : "#5C4A2A", fontFamily: "inherit", width: Math.max(60, proc.nome.length * 7) + "px", cursor: "text" }}
+                        value={proc.nome}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => isCustom
+                          ? atualizarCustom(customIdx, { ...item, nome: e.target.value })
+                          : editarNomeProcBase(proc.id, e.target.value)
+                        }
+                      />
+                    ) : proc.nome}
+                  </div>
                 </div>
               );
             })}
+            {/* Botão + Novo */}
+            {editandoProcs && (
+              <div onClick={() => setMostrarForm(true)} style={{ padding: "7px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", border: "2px dashed " + BORDER, color: GOLD_DARK, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                + Novo
+              </div>
+            )}
           </div>
+
+          {/* Painel de detalhe do procedimento selecionado */}
+          {itens.filter(it => it.ativo).map((it) => {
+            const proc = procsBase.find(p => p.id === it.id);
+            if (!proc) return null;
+            const itemIdx = itens.findIndex(x => x.id === it.id);
+            return (
+              <div key={it.id} style={{ marginBottom: 10, border: "1px solid " + GOLD_LIGHT, borderRadius: 4, overflow: "hidden" }}>
+                <ProcedimentoItem
+                  proc={proc}
+                  item={it}
+                  onChange={novo => atualizarItem(itemIdx, novo)}
+                />
+              </div>
+            );
+          })}
+          {customProcs.filter(it => it.ativo).map((it, i) => {
+            const proc = { id: it.id, nome: it.nome, modo: it.modo, valorPadrao: 0 };
+            return (
+              <div key={it.id} style={{ marginBottom: 10, border: "1px solid " + GOLD_LIGHT, borderRadius: 4, overflow: "hidden" }}>
+                <ProcedimentoItem
+                  proc={proc}
+                  item={it}
+                  onChange={novo => atualizarCustom(i, novo)}
+                />
+              </div>
+            );
+          })}
         </div>
 
-        {/* Procedimentos personalizados */}
-        {customProcs.length > 0 && (
-          <div style={{ background: "#fff", border: "1px solid " + BORDER, borderRadius: 4, padding: 18, marginBottom: 14 }}>
-            <SectionTitle>Outros Procedimentos</SectionTitle>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {customProcs.map((item, i) => {
-                const proc = { id: item.id, nome: item.nome, modo: item.modo, valorPadrao: 0 };
-                return (
-                  <div key={item.id} style={{ position: "relative" }}>
-                    <ProcedimentoItem
-                      proc={proc}
-                      item={item}
-                      onChange={novo => atualizarCustom(i, novo)}
-                    />
-                    <div onClick={() => removerCustom(i)} style={{
-                      position: "absolute", top: 8, right: 48, fontSize: 10,
-                      color: "#9A8060", cursor: "pointer", padding: "2px 6px",
-                      border: "1px solid " + BORDER, borderRadius: 2,
-                    }}>✕</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Adicionar procedimento personalizado */}
-        <div style={{ background: "#fff", border: "1px solid " + BORDER, borderRadius: 4, padding: 18, marginBottom: 14 }}>
-          <SectionTitle>Adicionar Procedimento</SectionTitle>
-          {!mostrarForm ? (
-            <div onClick={() => setMostrarForm(true)} style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              padding: "12px 16px", border: "1.5px dashed " + BORDER, borderRadius: 3,
-              cursor: "pointer", color: GOLD_DARK, fontSize: 12, fontWeight: 600,
-            }}>
-              <span style={{ fontSize: 18 }}>+</span> Adicionar outro procedimento
-            </div>
-          ) : (
+        {/* Formulário adicionar — só aparece quando mostrarForm ativo */}
+        {mostrarForm && <div style={{ background: "#fff", border: "1px solid " + GOLD, borderRadius: 4, padding: 18, marginBottom: 14 }}>
+          <SectionTitle>Novo Procedimento</SectionTitle>
+          {true && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <label style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 600 }}>Nome do procedimento</label>
@@ -1843,7 +1870,7 @@ function P4({onTotalChange, p4State, setP4State}) {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Resumo */}
         {itensAtivos.length > 0 && (
@@ -2047,15 +2074,12 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
               <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Avaliação Clínica</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
-            {resumoAch.length>0 && <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+            {resumoAch.length>0 && <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
               {resumoAch.map(a=>(
                 <div key={a.id} style={{display:"flex",alignItems:"stretch",border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                  <div style={{width:4,background:a.cor,flexShrink:0}}/>
-                  <div style={{flex:1,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <span style={{fontSize:9,color:"#fff",background:a.cor,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center"}}>✦</span>
-                      <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{a.lb}</span>
-                    </div>
+                  <div style={{width:3,background:GOLD,flexShrink:0}}/>
+                  <div style={{flex:1,padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{a.lb}</span>
                     <span style={{fontSize:11,color:"#9A8060"}}>{descreverRegiao(a.dentes)}</span>
                   </div>
                 </div>
@@ -2103,102 +2127,112 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
           </>}
 
           {/* Proposta Financeira */}
-          {temOrc && <>
+          {temOrc && (()=>{
+            const cpSel = p3.cp ? parseInt(p3.cp) : null;
+            const tCFiltrado = cpSel ? tC.filter(r=>r.n===1||r.n===cpSel) : tC;
+            return (<>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
-            {entrada && entradaValor2 > 0 && (
-              <div style={{padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:12}}>
-                <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Condições de Pagamento</div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
-                  <span style={{color:GOLD_DARK,fontWeight:700}}>Entrada</span>
+
+            {/* Valor — UMA linha, sem duplicar */}
+            <div style={{padding:"10px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:10}}>
+              {dp>0
+                ?<div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+                    <span style={{fontSize:12,color:"#9A8060",textDecoration:"line-through"}}>{fmt2(vB)}</span>
+                    <div><span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span><span style={{fontSize:10,color:GOLD_DARK,marginLeft:6}}>({dp}% de desconto)</span></div>
+                  </div>
+                :<span style={{fontSize:13,fontWeight:600,color:GOLD_DARK}}>Investimento: {fmt2(vB)}</span>
+              }
+            </div>
+
+            {/* Entrada */}
+            {entrada && entradaValor2>0 && (
+              <div style={{padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
+                  <span style={{color:GOLD_DARK,fontWeight:600}}>Entrada</span>
                   <span style={{color:GOLD_DARK,fontWeight:700}}>{fmt2(entradaValor2)}{entradaTipo==="pct"?" ("+entradaVal+"%)":""}</span>
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}>
-                  <span style={{color:"#5C4A2A"}}>{saldoTipo==="entrega"?"Saldo na entrega do trabalho":"Saldo a parcelar"}</span>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
+                  <span style={{color:"#9A8060"}}>{saldoTipo==="entrega"?"Saldo na entrega":"Saldo a parcelar"}</span>
                   <span style={{color:"#1C1410",fontWeight:600}}>{fmt2(saldo2)}</span>
                 </div>
               </div>
             )}
-            {dp>0 && <div style={{display:"flex",justifyContent:"space-between",padding:"10px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:10}}>
-              <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vB)}</span>
-              <span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>Com {dp}% de desconto: {fmt2(vF)}</span>
-            </div>}
-            {!dp && <div style={{padding:"10px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:10,fontSize:13,fontWeight:600,color:GOLD_DARK}}>Valor: {fmt2(vB)}</div>}
+
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {/* Grupo à vista */}
+              {/* À vista — sem emojis, elegante */}
               {(()=>{
-                const tP=fc.includes("pix"),tD=fc.includes("dinheiro"),tBA=fc.includes("boleto")&&bm==="avista",tDe=fc.includes("debito");
-                const gr=[tP,tD,tBA,tDe].filter(Boolean).length>=2;
-                if(!gr) return null;
-                const ic=[tP&&"⚡",tD&&"💵",tBA&&"📄",tDe&&"💳"].filter(Boolean).join("");
-                const lb=[tP&&"PIX",tD&&"Dinheiro",tBA&&"Boleto",tDe&&"Débito"].filter(Boolean).join(" · ");
+                const formasAv=["pix","dinheiro","debito"].filter(id=>fc.includes(id));
+                const bolAv=fc.includes("boleto")&&bm==="avista";
+                const todas=[...formasAv,...(bolAv?["boleto"]:[])];
+                if(!todas.length) return null;
+                const nomes={pix:"PIX",dinheiro:"Dinheiro",debito:"Cartão de débito",boleto:"Boleto"};
+                const lb=todas.map(id=>nomes[id]).join(" · ");
                 return(<div style={{display:"flex",alignItems:"stretch",border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                  <div style={{width:4,background:GOLD,flexShrink:0}}/><div style={{flex:1,padding:"11px 14px"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}><span>{ic}</span><span style={{fontSize:13,fontWeight:700,color:"#1C1410"}}>{lb}</span></div>
-                    {dp>0?<><div style={{fontSize:12,color:"#9A8060"}}>{fmt2(vB)} à vista</div><div style={{fontSize:12,fontWeight:700,color:GOLD_DARK}}>Com {dp}%: {fmt2(vF)}</div></>
-                    :<div style={{fontSize:13,fontWeight:600,color:GOLD_DARK}}>{fmt2(vF)} à vista</div>}
-                  </div>
-                </div>);
-              })()}
-              {/* Crédito */}
-              {fc.includes("credito")&&<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                <div style={{borderLeft:"4px solid "+GOLD}}>
-                  <div style={{padding:"11px 14px 7px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",gap:7,background:"#fff"}}>
-                    <span style={{fontSize:14}}>💳</span><span style={{fontSize:13,fontWeight:700,color:"#1C1410"}}>Cartão de crédito</span>
-                    {nic>0&&<span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 7px",borderRadius:10}}>até {nic}x sem juros</span>}
-                  </div>
-                  {tC.map((r,i)=>{const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;return(
-                    <div key={r.n} style={{display:"grid",gridTemplateColumns:"46px 1fr 1fr",padding:"6px 14px",background:i%2===0?"#fff":CREAM,borderBottom:i<tC.length-1?"1px solid "+BORDER:"none"}}>
-                      <span style={{fontSize:11,fontWeight:700,color:"#1C1410"}}>{r.n===1?"À vista":r.n+"x"}{r.n===18?" *":""}</span>
-                      <span style={{fontSize:11,color:GOLD_DARK,fontWeight:600}}>{r.n===1?fmt2(vB):fmt2(p)}</span>
-                      <span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:r.juros>0&&!sj?"#9A8060":"#9A8060"}}>{r.n===1?"—":sj?"sem juros":"total "+fmt2(t)}</span>
-                    </div>);})}
-                  <div style={{padding:"5px 14px",fontSize:8.5,color:"#9A8060",background:"#fff"}}>* 18x apenas Visa PagBank</div>
-                </div>
-              </div>}
-              {/* Boleto parcelado */}
-              {fc.includes("boleto")&&bm==="parcelado"&&(()=>{
-                const nl=bj==="sem_juros"?nb:bj==="com_juros"?0:parseInt(bi)||0;
-                const ls=Array.from({length:nb},(_,i)=>{const n=i+1,sj=n<=nl,pc=bj==="combinado"?Math.max(0,n-nl):sj?0:n,t=sj?creditoBaseRel:creditoBaseRel*(1+0.012*pc);return{n,p:n===1?creditoBaseRel:t/n,sj,t:n===1?creditoBaseRel:t};});
-                return(<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                  <div style={{borderLeft:"4px solid "+GOLD}}>
-                    <div style={{padding:"11px 14px 7px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",gap:7,background:"#fff"}}><span style={{fontSize:14}}>📄</span><span style={{fontSize:13,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</span></div>
-                    {ls.map((l,i)=><div key={l.n} style={{display:"grid",gridTemplateColumns:"46px 1fr 1fr",padding:"6px 14px",background:i%2===0?"#fff":CREAM,borderBottom:i<ls.length-1?"1px solid "+BORDER:"none"}}>
-                      <span style={{fontSize:11,fontWeight:700,color:"#1C1410"}}>{l.n===1?"À vista":l.n+"x"}</span>
-                      <div><div style={{fontSize:11,color:GOLD_DARK,fontWeight:600}}>{fmt2(l.n===1?vB:l.p)}</div>{l.n===1&&dp>0&&<div style={{fontSize:10,color:GOLD_DARK,fontWeight:700}}>Com {dp}%: {fmt2(vF)}</div>}</div>
-                      <span style={{fontSize:10,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.n===1?"—":l.sj||bj==="sem_juros"?"sem juros":"total "+fmt2(l.t)}</span>
-                    </div>)}
+                  <div style={{width:3,background:GOLD,flexShrink:0}}/>
+                  <div style={{flex:1,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{lb}</div>
+                      {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060",marginTop:1}}>Taxa 1,99% PagBank no débito</div>}
+                    </div>
+                    <span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span>
                   </div>
                 </div>);
               })()}
 
-                    {FORMAS.filter(f=>fc.includes(f.id)).map(f=>{
-                      if(f.id==="credito") return null;
-                      const mav=[fc.includes("pix"),fc.includes("dinheiro"),fc.includes("boleto")&&bm==="avista",fc.includes("debito")].filter(Boolean).length>=2;
-                      if(mav&&(f.id==="pix"||f.id==="dinheiro"||f.id==="debito")) return null;
-                      if(mav&&f.id==="boleto"&&bm==="avista") return null;
-                      if(f.id==="boleto"&&bm==="parcelado") return null;
-                      let l1="",l2="";
-                      if(f.id==="dinheiro"||f.id==="pix"){l1=dp>0?fmt2(vB)+" à vista":fmt2(vF)+" à vista";if(dp>0)l2="Com "+dp+"% de desconto: "+fmt2(vF);}
-                      else if(f.id==="debito"){l1=dp>0?fmt2(vB)+" à vista":fmt2(vF)+" à vista";l2=(dp>0?"Com "+dp+"% de desconto: "+fmt2(vF)+" · ":"")+"Taxa "+f.taxa+"% PagBank";}
-                      else if(f.id==="boleto"&&bm==="avista"){l1=dp>0?fmt2(vB)+" à vista":fmt2(vF)+" à vista";if(dp>0)l2="Com "+dp+"% de desconto: "+fmt2(vF);}
-                      if(!l1) return null;
-                      return(<div key={f.id} style={{display:"flex",alignItems:"stretch",border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                        <div style={{width:4,background:GOLD,flexShrink:0}}/>
-                        <div style={{flex:1,padding:"11px 14px"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
-                            <span style={{fontSize:14}}>{f.icon}</span>
-                            <span style={{fontSize:13,fontWeight:700,color:"#1C1410"}}>{f.label}</span>
-                          </div>
-                          {dp>0&&l2&&!l2.includes("Taxa")?<><div style={{fontSize:12,color:"#9A8060"}}>{l1}</div><div style={{fontSize:12,fontWeight:700,color:GOLD_DARK}}>{l2}</div></>
-                          :<><div style={{fontSize:13,fontWeight:600,color:GOLD_DARK}}>{l1}</div>{l2&&<div style={{fontSize:10,color:"#9A8060",marginTop:2}}>{l2}</div>}</>}
-                        </div>
-                      </div>);
-                    })}
+              {/* Cartão de crédito — colunas compactas */}
+              {fc.includes("credito")&&<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
+                <div style={{borderLeft:"3px solid "+GOLD}}>
+                  <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",gap:8,background:"#fff"}}>
+                    <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Cartão de crédito</span>
+                    {nic>0&&<span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 6px",borderRadius:8}}>até {nic}x sem juros</span>}
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"44px 1fr 1fr",padding:"5px 14px",background:"#F5F2EC"}}>
+                    {["Parc.","Valor/mês","Obs."].map(h=><span key={h} style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>{h}</span>)}
+                  </div>
+                  {tCFiltrado.map((r,i)=>{
+                    const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;
+                    return(<div key={r.n} style={{display:"grid",gridTemplateColumns:"44px 1fr 1fr",padding:"6px 14px",background:i%2===0?"#fff":CREAM,borderBottom:i<tCFiltrado.length-1?"1px solid "+BORDER:"none"}}>
+                      <span style={{fontSize:11,fontWeight:700,color:"#1C1410"}}>{r.n===1?"À vista":r.n+"x"}{r.n===18?" *":""}</span>
+                      <span style={{fontSize:11,color:GOLD_DARK,fontWeight:600}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>
+                      <span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"—":sj?"sem juros":"total "+fmt2(t)}</span>
+                    </div>);
+                  })}
+                  <div style={{padding:"5px 14px",fontSize:8.5,color:"#9A8060",background:"#fff"}}>* 18x apenas Visa PagBank</div>
+                </div>
+              </div>}
+
+              {/* Boleto parcelado — colunas compactas */}
+              {fc.includes("boleto")&&bm==="parcelado"&&(()=>{
+                const nl=bj==="sem_juros"?nb:bj==="com_juros"?0:parseInt(bi)||0;
+                const bBase=creditoBaseRel;
+                const ls=Array.from({length:nb},(_,i)=>{
+                  const n=i+1,sj=n<=nl,pc=bj==="combinado"?Math.max(0,n-nl):sj?0:n;
+                  const t=sj?bBase:bBase*(1+0.012*pc);
+                  return{n,p:t/n,sj,t};
+                });
+                return(<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
+                  <div style={{borderLeft:"3px solid "+GOLD}}>
+                    <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,background:"#fff"}}>
+                      <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</span>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"44px 1fr 1fr",padding:"5px 14px",background:"#F5F2EC"}}>
+                      {["Parc.","Valor/mês","Obs."].map(h=><span key={h} style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>{h}</span>)}
+                    </div>
+                    {ls.map((l,i)=>(
+                      <div key={l.n} style={{display:"grid",gridTemplateColumns:"44px 1fr 1fr",padding:"6px 14px",background:i%2===0?"#fff":CREAM,borderBottom:i<ls.length-1?"1px solid "+BORDER:"none"}}>
+                        <span style={{fontSize:11,fontWeight:700,color:"#1C1410"}}>{l.n+"x"}</span>
+                        <span style={{fontSize:11,color:GOLD_DARK,fontWeight:600}}>{fmt2(l.p)}</span>
+                        <span style={{fontSize:10,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"sem juros":"total "+fmt2(l.t)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>);
+              })()}
             </div>
-          </>}
+          </>);})()}
 
           {/* Rodapé */}
           <div style={{borderTop:"1px solid "+BORDER,marginTop:22,paddingTop:14,fontSize:10,color:"#9A8060",fontStyle:"italic",textAlign:"center"}}>
