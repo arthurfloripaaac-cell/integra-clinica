@@ -71,6 +71,46 @@ function formatCpf(v) {
 function P1({data, setData}) {
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = data;
 
+  const [equipe, setEquipe] = React.useState(EQUIPE);
+  const [gerenciandoEquipe, setGerenciandoEquipe] = React.useState(false);
+  const [novoMembro, setNovoMembro] = React.useState({nome:"", area:""});
+  const [adicionandoMembro, setAdicionandoMembro] = React.useState(false);
+
+  // Carregar equipe persistente
+  useEffect(()=>{
+    try {
+      const saved = JSON.parse(localStorage.getItem("integra_equipe")||"[]");
+      if(saved.length>0) setEquipe(saved);
+    } catch(e){}
+  },[]);
+
+  const salvarEquipe = (novaEquipe) => {
+    setEquipe(novaEquipe);
+    try { localStorage.setItem("integra_equipe", JSON.stringify(novaEquipe)); } catch(e){}
+  };
+
+  const adicionarMembro = () => {
+    if(!novoMembro.nome.trim()) return;
+    const novo = {nome:novoMembro.nome.trim(), area:novoMembro.area.trim()||"Clínica Geral"};
+    const nova = [...equipe, novo];
+    salvarEquipe(nova);
+    setNovoMembro({nome:"", area:""});
+    setAdicionandoMembro(false);
+    set("responsavel", novo.nome);
+  };
+
+  const removerMembro = (idx) => {
+    const nova = equipe.filter((_,i)=>i!==idx);
+    salvarEquipe(nova);
+    if(responsavel===equipe[idx].nome) set("responsavel", nova[0]?.nome||"");
+  };
+
+  const editarMembro = (idx, campo, valor) => {
+    const nova = equipe.map((p,i)=>i===idx?{...p,[campo]:valor}:p);
+    salvarEquipe(nova);
+    if(campo==="nome" && responsavel===equipe[idx].nome) set("responsavel", valor);
+  };
+
   useEffect(() => {
     if (!dataNasc) { setData(p=>({...p,idade:"",isMinor:false})); return; }
     const nasc = new Date(dataNasc), hoje = new Date();
@@ -117,14 +157,41 @@ function P1({data, setData}) {
         )}
         <div style={{borderTop:"1px solid "+BORDER, marginTop:4, paddingTop:16}}>
           <div style={{fontSize:9, letterSpacing:2, textTransform:"uppercase", color:GOLD_DARK, fontWeight:700, marginBottom:12}}>Dados da Consulta</div>
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
+          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:8}}>
             <Field label="Data da consulta"><input style={inp} type="date" value={dataConsulta} onChange={e=>set("dataConsulta",e.target.value)}/></Field>
             <Field label="Responsável clínico">
               <select style={sel} value={responsavel} onChange={e=>set("responsavel",e.target.value)}>
-                {EQUIPE.map(p=><option key={p.nome} value={p.nome}>{p.nome} — {p.area}</option>)}
+                {equipe.map(p=><option key={p.nome} value={p.nome}>{p.nome} — {p.area}</option>)}
               </select>
             </Field>
           </div>
+          <div onClick={()=>setGerenciandoEquipe(!gerenciandoEquipe)} style={{fontSize:10,color:gerenciandoEquipe?GOLD_DARK:"#9A8060",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,padding:"3px 8px",border:"1px solid "+(gerenciandoEquipe?GOLD:BORDER),borderRadius:20,marginBottom:gerenciandoEquipe?12:0}}>
+            {gerenciandoEquipe?"✓ Concluir":"✎ Gerenciar equipe clínica"}
+          </div>
+          {gerenciandoEquipe&&(
+            <div style={{padding:"12px 14px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3,marginTop:8}}>
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:10}}>
+                {equipe.map((p,i)=>(
+                  <div key={i} style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <input style={{flex:1,padding:"6px 8px",border:"1px solid "+GOLD,borderRadius:2,fontSize:12,fontWeight:600,color:GOLD_DARK,background:GOLD_PALE,outline:"none",fontFamily:"inherit"}} value={p.nome} onChange={e=>editarMembro(i,"nome",e.target.value)} placeholder="Nome"/>
+                    <input style={{flex:1,padding:"6px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,color:"#5C4A2A",background:"#fff",outline:"none",fontFamily:"inherit"}} value={p.area} onChange={e=>editarMembro(i,"area",e.target.value)} placeholder="Especialidade"/>
+                    <div onClick={()=>removerMembro(i)} style={{fontSize:10,color:"#9A8060",cursor:"pointer",padding:"4px 8px",border:"1px solid "+BORDER,borderRadius:2,flexShrink:0}}>✕</div>
+                  </div>
+                ))}
+              </div>
+              {!adicionandoMembro?(
+                <div onClick={()=>setAdicionandoMembro(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"8px",border:"1.5px dashed "+BORDER,borderRadius:2,cursor:"pointer",color:GOLD_DARK,fontSize:11,fontWeight:600}}>+ Novo membro</div>
+              ):(
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <input style={{flex:1,padding:"7px 8px",border:"1px solid "+GOLD,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit"}} value={novoMembro.nome} onChange={e=>setNovoMembro(p=>({...p,nome:e.target.value}))} placeholder="Nome completo" autoFocus/>
+                  <input style={{flex:1,padding:"7px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,outline:"none",fontFamily:"inherit"}} value={novoMembro.area} onChange={e=>setNovoMembro(p=>({...p,area:e.target.value}))} placeholder="Especialidade"/>
+                  <div onClick={adicionarMembro} style={{padding:"7px 12px",background:GOLD,color:"#fff",borderRadius:2,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0}}>+ Add</div>
+                  <div onClick={()=>{setAdicionandoMembro(false);setNovoMembro({nome:"",area:""}); }} style={{padding:"7px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,cursor:"pointer",color:"#9A8060",flexShrink:0}}>✕</div>
+                </div>
+              )}
+              <div style={{fontSize:9,color:"#9A8060",marginTop:8}}>✦ Alterações salvas automaticamente.</div>
+            </div>
+          )}
         </div>
       </Card>
     </div>
@@ -406,6 +473,36 @@ const FORMAS = [
   {id:"credito",label:"Cartão de crédito",icon:"💳",taxa:4.99},
 ];
 
+// ─── PLANOS PAGSEGURO ────────────────────────────
+// Atualizado em: 27/04/2026 — conferido no app PagBank
+const PLANOS_PAGSEGURO = {
+  hora: {
+    label:"Na hora", descricao:"Recebimento imediato",
+    taxaVista:4.99, taxaParc:5.59, jurosMes:3.49,
+    clientePagaJuros:false, badge:"Antecipado",
+  },
+  dias14: {
+    label:"14 dias", descricao:"Plano atual da clínica",
+    taxaVista:3.99, taxaParc:4.59, jurosMes:2.99,
+    clientePagaJuros:true, badge:"Plano atual",
+  },
+};
+
+function calcCreditoHora(valor,n) {
+  const taxa=valor*0.0499, liq=valor-taxa;
+  if(n===1) return {parcela:valor,total:valor,totalCliente:valor,liquido:liq,taxa,juros:0};
+  const i=0.0349, pmt=valor*i/(1-Math.pow(1+i,-n)), total=pmt*n;
+  return {parcela:pmt,total,totalCliente:total,liquido:liq,taxa,juros:total-valor};
+}
+
+function calcCredito14dias(valor,n) {
+  const taxaInt=valor*0.0459, liq=valor-taxaInt;
+  if(n===1) {const tc=valor*(1+0.0399);return {parcela:tc,total:tc,totalCliente:tc,liquido:liq,taxa:taxaInt,juros:0};}
+  const i=0.0299, base=valor*(1+0.0459);
+  const pmt=base*i/(1-Math.pow(1+i,-n)), total=pmt*n;
+  return {parcela:pmt,total,totalCliente:total,liquido:liq,taxa:taxaInt,juros:total-valor};
+}
+
 function calcCredito(valor,n) {
   const taxa=valor*0.0499,liq=valor-taxa;
   if(n===1) return{parcela:valor,total:valor,liquido:liq,taxa,juros:0};
@@ -413,7 +510,47 @@ function calcCredito(valor,n) {
   return{parcela:pmt,total,liquido:liq,taxa,juros:total-valor};
 }
 
+
+function VerificadorTaxas({plano}) {
+  const [status, setStatus] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  const verificar = async () => {
+    setStatus("checking"); setMsg("");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",max_tokens:300,
+          system:"Verifique taxas PagBank crédito parcelado. Responda SOMENTE JSON: {taxaVista_hora,taxaParc_hora,taxaVista_14,taxaParc_14,juros_14,mudou,data}. Compare: hora={4.99%,5.59%,3.49%am}, 14dias={3.99%,4.59%,2.99%am}. Se mudou=true, descreva em campo 'diff'.",
+          messages:[{role:"user",content:"Taxas atuais PagBank maquininha crédito parcelado 2026?"}]
+        })
+      });
+      const d = await res.json();
+      const txt = d.content.filter(b=>b.type==="text").map(b=>b.text).join("").trim();
+      const j = JSON.parse(txt.replace(/```json|```/g,"").trim());
+      if(j.mudou) {setStatus("alerta");setMsg("⚠️ Taxas mudaram! "+JSON.stringify(j.diff||j));}
+      else {setStatus("ok");setMsg("✓ Taxas verificadas em "+j.data+". Sem alterações.");}
+    } catch(e) {setStatus("erro");setMsg("Erro ao verificar. Cheque manualmente no app PagBank.");}
+  };
+
+  return (
+    <div style={{marginTop:12,padding:"10px 14px",background:status==="alerta"?"rgba(229,115,115,0.06)":CREAM,border:"1px solid "+(status==="alerta"?"#E57373":status==="ok"?"#4CAF50":BORDER),borderRadius:3}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Taxas PagBank</div>
+        <div onClick={status==="checking"?null:verificar} style={{fontSize:10,color:GOLD_DARK,cursor:"pointer",padding:"3px 10px",border:"1px solid "+GOLD,borderRadius:20,opacity:status==="checking"?0.5:1}}>
+          {status==="checking"?"Verificando...":"🔄 Verificar agora"}
+        </div>
+      </div>
+      {msg&&<div style={{fontSize:10,marginTop:6,color:status==="alerta"?"#C62828":status==="ok"?"#2E7D32":"#9A8060"}}>{msg}</div>}
+      <div style={{fontSize:9,color:"#9A8060",marginTop:4}}>Plano atual: {plano==="dias14"?"14 dias (3.99% / 4.59%)":"Na hora (4.99% / 5.59%)"}</div>
+    </div>
+  );
+}
+
 function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo}) {
+  const [plano, setPlano] = React.useState("dias14");
 
   const descPct=descSel===-1?(parseFloat(descCustom)||0):descSel;
   const valorBase=parseFloat(String(valorBruto).replace(",","."))||0;
@@ -431,7 +568,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
   const creditoBase=(entrada&&entradaValor>0&&saldoTipo==="parcelado")?saldo:valorBase;
   const tabelaCredito=useMemo(()=>{
     if(creditoBase<=0) return[];
-    return[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>({n,...calcCredito(creditoBase,n)}));
+    return[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>({n,...calcCredito(creditoBase,n,plano)}));
   },[creditoBase]);
 
   const creditoParcObj=creditoParc?tabelaCredito.find(r=>r.n===creditoParc):null;
@@ -738,6 +875,23 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
           {formaAtiva==="credito"&&valorBase>0&&(
             <div style={{marginTop:14,padding:"14px 16px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
               {descPct>0&&<div style={{marginBottom:12,padding:"8px 12px",background:"#FFF8DC",border:"1px solid #FFD700",borderRadius:3,fontSize:11,color:"#7A6020"}}>⚠️ Desconto não se aplica ao crédito — valor: {fmt(valorBase)}</div>}
+              {/* Toggle plano PagSeguro */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Plano PagBank</div>
+                <div style={{display:"flex",gap:6,marginBottom:8}}>
+                  {Object.entries(PLANOS_PAGSEGURO).map(([key,p])=>(
+                    <div key={key} onClick={()=>setPlano(key)} style={{flex:1,padding:"10px 12px",borderRadius:3,cursor:"pointer",border:"2px solid "+(plano===key?GOLD_DARK:BORDER),background:plano===key?GOLD_PALE:"#fff"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                        <div style={{width:8,height:8,borderRadius:"50%",background:plano===key?GOLD:"#ccc",flexShrink:0}}/>
+                        <span style={{fontSize:11,fontWeight:700,color:plano===key?GOLD_DARK:"#5C4A2A"}}>{p.label}</span>
+                        {key==="dias14"&&<span style={{fontSize:7,background:GOLD,color:"#fff",padding:"1px 5px",borderRadius:8,fontWeight:700}}>ATUAL</span>}
+                      </div>
+                      <div style={{fontSize:9,color:"#9A8060",paddingLeft:14}}>{p.clientePagaJuros?"Cliente paga juros":"Você absorve juros"} · {p.jurosMes}% a.m.</div>
+                    </div>
+                  ))}
+                </div>
+                <VerificadorTaxas plano={plano}/>
+              </div>
               <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Parcelas sem juros para o paciente</div>
               <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:16}}>
                 <span style={{fontSize:11,color:"#5C4A2A"}}>Até</span>
