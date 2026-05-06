@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 // v5.0 - procedimentos editáveis + paleta clínica no relatório
 
 // ─── PALETA ───────────────────────────────────────
