@@ -784,6 +784,230 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
   );
 }
 
+// ─── MÓDULO DE ARQUIVO DE RELATÓRIOS ─────────────────────────────────────────
+
+const STORAGE_KEY = "integra_relatorios_v1";
+
+function salvarRelatorio(p1, p2, p3, p4State) {
+  const relatorios = carregarRelatorios();
+  const novo = {
+    id: Date.now(),
+    data: new Date().toISOString(),
+    paciente: p1.nome || "Sem nome",
+    cpf: p1.cpf || "",
+    telefone: p1.telefone || "",
+    dataNasc: p1.dataNasc || "",
+    responsavel: p1.responsavel || "",
+    dataConsulta: p1.dataConsulta || "",
+    achados: Object.entries(p2.achadosDente || {}).filter(([,v])=>Object.values(v).some(Boolean)).length,
+    procedimentos: [...(p4State?.itens||[]).filter(it=>it.ativo), ...(p4State?.customProcs||[]).filter(it=>it.ativo)].map(it=>{
+      const proc = (p4State?.procsBase||PROC_BASE).find(p=>p.id===it.id) || {nome:it.nome||it.id};
+      return proc.nome;
+    }),
+    valorTotal: parseFloat(p3.vb)||0,
+    desconto: p3.ds||0,
+    formas: p3.fc||[],
+    temEntrada: p3.entrada||false,
+  };
+  relatorios.unshift(novo);
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,500))); } catch(e){}
+  return novo;
+}
+
+function carregarRelatorios() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]"); } catch(e){ return []; }
+}
+
+function excluirRelatorio(id) {
+  const lista = carregarRelatorios().filter(r=>r.id!==id);
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lista)); } catch(e){}
+}
+
+function Arquivo() {
+  const [lista, setLista] = useState([]);
+  const [busca, setBusca] = useState("");
+  const [filtroProcedimento, setFiltroProcedimento] = useState("");
+  const [filtroForma, setFiltroForma] = useState("");
+  const [filtroData, setFiltroData] = useState({de:"", ate:""});
+  const [filtroValor, setFiltroValor] = useState({min:"", max:""});
+  const [expandido, setExpandido] = useState(null);
+  const [confirmExcluir, setConfirmExcluir] = useState(null);
+
+  useEffect(()=>{ setLista(carregarRelatorios()); }, []);
+
+  const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
+  const fmt2 = v => "R$ "+(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  // Todos os procedimentos e formas únicos para filtros
+  const todosProcedimentos = [...new Set(lista.flatMap(r=>r.procedimentos||[]))].sort();
+  const todasFormas = [...new Set(lista.flatMap(r=>r.formas||[]))].sort();
+
+  const filtrados = lista.filter(r => {
+    if (busca && !r.paciente.toLowerCase().includes(busca.toLowerCase()) && !r.cpf.includes(busca) && !r.telefone.includes(busca)) return false;
+    if (filtroProcedimento && !(r.procedimentos||[]).includes(filtroProcedimento)) return false;
+    if (filtroForma && !(r.formas||[]).includes(filtroForma)) return false;
+    if (filtroData.de && r.dataConsulta < filtroData.de) return false;
+    if (filtroData.ate && r.dataConsulta > filtroData.ate) return false;
+    if (filtroValor.min && r.valorTotal < parseFloat(filtroValor.min)) return false;
+    if (filtroValor.max && r.valorTotal > parseFloat(filtroValor.max)) return false;
+    return true;
+  });
+
+  // Estatísticas dos filtrados
+  const stats = {
+    total: filtrados.length,
+    valorMedio: filtrados.length ? filtrados.reduce((a,r)=>a+r.valorTotal,0)/filtrados.length : 0,
+    valorTotal: filtrados.reduce((a,r)=>a+r.valorTotal,0),
+    comEntrada: filtrados.filter(r=>r.temEntrada).length,
+  };
+
+  const limparFiltros = () => { setBusca(""); setFiltroProcedimento(""); setFiltroForma(""); setFiltroData({de:"",ate:""}); setFiltroValor({min:"",max:""}); };
+  const temFiltro = busca||filtroProcedimento||filtroForma||filtroData.de||filtroData.ate||filtroValor.min||filtroValor.max;
+
+  if (lista.length === 0) return (
+    <div style={{maxWidth:640,margin:"0 auto",padding:"20px 16px 40px"}}>
+      <Card>
+        <div style={{textAlign:"center",padding:"40px 0",color:"#9A8060"}}>
+          <div style={{fontSize:32,marginBottom:12}}>📁</div>
+          <div style={{fontSize:13,fontWeight:600,marginBottom:6}}>Nenhum relatório arquivado</div>
+          <div style={{fontSize:11}}>Salve um atendimento pelo Relatório para aparecer aqui.</div>
+        </div>
+      </Card>
+    </div>
+  );
+
+  return (
+    <div style={{maxWidth:680,margin:"0 auto",padding:"20px 16px 40px"}}>
+
+      {/* Estatísticas */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+        {[
+          ["Atendimentos",stats.total+" de "+lista.length],
+          ["Ticket médio",fmt2(stats.valorMedio)],
+          ["Volume total",fmt2(stats.valorTotal)],
+          ["Com entrada",stats.comEntrada+" ("+Math.round(stats.comEntrada/Math.max(stats.total,1)*100)+"%)"],
+        ].map(([l,v])=>(
+          <div key={l} style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,padding:"12px 14px"}}>
+            <div style={{fontSize:8,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:4}}>{l}</div>
+            <div style={{fontSize:16,fontWeight:700,color:"#1C1410",fontFamily:"Georgia,serif"}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filtros */}
+      <Card style={{marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <SectionTitle>Filtros</SectionTitle>
+          {temFiltro && <div onClick={limparFiltros} style={{fontSize:10,color:GOLD_DARK,cursor:"pointer",padding:"2px 8px",border:"1px solid "+GOLD,borderRadius:20}}>✕ Limpar</div>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <input
+            style={{...{width:"100%",padding:"9px 12px",border:"1px solid "+BORDER,borderRadius:2,fontSize:13,outline:"none",fontFamily:"inherit"}}}
+            placeholder="Buscar por nome, CPF ou telefone..."
+            value={busca} onChange={e=>setBusca(e.target.value)}
+          />
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>
+              <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:4}}>Procedimento</div>
+              <select style={{width:"100%",padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit",cursor:"pointer"}} value={filtroProcedimento} onChange={e=>setFiltroProcedimento(e.target.value)}>
+                <option value="">Todos</option>
+                {todosProcedimentos.map(p=><option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:4}}>Forma de pagamento</div>
+              <select style={{width:"100%",padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit",cursor:"pointer"}} value={filtroForma} onChange={e=>setFiltroForma(e.target.value)}>
+                <option value="">Todas</option>
+                {todasFormas.map(f=><option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>
+              <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:4}}>Data — de</div>
+              <input type="date" style={{width:"100%",padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit"}} value={filtroData.de} onChange={e=>setFiltroData(p=>({...p,de:e.target.value}))}/>
+            </div>
+            <div>
+              <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:4}}>Data — até</div>
+              <input type="date" style={{width:"100%",padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit"}} value={filtroData.ate} onChange={e=>setFiltroData(p=>({...p,ate:e.target.value}))}/>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>
+              <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:4}}>Valor mínimo</div>
+              <input type="number" style={{width:"100%",padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit"}} placeholder="R$ 0" value={filtroValor.min} onChange={e=>setFiltroValor(p=>({...p,min:e.target.value}))}/>
+            </div>
+            <div>
+              <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:4}}>Valor máximo</div>
+              <input type="number" style={{width:"100%",padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit"}} placeholder="R$ ∞" value={filtroValor.max} onChange={e=>setFiltroValor(p=>({...p,max:e.target.value}))}/>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Lista */}
+      {filtrados.length === 0 ? (
+        <Card><div style={{textAlign:"center",padding:20,color:"#9A8060",fontSize:12}}>Nenhum resultado para os filtros aplicados.</div></Card>
+      ) : (
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {filtrados.map(r=>(
+            <div key={r.id} style={{background:"#fff",border:"1px solid "+(expandido===r.id?GOLD:BORDER),borderRadius:4,overflow:"hidden"}}>
+              <div onClick={()=>setExpandido(expandido===r.id?null:r.id)} style={{display:"flex",alignItems:"center",padding:"14px 16px",cursor:"pointer",borderLeft:"4px solid "+(expandido===r.id?GOLD:BORDER)}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#1C1410"}}>{r.paciente}</div>
+                  <div style={{fontSize:10,color:"#9A8060",marginTop:2}}>{dataFmt(r.dataConsulta)} · {r.responsavel?.split(" ").slice(0,3).join(" ")}</div>
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(r.valorTotal)}</div>
+                  <div style={{fontSize:10,color:"#9A8060",marginTop:2}}>{(r.procedimentos||[]).length} proc.</div>
+                </div>
+                <div style={{marginLeft:12,color:GOLD_DARK,fontSize:12}}>{expandido===r.id?"▲":"▼"}</div>
+              </div>
+              {expandido===r.id&&(
+                <div style={{padding:"14px 16px",borderTop:"1px solid "+BORDER,background:CREAM}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                    {[["CPF",r.cpf||"—"],["Telefone",r.telefone||"—"],["Nascimento",dataFmt(r.dataNasc)],["Consulta",dataFmt(r.dataConsulta)]].map(([l,v])=>(
+                      <div key={l} style={{padding:"8px 10px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3}}>
+                        <div style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:2}}>{l}</div>
+                        <div style={{fontSize:11,color:"#1C1410"}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {(r.procedimentos||[]).length>0&&(
+                    <div style={{marginBottom:10}}>
+                      <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:6}}>Procedimentos</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                        {r.procedimentos.map((p,i)=><span key={i} style={{fontSize:10,padding:"3px 10px",background:GOLD_PALE,border:"1px solid "+GOLD_LIGHT,borderRadius:20,color:GOLD_DARK}}>{p}</span>)}
+                      </div>
+                    </div>
+                  )}
+                  {(r.formas||[]).length>0&&(
+                    <div style={{marginBottom:10}}>
+                      <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:6}}>Pagamento</div>
+                      <div style={{fontSize:11,color:"#5C4A2A"}}>{r.formas.join(" · ")}{r.temEntrada?" · com entrada":""}</div>
+                    </div>
+                  )}
+                  <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
+                    {confirmExcluir===r.id?(
+                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                        <span style={{fontSize:11,color:"#9A8060"}}>Confirmar exclusão?</span>
+                        <div onClick={()=>{excluirRelatorio(r.id);setLista(carregarRelatorios());setConfirmExcluir(null);setExpandido(null);}} style={{fontSize:11,padding:"4px 10px",background:"#9A8060",color:"#fff",borderRadius:2,cursor:"pointer"}}>Excluir</div>
+                        <div onClick={()=>setConfirmExcluir(null)} style={{fontSize:11,padding:"4px 10px",border:"1px solid "+BORDER,borderRadius:2,cursor:"pointer",color:"#5C4A2A"}}>Cancelar</div>
+                      </div>
+                    ):(
+                      <div onClick={()=>setConfirmExcluir(r.id)} style={{fontSize:10,color:"#9A8060",cursor:"pointer",padding:"3px 8px",border:"1px solid "+BORDER,borderRadius:2}}>✕ Excluir</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── APP PRINCIPAL ────────────────────────────────
 const p1Initial = {
   nome:"João da Silva",
@@ -1554,7 +1778,7 @@ const ACHADOS_MAP = {gengivite:"Gengivite",carie_ativa:"Cárie ativa",suspeita_c
 const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FFB74D",perda_ossea:"#7986CB",retracao:"#F06292",desgaste:"#4DB6AC",erosao:"#81C784",fratura:"#FF8A65",ausente:"#90A4AE"};
 
 // v3.0
-function Relatorio({p1,p2,p3,p4State}) {
+function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
   const {achadosDente={},obsTexto=""} = p2;
   const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado"} = p3;
@@ -1600,13 +1824,22 @@ function Relatorio({p1,p2,p3,p4State}) {
   return (
     <div style={{maxWidth:680,margin:"0 auto",padding:"20px 16px 40px"}}>
       <div style={{marginBottom:14,display:"flex",justifyContent:"flex-end"}}>
-        <div onClick={()=>window.print()} style={{
-          display:"flex",alignItems:"center",gap:8,padding:"10px 20px",
-          background:"linear-gradient(135deg,#2C1810,#1A0F08)",
-          color:"#fff",borderRadius:3,cursor:"pointer",fontSize:12,fontWeight:600,
-          boxShadow:"0 2px 8px rgba(0,0,0,0.2)",
-        }}>
-          🖨️ Imprimir / Salvar PDF
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          {onSalvar&&<div onClick={onSalvar} style={{
+            display:"flex",alignItems:"center",gap:8,padding:"10px 20px",
+            background:salvoOk?"#7A6020":"#fff",border:"1px solid "+(salvoOk?GOLD_DARK:BORDER),
+            color:salvoOk?"#fff":GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:12,fontWeight:600,
+          }}>
+            {salvoOk?"✓ Salvo!":"📁 Salvar no Arquivo"}
+          </div>}
+          <div onClick={()=>window.print()} style={{
+            display:"flex",alignItems:"center",gap:8,padding:"10px 20px",
+            background:"linear-gradient(135deg,#2C1810,#1A0F08)",
+            color:"#fff",borderRadius:3,cursor:"pointer",fontSize:12,fontWeight:600,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.2)",
+          }}>
+            🖨️ Imprimir / Salvar PDF
+          </div>
         </div>
       </div>
       <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden"}}>
@@ -1832,6 +2065,7 @@ const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_jur
 
 function App() {
   const [pag, setPag] = useState("p1");
+  const [relatorioSalvo, setRelatorioSalvo] = useState(false);
   const [p1, setP1] = useState(p1Initial);
   const [p2, setP2] = useState(p2Initial);
   const [p3, setP3] = useState(p3Initial);
@@ -1863,13 +2097,15 @@ function App() {
         entradaVal={p3.entradaVal} setEntradaVal={v=>sp3("entradaVal",v)}
         saldoTipo={p3.saldoTipo} setSaldoTipo={v=>sp3("saldoTipo",v)}
       />}
-      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State}/>}
+      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{salvarRelatorio(p1,p2,p3,p4State);setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);}} salvoOk={relatorioSalvo}/>}
+      {pag==="arq"&&<Arquivo/>}
       <nav style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:"#1A0F08",borderTop:"2px solid #2C1810",zIndex:100}}>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p1"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p1"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p1")}>👤 Paciente</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p2"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p2"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p2")}>🦷 Avaliação</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p4"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p4"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p4")}>🗒️ Plano</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p3"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p3"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p3")}>💰 Orçamento</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="rel"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="rel"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("rel")}>📋 Relatório</button>
+        <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
       </nav>
     </div>
   );
