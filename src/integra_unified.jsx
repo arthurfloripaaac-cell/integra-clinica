@@ -1,4 +1,23 @@
 import React, { useState, useEffect, useMemo } from "react";
+// v6.0 - preview simultâneo + persistência + impressão limpa
+
+// CSS de impressão global
+if(typeof document !== "undefined" && !document.getElementById("integra-print-css")) {
+  const _s = document.createElement("style");
+  _s.id = "integra-print-css";
+  _s.textContent = `
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body { margin: 0 !important; background: white !important; }
+      .no-print { display: none !important; }
+      #root > div { padding-bottom: 0 !important; }
+      @page { margin: 1cm; size: A4 portrait; }
+    }
+  `;
+  document.head.appendChild(_s);
+}
+
+
 // v5.0 - procedimentos editáveis + paleta
 
 // ─── NOMES DOS DENTES ───────────────────────────────────────────────────────
@@ -2151,7 +2170,7 @@ const ACHADOS_MAP = {gengivite:"Gengivite",carie_ativa:"Cárie ativa",suspeita_c
 const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FFB74D",perda_ossea:"#7986CB",retracao:"#F06292",desgaste:"#4DB6AC",erosao:"#81C784",fratura:"#FF8A65",ausente:"#90A4AE"};
 
 // v3.0
-function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
+function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
   const {achadosDente={},obsTexto=""} = p2;
   const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true,plano="dias14"} = p3;
@@ -2197,7 +2216,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
   return (
     <div style={{maxWidth:680,margin:"0 auto",padding:"20px 16px 40px"}}>
       <div style={{marginBottom:14,display:"flex",justifyContent:"flex-end"}}>
-        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+        {!isPreview&&<div className="no-print" style={{display:"flex",gap:10,alignItems:"center"}}>
           {onSalvar&&<div onClick={onSalvar} style={{
             display:"flex",alignItems:"center",gap:8,padding:"10px 20px",
             background:salvoOk?"#7A6020":"#fff",border:"1px solid "+(salvoOk?GOLD_DARK:BORDER),
@@ -2213,7 +2232,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
           }}>
             🖨️ Imprimir / Salvar PDF
           </div>
-        </div>
+        </div>}
       </div>
       <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden"}}>
 
@@ -2441,25 +2460,75 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
 }
 
 const p4Initial = {
-  itens: null, // null = use PROC_BASE defaults on first render
+  itens: null,
   customProcs: [],
+  procsBase: null, // null = será carregado do localStorage ou PROC_BASE
 };
 
 const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"3",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true};
 
+function loadPersisted(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; }
+}
+function savePersisted(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+}
+
 function App() {
   const [pag, setPag] = useState("p1");
   const [relatorioSalvo, setRelatorioSalvo] = useState(false);
+  const [previewAberto, setPreviewAberto] = useState(false);
   const [p1, setP1] = useState(p1Initial);
   const [p2, setP2] = useState(p2Initial);
   const [p3, setP3] = useState(p3Initial);
   const sp3 = (k,v) => setP3(prev=>({...prev,[k]:v}));
   const [p4Total, setP4Total] = useState(0);
-  const [p4State, setP4State] = useState(p4Initial);
+  const [p4State, setP4State] = useState(() => loadPersisted("integra_p4config", p4Initial));
+
+  // Salvar p4State (configuração dos procedimentos) sempre que mudar
+  useEffect(() => {
+    // Só salva procsBase e customProcs — não os itens do atendimento atual
+    const toSave = { procsBase: p4State.procsBase };
+    savePersisted("integra_p4config", toSave);
+  }, [p4State.procsBase]);
+
+  const previewProps = {p1, p2, p3, p4State};
 
   return (
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
       <Header/>
+
+      {/* Botão Preview flutuante */}
+      {pag!=="rel"&&(
+        <div className="no-print preview-btn" onClick={()=>setPreviewAberto(!previewAberto)} style={{
+          position:"fixed",bottom:76,right:16,zIndex:200,
+          background:previewAberto?"#2C1810":GOLD,color:"#fff",
+          borderRadius:24,padding:"10px 16px",fontSize:11,fontWeight:700,
+          cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.3)",
+          display:"flex",alignItems:"center",gap:6,letterSpacing:1,
+          textTransform:"uppercase",
+        }}>
+          {previewAberto?"✕ Fechar":"👁 Preview"}
+        </div>
+      )}
+
+      {/* Painel de preview */}
+      {previewAberto&&pag!=="rel"&&(
+        <div className="no-print" style={{
+          position:"fixed",top:0,right:0,width:"min(420px,90vw)",height:"100vh",
+          background:"#fff",boxShadow:"-4px 0 24px rgba(0,0,0,0.15)",
+          zIndex:190,overflowY:"auto",paddingBottom:80,
+        }}>
+          <div style={{padding:"12px 16px",background:"#2C1810",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <span style={{fontSize:11,color:GOLD_LIGHT,fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Preview do Relatório</span>
+            <span onClick={()=>setPreviewAberto(false)} style={{color:"#9A8060",cursor:"pointer",fontSize:16}}>✕</span>
+          </div>
+          <div style={{transform:"scale(0.72)",transformOrigin:"top left",width:"139%",pointerEvents:"none"}}>
+            <Relatorio {...previewProps} isPreview={true}/>
+          </div>
+        </div>
+      )}
+
       {pag==="p1"&&<P1 data={p1} setData={setP1}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State}/>}
@@ -2485,7 +2554,7 @@ function App() {
       />}
       {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{salvarRelatorio(p1,p2,p3,p4State);setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);}} salvoOk={relatorioSalvo}/>}
       {pag==="arq"&&<Arquivo/>}
-      <nav style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:"#1A0F08",borderTop:"2px solid #2C1810",zIndex:100}}>
+      <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:"#1A0F08",borderTop:"2px solid #2C1810",zIndex:100}}>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p1"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p1"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p1")}>👤 Paciente</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p2"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p2"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p2")}>🦷 Avaliação</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p4"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p4"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p4")}>🗒️ Plano</button>
