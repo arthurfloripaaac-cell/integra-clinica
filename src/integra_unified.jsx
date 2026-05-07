@@ -509,42 +509,68 @@ const FORMAS = [
   {id:"credito",label:"Cartão de crédito",icon:"💳",taxa:4.99},
 ];
 
-// ─── PLANOS PAGSEGURO ────────────────────────────
-// Atualizado em: 27/04/2026 — conferido no app PagBank
+// ─── PLANOS PAGSEGURO + CALCULADORA ─────────────
 const PLANOS_PAGSEGURO = {
   hora: {
     label:"Na hora", descricao:"Recebimento imediato",
-    taxaVista:4.99, taxaParc:5.59, jurosMes:3.49,
-    clientePagaJuros:false, badge:"Antecipado",
+    taxaInt:5.59, jurosMes:3.49, badge:"Antecipado",
   },
   dias14: {
     label:"14 dias", descricao:"Plano atual da clínica",
-    taxaVista:3.99, taxaParc:4.59, jurosMes:2.99,
-    clientePagaJuros:true, badge:"Plano atual",
+    taxaInt:4.59, jurosMes:2.99, badge:"Plano atual",
   },
 };
 
-function calcCreditoHora(valor,n) {
-  const taxa=valor*0.0499, liq=valor-taxa;
-  if(n===1) return {parcela:valor,total:valor,totalCliente:valor,liquido:liq,taxa,juros:0};
-  const i=0.0349, pmt=valor*i/(1-Math.pow(1+i,-n)), total=pmt*n;
-  return {parcela:pmt,total,totalCliente:total,liquido:liq,taxa,juros:total-valor};
+// quemPaga: "comprador" = cliente paga os juros (clínica recebe líquido fixo)
+//           "vendedor"  = clínica absorve os juros (cliente paga valor fixo)
+function calcCreditoPlano(valorCobrado, n, plano="hora", quemPaga="comprador") {
+  const p = PLANOS_PAGSEGURO[plano] || PLANOS_PAGSEGURO.hora;
+  const taxaInt = valorCobrado * p.taxaInt / 100;
+  const liq = valorCobrado - taxaInt;
+  if(n===1) return {parcela:valorCobrado,total:valorCobrado,totalCliente:valorCobrado,liquido:liq,taxa:taxaInt,juros:0};
+  const i = p.jurosMes / 100;
+  if(quemPaga==="comprador") {
+    // cliente paga valorCobrado + juros
+    const pmt = valorCobrado * i / (1 - Math.pow(1+i,-n));
+    const total = pmt * n;
+    return {parcela:pmt, total, totalCliente:total, liquido:liq, taxa:taxaInt, juros:total-valorCobrado};
+  } else {
+    // clínica absorve juros: cliente paga valorCobrado/n fixo
+    const pmt = valorCobrado / n;
+    // custo real: clínica recebe valorCobrado mas precisa pagar juros implícitos
+    const fvn = valorCobrado * i * Math.pow(1+i,n) / (Math.pow(1+i,n)-1) * n;
+    const jurosAbsorvido = fvn - valorCobrado;
+    return {parcela:pmt, total:valorCobrado, totalCliente:valorCobrado, liquido:liq-jurosAbsorvido, taxa:taxaInt, juros:0, jurosAbsorvido};
+  }
 }
 
-function calcCredito14dias(valor,n) {
-  const taxaInt=valor*0.0459, liq=valor-taxaInt;
-  if(n===1) {const tc=valor*(1+0.0399);return {parcela:tc,total:tc,totalCliente:tc,liquido:liq,taxa:taxaInt,juros:0};}
-  const i=0.0299, base=valor*(1+0.0459);
-  const pmt=base*i/(1-Math.pow(1+i,-n)), total=pmt*n;
-  return {parcela:pmt,total,totalCliente:total,liquido:liq,taxa:taxaInt,juros:total-valor};
+// Modo "quanto quero receber" — calcula valorCobrado a partir do líquido
+function calcInverso(liqDesejado, n, plano="hora", quemPaga="comprador") {
+  const p = PLANOS_PAGSEGURO[plano] || PLANOS_PAGSEGURO.hora;
+  const i = p.jurosMes / 100;
+  const taxaIntPct = p.taxaInt / 100;
+  if(quemPaga==="comprador") {
+    // líq = cobrado*(1-taxaInt) → cobrado = líq/(1-taxaInt)
+    const cobrado = liqDesejado / (1 - taxaIntPct);
+    return calcCreditoPlano(cobrado, n, plano, quemPaga);
+  } else {
+    // líq = cobrado*(1-taxaInt) - jurosAbsorvido
+    // Aproximação: cobrado ≈ (liq + jurosAbsorvido)/(1-taxaInt)
+    // Iteramos 3x
+    let cobrado = liqDesejado / (1 - taxaIntPct);
+    for(let k=0; k<5; k++) {
+      const r = calcCreditoPlano(cobrado, n, plano, quemPaga);
+      const diff = r.liquido - liqDesejado;
+      cobrado -= diff * 0.9;
+    }
+    return calcCreditoPlano(cobrado, n, plano, quemPaga);
+  }
 }
 
-function calcCredito(valor,n) {
-  const taxa=valor*0.0499,liq=valor-taxa;
-  if(n===1) return{parcela:valor,total:valor,liquido:liq,taxa,juros:0};
-  const i=0.0349,pmt=valor*i/(1-Math.pow(1+i,-n)),total=pmt*n;
-  return{parcela:pmt,total,liquido:liq,taxa,juros:total-valor};
-}
+// Legacy — mantido para compatibilidade
+function calcCreditoHora(valor,n) { return calcCreditoPlano(valor,n,"hora","comprador"); }
+function calcCredito14dias(valor,n) { return calcCreditoPlano(valor,n,"dias14","comprador"); }
+function calcCredito(valor,n) { return calcCreditoPlano(valor,n,"hora","comprador"); }
 
 
 function VerificadorTaxas({plano}) {
@@ -588,6 +614,10 @@ function VerificadorTaxas({plano}) {
 function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno}) {
   const [plano, setPlanoLocal] = React.useState(planoExterno||"dias14");
   const setPlano = (v) => { setPlanoLocal(v); if(setPlanoExterno) setPlanoExterno(v); };
+  const planoAtual = plano;
+  const [quemPaga, setQuemPaga] = React.useState("comprador");
+  const [modoCred, setModoCred] = React.useState("cobrar");
+  const [valorCobrarInput, setValorCobrarInput] = React.useState("");
 
   const descPct=descSel===-1?(parseFloat(descCustom)||0):descSel;
   const valorBase=parseFloat(String(valorBruto).replace(",","."))||0;
@@ -603,10 +633,21 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
   const saldo = entrada ? Math.max(0, valorFinal - entradaValor) : valorFinal;
 
   const creditoBase=(entrada&&entradaValor>0&&saldoTipo==="parcelado")?saldo:valorBase;
+  const baseCredInput = modoCred==="cobrar" || !valorCobrarInput
+    ? creditoBase
+    : parseFloat(String(valorCobrarInput).replace(",","."))||creditoBase;
+
   const tabelaCredito=useMemo(()=>{
-    if(creditoBase<=0) return[];
-    return[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>({n,...calcCredito(creditoBase,n,plano)}));
-  },[creditoBase]);
+    if(baseCredInput<=0) return[];
+    const rows = [1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>{
+      if(modoCred==="receber" && valorCobrarInput) {
+        const r = calcInverso(baseCredInput, n, planoAtual, quemPaga);
+        return {n, ...r};
+      }
+      return {n, ...calcCreditoPlano(baseCredInput, n, planoAtual, quemPaga)};
+    });
+    return rows;
+  },[baseCredInput, planoAtual, quemPaga, modoCred, valorCobrarInput]);
 
   const creditoParcObj=creditoParc?tabelaCredito.find(r=>r.n===creditoParc):null;
 
@@ -925,7 +966,29 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
           {formaAtiva==="credito"&&valorBase>0&&(
             <div style={{marginTop:14,padding:"14px 16px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
               {descPct>0&&<div style={{marginBottom:12,padding:"8px 12px",background:"#FFF8DC",border:"1px solid #FFD700",borderRadius:3,fontSize:11,color:"#7A6020"}}>⚠️ Desconto não se aplica ao crédito — valor: {fmt(valorBase)}</div>}
-              {/* Toggle plano PagSeguro */}
+
+              {/* Modo cobrar / receber */}
+              <div style={{display:"flex",marginBottom:14,border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
+                {[["cobrar","Quanto vou cobrar"],["receber","Quanto quero receber"]].map(([m,l])=>(
+                  <div key={m} onClick={()=>{setModoCred(m);setValorCobrarInput("");}} style={{flex:1,padding:"10px",textAlign:"center",fontSize:11,fontWeight:700,cursor:"pointer",background:modoCred===m?GOLD_DARK:"#fff",color:modoCred===m?"#fff":"#9A8060",transition:"all 0.15s"}}>
+                    {l}
+                  </div>
+                ))}
+              </div>
+
+              {/* Input valor (no modo receber) */}
+              {modoCred==="receber"&&(
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:6}}>Valor líquido que precisa receber</div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:"#fff",border:"1px solid "+GOLD,borderRadius:3}}>
+                    <span style={{fontSize:14,color:GOLD_DARK,fontWeight:700}}>R$</span>
+                    <input style={{flex:1,fontSize:18,fontWeight:700,color:GOLD_DARK,border:"none",outline:"none",background:"transparent",fontFamily:"inherit"}} value={valorCobrarInput} onChange={e=>setValorCobrarInput(e.target.value.replace(/[^0-9,]/g,""))} placeholder="0,00"/>
+                  </div>
+                  {valorCobrarInput&&tabelaCredito[0]&&<div style={{fontSize:10,color:"#9A8060",marginTop:4}}>Para receber {fmt(baseCredInput)}, você cobrará {fmt(tabelaCredito[0].cobrado||tabelaCredito[0].total)} à vista</div>}
+                </div>
+              )}
+
+              {/* Plano PagBank */}
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Plano PagBank</div>
                 <div style={{display:"flex",gap:6,marginBottom:8}}>
@@ -936,14 +999,29 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                         <span style={{fontSize:11,fontWeight:700,color:plano===key?GOLD_DARK:"#5C4A2A"}}>{p.label}</span>
                         {key==="dias14"&&<span style={{fontSize:7,background:GOLD,color:"#fff",padding:"1px 5px",borderRadius:8,fontWeight:700}}>ATUAL</span>}
                       </div>
-                      <div style={{fontSize:9,color:"#9A8060",paddingLeft:14}}>{p.clientePagaJuros?"Cliente paga juros":"Você absorve juros"} · {p.jurosMes}% a.m.</div>
+                      <div style={{fontSize:9,color:"#9A8060",paddingLeft:14}}>{p.jurosMes}% a.m. · taxa {p.taxaInt}%</div>
                     </div>
                   ))}
                 </div>
                 <VerificadorTaxas plano={plano}/>
               </div>
+
+              {/* Quem paga os juros */}
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Juros pagos por</div>
+                <div style={{display:"flex",gap:6}}>
+                  {[["comprador","Paciente","Cliente paga os juros — você recebe o mesmo em todas as parcelas"],["vendedor","Clínica","Você absorve os juros — cliente paga valor fixo"]].map(([k,label,desc])=>(
+                    <div key={k} onClick={()=>setQuemPaga(k)} style={{flex:1,padding:"10px 12px",borderRadius:3,cursor:"pointer",border:"2px solid "+(quemPaga===k?GOLD_DARK:BORDER),background:quemPaga===k?GOLD_PALE:"#fff"}}>
+                      <div style={{fontSize:12,fontWeight:700,color:quemPaga===k?GOLD_DARK:"#5C4A2A",marginBottom:3}}>{label}</div>
+                      <div style={{fontSize:9,color:"#9A8060",lineHeight:1.4}}>{desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Parcelas sem juros */}
               <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Parcelas sem juros para o paciente</div>
-              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:14}}>
                 <span style={{fontSize:11,color:"#5C4A2A"}}>Até</span>
                 <div style={{display:"flex",gap:5}}>
                   {[1,2,3,4,5,6].map(n=>(
@@ -952,22 +1030,28 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                   <div onClick={()=>setCreditoIsento("0")} style={{padding:"0 10px",height:30,borderRadius:20,display:"flex",alignItems:"center",border:"1.5px solid "+(nIsentoCredito===0?GOLD_DARK:BORDER),background:nIsentoCredito===0?GOLD:"#fff",color:nIsentoCredito===0?"#fff":"#5C4A2A",fontSize:10,cursor:"pointer"}}>Nenhuma</div>
                 </div>
               </div>
+
+              {/* Tabela */}
               <div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                <div style={{display:"grid",gridTemplateColumns:"56px 1fr 1fr 1fr",background:"#2C1810",padding:"8px 14px"}}>
-                  {["Parc.","Valor/parc.","Total paciente","Líquido clínica"].map(h=><div key={h} style={{fontSize:8.5,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_LIGHT,fontWeight:600}}>{h}</div>)}
+                <div style={{display:"grid",gridTemplateColumns:"50px 1fr 1fr 1fr",background:"#2C1810",padding:"8px 14px"}}>
+                  {["Parc.","Valor/parc.",quemPaga==="comprador"?"Total paciente":"Parcela fixa","Líquido clínica"].map(h=><div key={h} style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_LIGHT,fontWeight:600}}>{h}</div>)}
                 </div>
                 {tabelaCredito.map((r,i)=>{
-                  const s=creditoParc===r.n,sj=r.n>1&&r.n<=nIsentoCredito,p=sj?creditoBase/r.n:r.parcela,t=sj?creditoBase:r.total;
-                  return(<div key={r.n} onClick={()=>setCreditoParc(s?null:r.n)} style={{display:"grid",gridTemplateColumns:"56px 1fr 1fr 1fr",padding:"9px 14px",cursor:"pointer",background:s?GOLD_PALE:i%2===0?"#fff":CREAM,borderLeft:"3px solid "+(s?GOLD_DARK:"transparent"),borderBottom:i<tabelaCredito.length-1?"1px solid "+BORDER:"none"}}>
-                    <span style={{fontSize:12,fontWeight:s?700:600,color:s?GOLD_DARK:"#1C1410"}}>{r.n===1?"À vista":r.n+"x"}{r.n===18?" *":""}</span>
-                    <span style={{fontSize:12,color:GOLD_DARK,fontWeight:s?700:500}}>{r.n===1?"—":fmt(p)}</span>
-                    <span style={{fontSize:11,color:sj?"#4CAF50":r.juros>0?"#E57373":"#9A8060"}}>{r.n===1?fmt(t):sj?"sem juros":fmt(t)}</span>
+                  const s=creditoParc===r.n;
+                  const sj=r.n>1&&r.n<=nIsentoCredito;
+                  const parc=sj?baseCredInput/r.n:r.parcela;
+                  const tot=sj?baseCredInput:r.total;
+                  return(<div key={r.n} onClick={()=>setCreditoParc(s?null:r.n)} style={{display:"grid",gridTemplateColumns:"50px 1fr 1fr 1fr",padding:"8px 14px",cursor:"pointer",background:s?GOLD_PALE:i%2===0?"#fff":CREAM,borderLeft:"3px solid "+(s?GOLD_DARK:"transparent"),borderBottom:i<tabelaCredito.length-1?"1px solid "+BORDER:"none"}}>
+                    <span style={{fontSize:11,fontWeight:s?700:600,color:s?GOLD_DARK:"#1C1410"}}>{r.n===1?"Àvista":r.n+"x"}{r.n===18?"*":""}</span>
+                    <span style={{fontSize:11,color:GOLD_DARK,fontWeight:s?700:500}}>{r.n===1?fmt(r.totalCliente||baseCredInput):fmt(parc)}</span>
+                    <span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:r.juros>0&&!sj?"#9A8060":"#9A8060"}}>{r.n===1?fmt(r.totalCliente||baseCredInput):sj?"sem juros":fmt(tot)}</span>
                     <span style={{fontSize:11,color:GOLD_DARK}}>{fmt(r.liquido)}</span>
                   </div>);
                 })}
               </div>
-              <div style={{fontSize:9,color:"#9A8060",marginTop:6}}>* 18x apenas para Visa PagBank</div>
-              {/* Toggle ocultar total no relatório */}
+              <div style={{fontSize:9,color:"#9A8060",marginTop:6}}>* 18x apenas Visa PagBank</div>
+
+              {/* Toggle mostrar total relatório */}
               <div style={{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
                 <span style={{fontSize:11,color:"#5C4A2A"}}>Mostrar total no relatório</span>
                 <div onClick={()=>setCt(!ct)} style={{width:36,height:20,borderRadius:10,background:ct?GOLD:"#ccc",cursor:"pointer",position:"relative",transition:"all 0.2s"}}>
@@ -1616,8 +1700,8 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
             <div>
               <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 8 }}>Região</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {[["boca", "Boca toda"], ["sup", "Arcada superior"], ["inf", "Arcada inferior"]].map(([k, l]) => (
-                  <div key={k} onClick={() => toggleRegiao(k)} style={{
+                {[["boca", "Boca toda"], ["sup", "Arcada superior"], ["inf", "Arcada inferior"], [null, "Nenhuma"]].map(([k, l]) => (
+                  <div key={String(k)} onClick={() => k ? toggleRegiao(k) : onChange({...item, regiao:null, dentes:[]})} style={{
                     padding: "6px 14px", borderRadius: 20, fontSize: 11, cursor: "pointer",
                     border: "1.5px solid " + (item.regiao === k ? GOLD_DARK : BORDER),
                     background: item.regiao === k ? GOLD_PALE : "#fff",
@@ -1643,6 +1727,16 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
               )}
             </div>
           )}
+          {/* Campo de observação livre */}
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 6 }}>Observação</div>
+            <textarea
+              style={{ width: "100%", padding: "8px 10px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, color: "#1C1410", background: "#fff", outline: "none", fontFamily: "inherit", resize: "vertical", minHeight: 52 }}
+              value={item.obs || ""}
+              onChange={e => onChange({ ...item, obs: e.target.value })}
+              placeholder="Anotações clínicas, materiais, observações..."
+            />
+          </div>
         </div>
       )}
     </div>
@@ -2189,10 +2283,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
             </div>}
           </>}
 
-          {/* Plano de Procedimentos */}
+          {/* Plano de Tratamento */}
           {temPlano && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Plano de Procedimentos</span>
+              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Plano de Tratamento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:0}}>
@@ -2235,7 +2329,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
           {/* Proposta Financeira */}
           {temOrc && (()=>{
             const cpSel = p3.cp ? parseInt(p3.cp) : null;
-            const tCFiltrado = cpSel ? tC.filter(r=>r.n===1||r.n===cpSel) : tC;
+            // Mostrar todas parcelas de 1 até o máximo selecionado
+            const tCFiltrado = cpSel ? tC.filter(r=>r.n===1||r.n<=cpSel) : tC;
             return (<>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Proposta de Investimento</span>
@@ -2254,10 +2349,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:lb?4:0}}>
                     {dp>0
                       ?<div style={{display:"flex",alignItems:"baseline",gap:8}}>
-                          <span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span>
-                          <span style={{fontSize:10,color:"#9A8060"}}>{dp}% de desconto sobre {fmt2(vB)}</span>
+                          <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                          <span style={{fontSize:11,color:"#9A8060"}}>({dp}% desc. sobre {fmt2(vB)})</span>
                         </div>
-                      :<span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                      :<span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
                     }
                     {lb&&<span style={{fontSize:11,fontWeight:600,color:GOLD_DARK}}>{lb}</span>}
                   </div>
