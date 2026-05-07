@@ -1,5 +1,43 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v5.0 - procedimentos editáveis + paleta clínica no relatório
+// v5.0 - procedimentos editáveis + paleta
+
+// ─── NOMES DOS DENTES ───────────────────────────────────────────────────────
+const NOMES_DENTES = {
+  // Superiores direitos
+  18:"18 – 3º molar sup. dir.", 17:"17 – 2º molar sup. dir.", 16:"16 – 1º molar sup. dir.",
+  15:"15 – 2º pré-molar sup. dir.", 14:"14 – 1º pré-molar sup. dir.",
+  13:"13 – canino sup. dir.", 12:"12 – incisivo lat. sup. dir.", 11:"11 – incisivo cent. sup. dir.",
+  // Superiores esquerdos
+  21:"21 – incisivo cent. sup. esq.", 22:"22 – incisivo lat. sup. esq.",
+  23:"23 – canino sup. esq.", 24:"24 – 1º pré-molar sup. esq.", 25:"25 – 2º pré-molar sup. esq.",
+  26:"26 – 1º molar sup. esq.", 27:"27 – 2º molar sup. esq.", 28:"28 – 3º molar sup. esq.",
+  // Inferiores esquerdos
+  38:"38 – 3º molar inf. esq.", 37:"37 – 2º molar inf. esq.", 36:"36 – 1º molar inf. esq.",
+  35:"35 – 2º pré-molar inf. esq.", 34:"34 – 1º pré-molar inf. esq.",
+  33:"33 – canino inf. esq.", 32:"32 – incisivo lat. inf. esq.", 31:"31 – incisivo cent. inf. esq.",
+  // Inferiores direitos
+  41:"41 – incisivo cent. inf. dir.", 42:"42 – incisivo lat. inf. dir.",
+  43:"43 – canino inf. dir.", 44:"44 – 1º pré-molar inf. dir.", 45:"45 – 2º pré-molar inf. dir.",
+  46:"46 – 1º molar inf. dir.", 47:"47 – 2º molar inf. dir.", 48:"48 – 3º molar inf. dir.",
+  // Decíduos superiores
+  55:"55 – 2º molar dec. sup. dir.", 54:"54 – 1º molar dec. sup. dir.",
+  53:"53 – canino dec. sup. dir.", 52:"52 – incisivo lat. dec. sup. dir.", 51:"51 – incisivo cent. dec. sup. dir.",
+  61:"61 – incisivo cent. dec. sup. esq.", 62:"62 – incisivo lat. dec. sup. esq.",
+  63:"63 – canino dec. sup. esq.", 64:"64 – 1º molar dec. sup. esq.", 65:"65 – 2º molar dec. sup. esq.",
+  // Decíduos inferiores
+  75:"75 – 2º molar dec. inf. esq.", 74:"74 – 1º molar dec. inf. esq.",
+  73:"73 – canino dec. inf. esq.", 72:"72 – incisivo lat. dec. inf. esq.", 71:"71 – incisivo cent. dec. inf. esq.",
+  81:"81 – incisivo cent. dec. inf. dir.", 82:"82 – incisivo lat. dec. inf. dir.",
+  83:"83 – canino dec. inf. dir.", 84:"84 – 1º molar dec. inf. dir.", 85:"85 – 2º molar dec. inf. dir.",
+};
+
+function nomeDente(n) { return NOMES_DENTES[n] || String(n); }
+function listaDentes(arr) {
+  if(!arr||!arr.length) return "—";
+  return arr.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n");
+}
+
+ clínica no relatório
 
 // ─── PALETA ───────────────────────────────────────
 const GOLD = "#B8962E", GOLD_DARK = "#7A6020", GOLD_LIGHT = "#D4B96A";
@@ -431,7 +469,7 @@ function P2({data, setData}) {
                       <div style={{width:8,height:8,borderRadius:"50%",background:a.cor}}/>
                       <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{a.label}</span>
                     </div>
-                    <span style={{fontSize:11,color:"#9A8060"}}>{descreverRegiao(a.dentes)}</span>
+                    <div style={{fontSize:10,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line"}}>{descreverRegiao(a.dentes,true)}</div>
                   </div>
                 </div>
               ))}
@@ -549,7 +587,7 @@ function VerificadorTaxas({plano}) {
   );
 }
 
-function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo}) {
+function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt}) {
   const [plano, setPlano] = React.useState("dias14");
 
   const descPct=descSel===-1?(parseFloat(descCustom)||0):descSel;
@@ -863,6 +901,13 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                     <div style={{fontSize:10,color:"#9A8060",marginTop:6}}>Até {boletoIsento}x sem juros · demais com 1,2% a.m.</div>
                   </div>
                 )}
+                {/* Toggle ocultar total boleto */}
+                <div style={{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
+                  <span style={{fontSize:11,color:"#5C4A2A"}}>Mostrar total no relatório</span>
+                  <div onClick={()=>setBt&&setBt(!bt)} style={{width:36,height:20,borderRadius:10,background:bt?GOLD:"#ccc",cursor:"pointer",position:"relative",transition:"all 0.2s"}}>
+                    <div style={{position:"absolute",top:2,left:bt?16:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"all 0.2s"}}/>
+                  </div>
+                </div>
                 {valorFinal>0&&nBoleto>0&&(()=>{
                   const b=calcBoleto();
                   const desc=boletoJuros==="sem_juros"?"Sem juros":boletoJuros==="com_juros"?"Juros 1,2% a.m.":"Primeiras "+boletoIsento+"x sem juros";
@@ -923,6 +968,13 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                 })}
               </div>
               <div style={{fontSize:9,color:"#9A8060",marginTop:6}}>* 18x apenas para Visa PagBank</div>
+              {/* Toggle ocultar total no relatório */}
+              <div style={{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
+                <span style={{fontSize:11,color:"#5C4A2A"}}>Mostrar total no relatório</span>
+                <div onClick={()=>setCt(!ct)} style={{width:36,height:20,borderRadius:10,background:ct?GOLD:"#ccc",cursor:"pointer",position:"relative",transition:"all 0.2s"}}>
+                  <div style={{position:"absolute",top:2,left:ct?16:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"all 0.2s"}}/>
+                </div>
+              </div>
             </div>
           )}
           {formaAtiva&&!["boleto","credito"].includes(formaAtiva)&&valorFinal>0&&(
@@ -1259,13 +1311,8 @@ const PROC_BASE = [
     nome: "DTM",
     icone: "✦",
     descricao: "Disfunção temporomandibular",
-    modo: "nenhum",
+    modo: "livre",
     valorPadrao: 1200,
-    subtipos: [
-      { id: "placa", label: "Placa oclusal", valorPadrao: 1200 },
-      { id: "dor", label: "Tratamento para dor", valorPadrao: 800 },
-      { id: "outro", label: "Outro", valorPadrao: 0 },
-    ],
   },
   {
     id: "ortodontia",
@@ -1924,7 +1971,7 @@ function P4({onTotalChange, p4State, setP4State}) {
     </div>
   );
 }
-function descreverRegiao(dentes) {
+function descreverRegiao(dentes, comNomes=false) {
   const sup = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
   const inf = [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
   const antSup = [13,12,11,21,22,23], antInf = [43,42,41,31,32,33];
@@ -1950,6 +1997,7 @@ function descreverRegiao(dentes) {
   else if (peSupOk) partes.push("Post. esquerda superior");
   else if (peInfOk) partes.push("Post. esquerda inferior");
   if (partes.length > 0) return partes.join(", ");
+  if(comNomes) return dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n");
   return "Dente"+(dentes.length>1?"s":"")+": "+dentes.sort((a,b)=>a-b).join(", ");
 }
 
@@ -1962,7 +2010,7 @@ const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FF
 function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
   const {achadosDente={},obsTexto=""} = p2;
-  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado"} = p3;
+  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true} = p3;
   const dp = ds===-1?(parseFloat(dc)||0):ds;
   const vB = parseFloat(String(vb).replace(",","."))||0;
   const vF = dp>0 ? vB*(1-dp/100) : vB;
@@ -2107,19 +2155,19 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
                   : proc.modo==="dente"?(it.dentes?.length||0)*v:v;
                 const desc = proc.subtipos
                   ? Object.keys(it.subtipos||{}).map(id=>proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ")||"—"
-                  : proc.modo==="dente"?(it.dentes?.length>0?"Dente"+(it.dentes.length>1?"s":"")+": "+it.dentes.sort((a,b)=>a-b).join(", "):"—")
+                  : proc.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—")
                   :(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":"Arcada inferior");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
-                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{proc.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1}}>{desc}</div></div>
+                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{proc.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div></div>
                   <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               }),
               ...p4Custom.map(it => {
                 const v = parseMoeda(it.valor);
                 const sub = it.modo==="dente" && it.dentes?.length > 0 ? it.dentes.length*v : v;
-                const desc = it.modo==="livre" ? "" : it.modo==="dente"?(it.dentes?.length>0?"Dente"+(it.dentes.length>1?"s":"")+": "+it.dentes.sort((a,b)=>a-b).join(", "):"—"):(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":it.regiao==="inf"?"Arcada inferior":"—");
+                const desc = it.modo==="livre" ? "" : it.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—"):(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":it.regiao==="inf"?"Arcada inferior":"—");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
-                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{it.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1}}>{desc}</div></div>
+                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{it.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div></div>
                   <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               })].filter(Boolean)}
@@ -2189,17 +2237,17 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
                     <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Cartão de crédito</span>
                     {nic>0&&<span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 6px",borderRadius:8}}>até {nic}x sem juros</span>}
                   </div>
-                  <div style={{display:"grid",gridTemplateColumns:"44px 1fr 1fr",padding:"5px 14px",background:"#F5F2EC"}}>
-                    {["Parc.","Valor/mês","Obs."].map(h=><span key={h} style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>{h}</span>)}
+                  {/* 2 colunas compactas */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
+                    {tCFiltrado.map((r,i)=>{
+                      const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;
+                      return(<div key={r.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:"1px solid "+BORDER,borderRight:i%2===0?"1px solid "+BORDER:"none"}}>
+                        <span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}{r.n===18?"*":""}</span>
+                        <span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>
+                        {ct&&<span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}
+                      </div>);
+                    })}
                   </div>
-                  {tCFiltrado.map((r,i)=>{
-                    const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;
-                    return(<div key={r.n} style={{display:"grid",gridTemplateColumns:"44px 1fr 1fr",padding:"6px 14px",background:i%2===0?"#fff":CREAM,borderBottom:i<tCFiltrado.length-1?"1px solid "+BORDER:"none"}}>
-                      <span style={{fontSize:11,fontWeight:700,color:"#1C1410"}}>{r.n===1?"À vista":r.n+"x"}{r.n===18?" *":""}</span>
-                      <span style={{fontSize:11,color:GOLD_DARK,fontWeight:600}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>
-                      <span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"—":sj?"sem juros":"total "+fmt2(t)}</span>
-                    </div>);
-                  })}
                   <div style={{padding:"5px 14px",fontSize:8.5,color:"#9A8060",background:"#fff"}}>* 18x apenas Visa PagBank</div>
                 </div>
               </div>}
@@ -2218,16 +2266,15 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
                     <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,background:"#fff"}}>
                       <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</span>
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"44px 1fr 1fr",padding:"5px 14px",background:"#F5F2EC"}}>
-                      {["Parc.","Valor/mês","Obs."].map(h=><span key={h} style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>{h}</span>)}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+                      {ls.map((l,i)=>(
+                        <div key={l.n} style={{display:"grid",gridTemplateColumns:"36px 1fr"+(bt?" 1fr":""),padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:"1px solid "+BORDER,borderRight:i%2===0?"1px solid "+BORDER:"none"}}>
+                          <span style={{fontSize:10,fontWeight:700,color:"#1C1410"}}>{l.n+"x"}</span>
+                          <span style={{fontSize:10,color:GOLD_DARK,fontWeight:600}}>{fmt2(l.p)}</span>
+                          {bt&&<span style={{fontSize:9,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/juros":"tot."+fmt2(l.t)}</span>}
+                        </div>
+                      ))}
                     </div>
-                    {ls.map((l,i)=>(
-                      <div key={l.n} style={{display:"grid",gridTemplateColumns:"44px 1fr 1fr",padding:"6px 14px",background:i%2===0?"#fff":CREAM,borderBottom:i<ls.length-1?"1px solid "+BORDER:"none"}}>
-                        <span style={{fontSize:11,fontWeight:700,color:"#1C1410"}}>{l.n+"x"}</span>
-                        <span style={{fontSize:11,color:GOLD_DARK,fontWeight:600}}>{fmt2(l.p)}</span>
-                        <span style={{fontSize:10,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"sem juros":"total "+fmt2(l.t)}</span>
-                      </div>
-                    ))}
                   </div>
                 </div>);
               })()}
@@ -2249,7 +2296,7 @@ const p4Initial = {
   customProcs: [],
 };
 
-const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"3",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado"};
+const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"3",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true};
 
 function App() {
   const [pag, setPag] = useState("p1");
@@ -2284,6 +2331,7 @@ function App() {
         entradaTipo={p3.entradaTipo} setEntradaTipo={v=>sp3("entradaTipo",v)}
         entradaVal={p3.entradaVal} setEntradaVal={v=>sp3("entradaVal",v)}
         saldoTipo={p3.saldoTipo} setSaldoTipo={v=>sp3("saldoTipo",v)}
+        ct={p3.ct!==false} setCt={v=>sp3("ct",v)} bt={p3.bt!==false} setBt={v=>sp3("bt",v)}
       />}
       {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{salvarRelatorio(p1,p2,p3,p4State);setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);}} salvoOk={relatorioSalvo}/>}
       {pag==="arq"&&<Arquivo/>}
