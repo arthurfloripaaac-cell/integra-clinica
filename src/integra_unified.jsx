@@ -585,8 +585,9 @@ function VerificadorTaxas({plano}) {
   );
 }
 
-function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt}) {
-  const [plano, setPlano] = React.useState("dias14");
+function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno}) {
+  const [plano, setPlanoLocal] = React.useState(planoExterno||"dias14");
+  const setPlano = (v) => { setPlanoLocal(v); if(setPlanoExterno) setPlanoExterno(v); };
 
   const descPct=descSel===-1?(parseFloat(descCustom)||0):descSel;
   const valorBase=parseFloat(String(valorBruto).replace(",","."))||0;
@@ -1402,9 +1403,16 @@ function OdontogramaMini({ selecionados, onToggle }) {
 
 function ProcedimentoItem({ proc, item, onChange, onRemove }) {
   const [expandido, setExpandido] = useState(false);
+  const [valorPorDente, setValorPorDente] = useState(false);
+
+  // Subtotal: se valorPorDente, soma valores individuais; senão, unitário × qtd
   const subtotal = proc.modo === "dente"
-    ? (item.dentes?.length || 0) * parseMoeda(item.valor)
-    : parseMoeda(item.valor) * (item.qtd || 1);
+    ? valorPorDente && item.valoresDente
+      ? item.dentes?.reduce((acc, n) => acc + parseMoeda(item.valoresDente[n] || item.valor), 0) || 0
+      : (item.dentes?.length || 0) * parseMoeda(item.valor)
+    : proc.subtipos
+      ? Object.values(item.subtipos || {}).reduce((acc, st) => acc + parseMoeda(st.valor || "0"), 0)
+      : parseMoeda(item.valor) * (item.qtd || 1);
 
   const toggleDente = (n) => {
     const atual = item.dentes || [];
@@ -1563,24 +1571,44 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
             </div>
           )}
 
-          {/* Valor unitário - hide for subtipos */}
+          {/* Valor — com opção de valor por dente individual */}
           {!proc.subtipos && <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 6 }}>
-              Valor {proc.modo === "dente" ? "por dente" : ""}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>
+                Valor {proc.modo === "dente" ? (valorPorDente ? "individual por dente" : "por dente (único)") : ""}
+              </div>
+              {proc.modo === "dente" && item.dentes?.length > 0 && (
+                <div onClick={() => setValorPorDente(!valorPorDente)} style={{ fontSize: 10, color: valorPorDente ? GOLD_DARK : "#9A8060", cursor: "pointer", padding: "2px 8px", border: "1px solid " + (valorPorDente ? GOLD : BORDER), borderRadius: 20 }}>
+                  {valorPorDente ? "✓ Individual" : "Definir por dente"}
+                </div>
+              )}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, color: GOLD_DARK, fontWeight: 600 }}>R$</span>
-              <input
-                style={{
-                  width: 120, padding: "8px 10px", border: "1px solid " + BORDER,
-                  borderRadius: 2, fontSize: 14, fontWeight: 600, color: GOLD_DARK,
-                  background: "#fff", outline: "none", fontFamily: "inherit",
-                }}
-                value={item.valor}
-                onChange={e => onChange({ ...item, valor: e.target.value.replace(/[^0-9,]/g, "") })}
-                placeholder="0,00"
-              />
-            </div>
+            {!valorPorDente ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, color: GOLD_DARK, fontWeight: 600 }}>R$</span>
+                <input
+                  style={{ width: 120, padding: "8px 10px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 14, fontWeight: 600, color: GOLD_DARK, background: "#fff", outline: "none", fontFamily: "inherit" }}
+                  value={item.valor}
+                  onChange={e => onChange({ ...item, valor: e.target.value.replace(/[^0-9,]/g, "") })}
+                  placeholder="0,00"
+                />
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {(item.dentes || []).sort((a, b) => a - b).map(n => (
+                  <div key={n} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontSize: 10, color: "#5C4A2A", minWidth: 140 }}>{nomeDente(n)}</div>
+                    <span style={{ fontSize: 12, color: GOLD_DARK, fontWeight: 600 }}>R$</span>
+                    <input
+                      style={{ width: 100, padding: "6px 8px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 13, fontWeight: 600, color: GOLD_DARK, background: "#fff", outline: "none", fontFamily: "inherit" }}
+                      value={(item.valoresDente || {})[n] || item.valor}
+                      onChange={e => onChange({ ...item, valoresDente: { ...(item.valoresDente || {}), [n]: e.target.value.replace(/[^0-9,]/g, "") } })}
+                      placeholder="0,00"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>}
 
           {/* Seleção por região */}
@@ -1690,7 +1718,12 @@ function P4({onTotalChange, p4State, setP4State}) {
       return Object.values(item.subtipos || {}).reduce((acc, st) => acc + parseMoeda(st.valor || "0"), 0);
     }
     const v = parseMoeda(item.valor);
-    if (proc.modo === "dente") return (item.dentes?.length || 0) * v;
+    if (proc.modo === "dente") {
+      if (item.valoresDente && Object.keys(item.valoresDente).length > 0) {
+        return (item.dentes || []).reduce((acc, n) => acc + parseMoeda(item.valoresDente[n] || item.valor), 0);
+      }
+      return (item.dentes?.length || 0) * v;
+    }
     if (proc.modo === "livre") return v;
     return v * (item.qtd || 1);
   };
@@ -1823,7 +1856,26 @@ function P4({onTotalChange, p4State, setP4State}) {
                           : editarNomeProcBase(proc.id, e.target.value)
                         }
                       />
-                    ) : proc.nome}
+                    ) : (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>{proc.nome}</span>
+                        {ativo && !proc.subtipos && (
+                          <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", marginLeft: 4 }}>R$</span>
+                            <input
+                              style={{ width: 64, padding: "2px 4px", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 3, fontSize: 11, fontWeight: 700, color: "#fff", outline: "none", fontFamily: "inherit", textAlign: "right" }}
+                              value={item?.valor || ""}
+                              onChange={e => {
+                                const v = e.target.value.replace(/[^0-9,]/g, "");
+                                if (isCustom) atualizarCustom(customIdx, { ...item, valor: v });
+                                else { const idx2 = itens.findIndex(x => x.id === proc.id); if(idx2>=0) atualizarItem(idx2, {...item, valor:v}); }
+                              }}
+                              placeholder="0,00"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -2008,7 +2060,7 @@ const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FF
 function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
   const {achadosDente={},obsTexto=""} = p2;
-  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true} = p3;
+  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true,plano="dias14"} = p3;
   const dp = ds===-1?(parseFloat(dc)||0):ds;
   const vB = parseFloat(String(vb).replace(",","."))||0;
   const vF = dp>0 ? vB*(1-dp/100) : vB;
@@ -2016,7 +2068,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
   const saldo2=entrada?Math.max(0,vF-entradaValor2):vF;
   const nb = parseInt(bp)||1, nic = parseInt(ci)||0;
   const creditoBaseRel=(entrada&&entradaValor2>0&&saldoTipo==="parcelado")?saldo2:vF;
-  const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>({n,...calcCredito(creditoBaseRel,n)})):[];
+  const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>({n,...(plano==="hora"?calcCreditoHora(creditoBaseRel,n):calcCredito14dias(creditoBaseRel,n))})):[];
 
   const defaultItensRel = PROC_BASE.map(p => ({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],subtipos:{},regiao:p.id==="profilaxia"?"boca":p.id==="clareamento"?"boca":null,qtd:1}));
   const procsBaseRel = p4State?.procsBase || PROC_BASE.map(p => ({...p}));
@@ -2150,10 +2202,14 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
                 const v = parseMoeda(it.valor);
                 const sub = proc.subtipos
                   ? Object.values(it.subtipos||{}).reduce((a,s)=>a+parseMoeda(s.valor||"0"),0)
-                  : proc.modo==="dente"?(it.dentes?.length||0)*v:v;
+                  : proc.modo==="dente"
+                    ? (it.valoresDente&&Object.keys(it.valoresDente).length>0
+                        ? (it.dentes||[]).reduce((a,n)=>a+parseMoeda((it.valoresDente||{})[n]||it.valor),0)
+                        : (it.dentes?.length||0)*v)
+                    : v;
                 const desc = proc.subtipos
                   ? Object.keys(it.subtipos||{}).map(id=>proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ")||"—"
-                  : proc.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—")
+                  : proc.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>{const vd=it.valoresDente&&it.valoresDente[n];return nomeDente(n)+(vd&&vd!==it.valor?" — "+fmt2(parseMoeda(vd)):"");}).join("\n"):"—")
                   :(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":"Arcada inferior");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
                   <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{proc.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div></div>
@@ -2162,7 +2218,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
               }),
               ...p4Custom.map(it => {
                 const v = parseMoeda(it.valor);
-                const sub = it.modo==="dente" && it.dentes?.length > 0 ? it.dentes.length*v : v;
+                const sub = it.modo==="dente" && it.dentes?.length > 0
+                  ? (it.valoresDente&&Object.keys(it.valoresDente).length>0
+                      ? (it.dentes||[]).reduce((a,n)=>a+parseMoeda((it.valoresDente||{})[n]||it.valor),0)
+                      : it.dentes.length*v)
+                  : v;
                 const desc = it.modo==="livre" ? "" : it.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—"):(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":it.regiao==="inf"?"Arcada inferior":"—");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
                   <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{it.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div></div>
@@ -2182,16 +2242,29 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
 
-            {/* Valor — UMA linha, sem duplicar */}
-            <div style={{padding:"10px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:10}}>
-              {dp>0
-                ?<div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-                    <span style={{fontSize:12,color:"#9A8060",textDecoration:"line-through"}}>{fmt2(vB)}</span>
-                    <div><span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span><span style={{fontSize:10,color:GOLD_DARK,marginLeft:6}}>({dp}% de desconto)</span></div>
+            {/* Valor + formas à vista — tudo numa linha limpa */}
+            {(()=>{
+              const formasAv=["pix","dinheiro","debito"].filter(id=>fc.includes(id));
+              const bolAv=fc.includes("boleto")&&bm==="avista";
+              const todas=[...formasAv,...(bolAv?["boleto"]:[])];
+              const nomes={pix:"PIX",dinheiro:"Dinheiro",debito:"Cartão de débito",boleto:"Boleto"};
+              const lb=todas.map(id=>nomes[id]).join(" · ");
+              return(
+                <div style={{padding:"11px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:lb?4:0}}>
+                    {dp>0
+                      ?<div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                          <span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                          <span style={{fontSize:10,color:"#9A8060"}}>{dp}% de desconto sobre {fmt2(vB)}</span>
+                        </div>
+                      :<span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                    }
+                    {lb&&<span style={{fontSize:11,fontWeight:600,color:GOLD_DARK}}>{lb}</span>}
                   </div>
-                :<span style={{fontSize:13,fontWeight:600,color:GOLD_DARK}}>Investimento: {fmt2(vB)}</span>
-              }
-            </div>
+                  {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060"}}>Taxa 1,99% PagBank no débito</div>}
+                </div>
+              );
+            })()}
 
             {/* Entrada */}
             {entrada && entradaValor2>0 && (
@@ -2208,25 +2281,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk}) {
             )}
 
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {/* À vista — sem emojis, elegante */}
-              {(()=>{
-                const formasAv=["pix","dinheiro","debito"].filter(id=>fc.includes(id));
-                const bolAv=fc.includes("boleto")&&bm==="avista";
-                const todas=[...formasAv,...(bolAv?["boleto"]:[])];
-                if(!todas.length) return null;
-                const nomes={pix:"PIX",dinheiro:"Dinheiro",debito:"Cartão de débito",boleto:"Boleto"};
-                const lb=todas.map(id=>nomes[id]).join(" · ");
-                return(<div style={{display:"flex",alignItems:"stretch",border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                  <div style={{width:3,background:GOLD,flexShrink:0}}/>
-                  <div style={{flex:1,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div>
-                      <div style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{lb}</div>
-                      {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060",marginTop:1}}>Taxa 1,99% PagBank no débito</div>}
-                    </div>
-                    <span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span>
-                  </div>
-                </div>);
-              })()}
+              {/* À vista já aparece na linha de valor acima — não repetir */}
+              {(()=>{ return null; })()}
 
               {/* Cartão de crédito — colunas compactas */}
               {fc.includes("credito")&&<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
@@ -2330,6 +2386,7 @@ function App() {
         entradaVal={p3.entradaVal} setEntradaVal={v=>sp3("entradaVal",v)}
         saldoTipo={p3.saldoTipo} setSaldoTipo={v=>sp3("saldoTipo",v)}
         ct={p3.ct!==false} setCt={v=>sp3("ct",v)} bt={p3.bt!==false} setBt={v=>sp3("bt",v)}
+        planoExterno={p3.plano||"dias14"} setPlanoExterno={v=>sp3("plano",v)}
       />}
       {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{salvarRelatorio(p1,p2,p3,p4State);setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);}} salvoOk={relatorioSalvo}/>}
       {pag==="arq"&&<Arquivo/>}
