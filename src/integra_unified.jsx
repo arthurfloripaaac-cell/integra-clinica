@@ -37,8 +37,6 @@ function listaDentes(arr) {
   return arr.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n");
 }
 
- clínica no relatório
-
 // ─── PALETA ───────────────────────────────────────
 const GOLD = "#B8962E", GOLD_DARK = "#7A6020", GOLD_LIGHT = "#D4B96A";
 const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D8E";
