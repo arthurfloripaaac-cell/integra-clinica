@@ -2180,7 +2180,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
   const entradaValor2=entrada?(entradaTipo==="pct"?vF*(parseFloat(entradaVal)||0)/100:(parseFloat(String(entradaVal).replace(",","."))||0)):0;
   const saldo2=entrada?Math.max(0,vF-entradaValor2):vF;
   const nb = parseInt(bp)||1, nic = parseInt(ci)||0;
-  const creditoBaseRel=(entrada&&entradaValor2>0&&saldoTipo==="parcelado")?saldo2:vF;
+  // Crédito sempre usa valor SEM desconto (PagBank não permite desconto no crédito)
+  const baseCreditoSemDesc=(entrada&&entradaValor2>0&&saldoTipo==="parcelado")
+    ?(entrada?Math.max(0,vB-(entrada?(entradaTipo==="pct"?vB*(parseFloat(entradaVal)||0)/100:(parseFloat(String(entradaVal).replace(",","."))||0)):0)):vB)
+    :vB;
+  const creditoBaseRel=(entrada&&entradaValor2>0&&saldoTipo==="parcelado")?baseCreditoSemDesc:vB;
   const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>({n,...(plano==="hora"?calcCreditoHora(creditoBaseRel,n):calcCredito14dias(creditoBaseRel,n))})):[];
 
   const defaultItensRel = PROC_BASE.map(p => ({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],subtipos:{},regiao:p.id==="profilaxia"?"boca":p.id==="clareamento"?"boca":null,qtd:1}));
@@ -2237,14 +2241,19 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
       <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden"}}>
 
         {/* Cabeçalho */}
-        <div style={{background:"linear-gradient(135deg,#2C1810,#1A0F08)",padding:"20px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <svg width="32" height="42" viewBox="0 0 40 52" fill="none"><ellipse cx="20" cy="26" rx="18" ry="24" stroke={GOLD} strokeWidth="1.5"/><text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill={GOLD}>i</text></svg>
-            <div><div style={{fontFamily:"Georgia",fontSize:18,fontWeight:700,color:"#fff",letterSpacing:3,textTransform:"uppercase"}}>Íntegra</div><div style={{fontSize:7,letterSpacing:2.5,color:GOLD_LIGHT,textTransform:"uppercase"}}>Clínica Odontológica · Desde 1996</div></div>
+        <div style={{background:"linear-gradient(135deg,#1C0E06 0%,#2C1810 100%)",padding:"20px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"3px solid "+GOLD}}>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:44,height:44,borderRadius:"50%",border:"1.5px solid "+GOLD,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{fontFamily:"Georgia",fontSize:22,fontStyle:"italic",color:GOLD}}>i</span>
+            </div>
+            <div>
+              <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:700,color:"#fff",letterSpacing:4,textTransform:"uppercase",lineHeight:1}}>Íntegra</div>
+              <div style={{fontSize:7,letterSpacing:3,color:GOLD_LIGHT,textTransform:"uppercase",marginTop:3}}>Clínica Odontológica · Desde 1996</div>
+            </div>
           </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontSize:9,color:GOLD_LIGHT,letterSpacing:1,marginBottom:4}}>PRONTUÁRIO DE ATENDIMENTO</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.7)"}}>{dataFmt(dataConsulta)}</div>
+          <div style={{textAlign:"right",borderLeft:"1px solid rgba(184,150,46,0.3)",paddingLeft:20}}>
+            <div style={{fontSize:8,color:GOLD_LIGHT,letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>Prontuário de Atendimento</div>
+            <div style={{fontSize:13,color:"#fff",fontWeight:600}}>{dataFmt(dataConsulta)}</div>
           </div>
         </div>
 
@@ -2356,7 +2365,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
 
-            {/* Valor + formas à vista — tudo numa linha limpa */}
+            {/* Valor + formas à vista — tipografia uniforme */}
             {(()=>{
               const formasAv=["pix","dinheiro","debito"].filter(id=>fc.includes(id));
               const bolAv=fc.includes("boleto")&&bm==="avista";
@@ -2364,18 +2373,23 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
               const nomes={pix:"PIX",dinheiro:"Dinheiro",debito:"Cartão de débito",boleto:"Boleto"};
               const lb=todas.map(id=>nomes[id]).join(" · ");
               return(
-                <div style={{padding:"11px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:lb?4:0}}>
-                    {dp>0
-                      ?<div style={{display:"flex",alignItems:"baseline",gap:8}}>
-                          <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
-                          <span style={{fontSize:11,color:"#9A8060"}}>({dp}% desc. sobre {fmt2(vB)})</span>
-                        </div>
-                      :<span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
-                    }
-                    {lb&&<span style={{fontSize:11,fontWeight:600,color:GOLD_DARK}}>{lb}</span>}
+                <div style={{padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                      {dp>0?(
+                        <>
+                          <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vB)}</span>
+                          <span style={{fontSize:11,color:"#9A8060"}}>→</span>
+                          <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                          <span style={{fontSize:11,color:"#9A8060"}}>({dp}% de desconto)</span>
+                        </>
+                      ):(
+                        <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                      )}
+                    </div>
+                    {lb&&<span style={{fontSize:12,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
                   </div>
-                  {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060"}}>Taxa 1,99% PagBank no débito</div>}
+                  {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060",marginTop:3}}>Taxa 1,99% PagBank no débito</div>}
                 </div>
               );
             })()}
@@ -2496,7 +2510,7 @@ function App() {
 
   return (
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
-      <Header/>
+      {pag!=="rel"&&<Header/>}
 
       {/* Botão Preview flutuante */}
       {pag!=="rel"&&(
