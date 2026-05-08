@@ -2382,23 +2382,35 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
           {/* Proposta Financeira */}
           {temOrc && (()=>{
             const cpSel = p3.cp ? parseInt(p3.cp) : null;
-            // Mostrar todas parcelas de 1 até o máximo selecionado
             const tCFiltrado = cpSel ? tC.filter(r=>r.n===1||r.n<=cpSel) : tC;
+
+            // Verificar quais alternativas existem
+            const formasAv = ["pix","dinheiro","debito"].filter(id=>fc.includes(id));
+            const bolAv = fc.includes("boleto") && bm==="avista";
+            const temAVista = formasAv.length > 0 || bolAv;
+            const temParcelado = fc.includes("credito") || (fc.includes("boleto") && bm==="parcelado");
+            const duasAlternativas = temAVista && temParcelado;
+            const nomes = {pix:"PIX", dinheiro:"Dinheiro", debito:"Cartão de débito", boleto:"Boleto"};
+
+            const LabelAlternativa = ({num, titulo}) => (
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                {duasAlternativas&&<div style={{width:22,height:22,borderRadius:"50%",background:"#2C1810",color:GOLD,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{num}</div>}
+                <span style={{fontSize:10,fontWeight:700,color:"#5C4A2A",letterSpacing:1,textTransform:"uppercase"}}>{titulo}</span>
+                <div style={{flex:1,height:1,background:BORDER}}/>
+              </div>
+            );
+
             return (<>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
 
-            {/* Valor + formas à vista — tipografia uniforme */}
+            {/* Linha de valor + desconto — sempre no topo */}
             {(()=>{
-              const formasAv=["pix","dinheiro","debito"].filter(id=>fc.includes(id));
-              const bolAv=fc.includes("boleto")&&bm==="avista";
-              const todas=[...formasAv,...(bolAv?["boleto"]:[])];
-              const nomes={pix:"PIX",dinheiro:"Dinheiro",debito:"Cartão de débito",boleto:"Boleto"};
-              const lb=todas.map(id=>nomes[id]).join(" · ");
+              const lb = [...formasAv,...(bolAv?["boleto"]:[])].map(id=>nomes[id]).join(" · ");
               return(
-                <div style={{padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:10}}>
+                <div style={{padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:14}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
                     <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                       {dp>0?(
@@ -2412,80 +2424,99 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                         <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
                       )}
                     </div>
-                    {lb&&<span style={{fontSize:12,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
+                    {lb&&temAVista&&!temParcelado&&<span style={{fontSize:12,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
                   </div>
                   {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060",marginTop:3}}>Taxa 1,99% PagBank no débito</div>}
                 </div>
               );
             })()}
 
-            {/* Entrada */}
-            {entrada && entradaValor2>0 && (
-              <div style={{padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
-                  <span style={{color:GOLD_DARK,fontWeight:600}}>Entrada</span>
-                  <span style={{color:GOLD_DARK,fontWeight:700}}>{fmt2(entradaValor2)}{entradaTipo==="pct"?" ("+entradaVal+"%)":""}</span>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
-                  <span style={{color:"#9A8060"}}>{saldoTipo==="entrega"?"Saldo na entrega":"Saldo a parcelar"}</span>
-                  <span style={{color:"#1C1410",fontWeight:600}}>{fmt2(saldo2)}</span>
-                </div>
-              </div>
-            )}
-
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {/* À vista já aparece na linha de valor acima — não repetir */}
-              {(()=>{ return null; })()}
-
-              {/* Cartão de crédito — colunas compactas */}
-              {fc.includes("credito")&&<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                <div style={{borderLeft:"3px solid "+GOLD}}>
-                  <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",gap:8,background:"#fff"}}>
-                    <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Cartão de crédito</span>
-                    {nic>0&&<span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 6px",borderRadius:8}}>até {nic}x sem juros</span>}
+            {/* ALTERNATIVA 1 — À vista */}
+            {temAVista && (()=>{
+              const lb = [...formasAv,...(bolAv?["boleto"]:[])].map(id=>nomes[id]).join(" · ");
+              return(
+                <div style={{marginBottom:14}}>
+                  <LabelAlternativa num="1" titulo="Pagamento à vista"/>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3}}>
+                    <span style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{lb}</span>
+                    <span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span>
                   </div>
-                  {/* 2 colunas compactas */}
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
-                    {tCFiltrado.map((r,i)=>{
-                      const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;
-                      return(<div key={r.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:"1px solid "+BORDER,borderRight:i%2===0?"1px solid "+BORDER:"none"}}>
-                        <span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}{r.n===18?"*":""}</span>
-                        <span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>
-                        {ct&&<span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}
-                      </div>);
-                    })}
-                  </div>
-                  <div style={{padding:"5px 14px",fontSize:8.5,color:"#9A8060",background:"#fff"}}>* 18x apenas Visa PagBank</div>
                 </div>
-              </div>}
+              );
+            })()}
 
-              {/* Boleto parcelado — colunas compactas */}
-              {fc.includes("boleto")&&bm==="parcelado"&&(()=>{
-                const nl=bj==="sem_juros"?nb:bj==="com_juros"?0:parseInt(bi)||0;
-                const bBase=creditoBaseRel;
-                const ls=Array.from({length:nb},(_,i)=>{
-                  const n=i+1,sj=n<=nl,pc=bj==="combinado"?Math.max(0,n-nl):sj?0:n;
-                  const t=sj?bBase:bBase*(1+0.012*pc);
-                  return{n,p:t/n,sj,t};
-                });
-                return(<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                  <div style={{borderLeft:"3px solid "+GOLD}}>
-                    <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,background:"#fff"}}>
-                      <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</span>
+            {/* ALTERNATIVA 2 — Parcelado */}
+            {temParcelado && (()=>{
+              return(
+                <div style={{marginBottom:8}}>
+                  <LabelAlternativa num="2" titulo={entrada&&entradaValor2>0?"Com entrada e parcelamento":"Parcelamento"}/>
+
+                  {/* Entrada */}
+                  {entrada && entradaValor2>0 && (
+                    <div style={{padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,marginBottom:8}}>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
+                        <span style={{color:GOLD_DARK,fontWeight:600}}>Entrada</span>
+                        <span style={{color:GOLD_DARK,fontWeight:700}}>{fmt2(entradaValor2)}{entradaTipo==="pct"?" ("+entradaVal+"%)":""}</span>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
+                        <span style={{color:"#9A8060"}}>{saldoTipo==="entrega"?"Saldo na entrega":"Saldo a parcelar"}</span>
+                        <span style={{color:"#1C1410",fontWeight:600}}>{fmt2(saldo2)}</span>
+                      </div>
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
-                      {ls.map((l,i)=>(
-                        <div key={l.n} style={{display:"grid",gridTemplateColumns:"36px 1fr"+(bt?" 1fr":""),padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:"1px solid "+BORDER,borderRight:i%2===0?"1px solid "+BORDER:"none"}}>
-                          <span style={{fontSize:10,fontWeight:700,color:"#1C1410"}}>{l.n+"x"}</span>
-                          <span style={{fontSize:10,color:GOLD_DARK,fontWeight:600}}>{fmt2(l.p)}</span>
-                          {bt&&<span style={{fontSize:9,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/juros":"tot."+fmt2(l.t)}</span>}
+                  )}
+
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {/* Cartão de crédito */}
+                    {fc.includes("credito")&&<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
+                      <div style={{borderLeft:"3px solid "+GOLD}}>
+                        <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",gap:8,background:"#fff"}}>
+                          <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Cartão de crédito</span>
+                          {nic>0&&<span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 6px",borderRadius:8}}>até {nic}x sem juros</span>}
                         </div>
-                      ))}
-                    </div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
+                          {tCFiltrado.map((r,i)=>{
+                            const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;
+                            return(<div key={r.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:"1px solid "+BORDER,borderRight:i%2===0?"1px solid "+BORDER:"none"}}>
+                              <span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}{r.n===18?"*":""}</span>
+                              <span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>
+                              {ct&&<span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}
+                            </div>);
+                          })}
+                        </div>
+                        <div style={{padding:"5px 14px",fontSize:8.5,color:"#9A8060",background:"#fff"}}>* 18x apenas Visa PagBank</div>
+                      </div>
+                    </div>}
+
+                    {/* Boleto parcelado */}
+                    {fc.includes("boleto")&&bm==="parcelado"&&(()=>{
+                      const nl=bj==="sem_juros"?nb:bj==="com_juros"?0:parseInt(bi)||0;
+                      const bBase=creditoBaseRel;
+                      const ls=Array.from({length:nb},(_,i)=>{
+                        const n=i+1,sj=n<=nl,pc=bj==="combinado"?Math.max(0,n-nl):sj?0:n;
+                        const t=sj?bBase:bBase*(1+0.012*pc);
+                        return{n,p:t/n,sj,t};
+                      });
+                      return(<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
+                        <div style={{borderLeft:"3px solid "+GOLD}}>
+                          <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,background:"#fff"}}>
+                            <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</span>
+                          </div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
+                            {ls.map((l,i)=>(
+                              <div key={l.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:"1px solid "+BORDER,borderRight:i%2===0?"1px solid "+BORDER:"none"}}>
+                                <span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{l.n+"x"}</span>
+                                <span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span>
+                                {bt&&<span style={{fontSize:9,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/juros":"tot "+fmt2(l.t)}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>);
+                    })()}
                   </div>
-                </div>);
-              })()}
-            </div>
+                </div>
+              );
+            })()}
           </>);})()}
 
           {/* Rodapé */}
