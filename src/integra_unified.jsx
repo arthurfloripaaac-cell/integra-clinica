@@ -648,8 +648,11 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
   // Entrada calculations
   const entradaPct = entradaTipo === "pct" ? (parseFloat(entradaVal)||0) : 0;
   const entradaFixo = entradaTipo === "fixo" ? (parseFloat(String(entradaVal).replace(",","."))||0) : 0;
-  const entradaValor = entrada ? (entradaTipo === "pct" ? valorFinal * entradaPct / 100 : entradaFixo) : 0;
-  const saldo = entrada ? Math.max(0, valorFinal - entradaValor) : valorFinal;
+  // Desconto à vista: só aplica quando NÃO há entrada (pagamento total de uma vez)
+  // Com entrada, a base de cálculo é sempre o valorBase (sem desconto)
+  const baseEntrada = entrada ? valorBase : valorFinal;
+  const entradaValor = entrada ? (entradaTipo === "pct" ? baseEntrada * entradaPct / 100 : entradaFixo) : 0;
+  const saldo = entrada ? Math.max(0, baseEntrada - entradaValor) : valorFinal;
 
   const creditoBase=(entrada&&entradaValor>0&&saldoTipo==="parcelado")?saldo:valorBase;
   const baseCredInput = modoCred==="cobrar" || !valorCobrarInput
@@ -1107,6 +1110,7 @@ function salvarRelatorio(p1, p2, p3, p4State) {
   const novo = {
     id: Date.now(),
     data: new Date().toISOString(),
+    // Resumo para listagem
     paciente: p1.nome || "Sem nome",
     cpf: p1.cpf || "",
     telefone: p1.telefone || "",
@@ -1122,9 +1126,14 @@ function salvarRelatorio(p1, p2, p3, p4State) {
     desconto: p3.ds||0,
     formas: p3.fc||[],
     temEntrada: p3.entrada||false,
+    // Dados completos para restaurar
+    _p1: p1,
+    _p2: p2,
+    _p3: p3,
+    _p4: p4State,
   };
   relatorios.unshift(novo);
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,500))); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200))); } catch(e){}
   return novo;
 }
 
@@ -1137,7 +1146,7 @@ function excluirRelatorio(id) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lista)); } catch(e){}
 }
 
-function Arquivo() {
+function Arquivo({onCarregar}) {
   const [lista, setLista] = useState([]);
   const [busca, setBusca] = useState("");
   const [filtroProcedimento, setFiltroProcedimento] = useState("");
@@ -1301,7 +1310,12 @@ function Arquivo() {
                       <div style={{fontSize:11,color:"#5C4A2A"}}>{r.formas.join(" · ")}{r.temEntrada?" · com entrada":""}</div>
                     </div>
                   )}
-                  <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+                    {onCarregar&&r._p1&&(
+                      <div onClick={()=>onCarregar(r)} style={{fontSize:11,color:GOLD_DARK,cursor:"pointer",padding:"5px 12px",border:"1px solid "+GOLD,borderRadius:2,fontWeight:600}}>
+                        ✎ Abrir para edição
+                      </div>
+                    )}
                     {confirmExcluir===r.id?(
                       <div style={{display:"flex",gap:8,alignItems:"center"}}>
                         <span style={{fontSize:11,color:"#9A8060"}}>Confirmar exclusão?</span>
@@ -1346,7 +1360,13 @@ const ACHADOS_DEFAULT = [
   {id:"fratura",        label:"Fratura dentária",    cor:"#FF8A65"},
   {id:"ausente",        label:"Dentes ausentes",     cor:"#90A4AE"},
 ];
-const p2Initial = {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:ACHADOS_DEFAULT};
+function getAchadosInicial() {
+  try {
+    const saved = localStorage.getItem("integra_achados_config");
+    return saved ? JSON.parse(saved) : ACHADOS_DEFAULT;
+  } catch(e) { return ACHADOS_DEFAULT; }
+}
+const p2Initial = {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null};
 
 
 
@@ -1793,7 +1813,7 @@ function P4({onTotalChange, p4State, setP4State}) {
     setCustomProcs(prev => prev.map((it, i) => i === idx ? novo : it));
   };
 
-  const adicionarCustom = () => {
+  const adicionarCustom = (permanente=false) => {
     if (!novoNome.trim()) return;
     setCustomProcs(prev => [...prev, {
       id: "custom_" + Date.now(),
@@ -1804,6 +1824,7 @@ function P4({onTotalChange, p4State, setP4State}) {
       dentes: [],
       regiao: novoModo === "regiao" ? "boca" : null,
       qtd: 1,
+      _permanente: permanente,
     }]);
     setNovoNome("");
     setNovoValor("");
@@ -2068,11 +2089,15 @@ function P4({onTotalChange, p4State, setP4State}) {
                   </select>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <div onClick={adicionarCustom} style={{
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div onClick={()=>adicionarCustom(false)} style={{
                   flex: 1, padding: "10px", borderRadius: 3, background: GOLD,
                   color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "center",
-                }}>+ Adicionar</div>
+                }}>+ Adicionar (este atendimento)</div>
+                <div onClick={()=>adicionarCustom(true)} style={{
+                  flex: 1, padding: "10px", borderRadius: 3, background: GOLD_DARK,
+                  color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", textAlign: "center",
+                }}>⭐ Salvar como padrão</div>
                 <div onClick={() => { setMostrarForm(false); setNovoNome(""); setNovoValor(""); }} style={{
                   padding: "10px 16px", borderRadius: 3, border: "1px solid " + BORDER,
                   color: "#9A8060", fontSize: 12, cursor: "pointer", textAlign: "center",
@@ -2493,18 +2518,36 @@ function App() {
   const [relatorioSalvo, setRelatorioSalvo] = useState(false);
   const [previewAberto, setPreviewAberto] = useState(false);
   const [p1, setP1] = useState(p1Initial);
-  const [p2, setP2] = useState(p2Initial);
+  const [p2, setP2] = useState(()=>({...p2Initial, achados: getAchadosInicial()}));
   const [p3, setP3] = useState(p3Initial);
   const sp3 = (k,v) => setP3(prev=>({...prev,[k]:v}));
   const [p4Total, setP4Total] = useState(0);
-  const [p4State, setP4State] = useState(() => loadPersisted("integra_p4config", p4Initial));
+  const [p4State, setP4State] = useState(() => {
+    const saved = loadPersisted("integra_p4config", p4Initial);
+    return {
+      ...p4Initial,
+      procsBase: saved.procsBase || null,
+      // customProcs permanentes ficam como base, mas não ativas por padrão
+      customProcs: (saved.customProcs||[]).map(c=>({...c, ativo:false})),
+    };
+  });
 
-  // Salvar p4State (configuração dos procedimentos) sempre que mudar
+  // Salvar configuração permanente dos procedimentos (não os itens do atendimento)
   useEffect(() => {
-    // Só salva procsBase e customProcs — não os itens do atendimento atual
-    const toSave = { procsBase: p4State.procsBase };
-    savePersisted("integra_p4config", toSave);
-  }, [p4State.procsBase]);
+    if(p4State.procsBase) {
+      savePersisted("integra_p4config", {
+        procsBase: p4State.procsBase,
+        customProcs: (p4State.customProcs||[]).filter(c=>c._permanente),
+      });
+    }
+  }, [p4State.procsBase, p4State.customProcs]);
+
+  // Salvar achados editáveis permanentes
+  useEffect(() => {
+    if(p2.achados && p2.achados !== ACHADOS_DEFAULT) {
+      savePersisted("integra_achados_config", p2.achados);
+    }
+  }, [p2.achados]);
 
   const previewProps = {p1, p2, p3, p4State};
 
@@ -2567,7 +2610,13 @@ function App() {
         planoExterno={p3.plano||"dias14"} setPlanoExterno={v=>sp3("plano",v)}
       />}
       {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{salvarRelatorio(p1,p2,p3,p4State);setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);}} salvoOk={relatorioSalvo}/>}
-      {pag==="arq"&&<Arquivo/>}
+      {pag==="arq"&&<Arquivo onCarregar={(r)=>{
+        if(r._p1) setP1(r._p1);
+        if(r._p2) setP2(r._p2);
+        if(r._p3) setP3({...p3Initial,...r._p3});
+        if(r._p4) setP4State(r._p4);
+        setPag("p1");
+      }}/>}
       <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:"#1A0F08",borderTop:"2px solid #2C1810",zIndex:100}}>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p1"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p1"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p1")}>👤 Paciente</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p2"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p2"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p2")}>🦷 Avaliação</button>
