@@ -687,8 +687,14 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
 
   const toggleForma=id=>{
     const wasChecked = formasChecked.includes(id);
-    if(!wasChecked) setFormasChecked([...formasChecked, id]);
-    setFormaAtiva(formaAtiva===id ? null : id);
+    if(!wasChecked) {
+      // Não marcado: marca e abre painel
+      setFormasChecked([...formasChecked, id]);
+      setFormaAtiva(id);
+    } else {
+      // Já marcado: alterna painel (abre se fechado, fecha se aberto)
+      setFormaAtiva(prev => prev === id ? null : id);
+    }
   };
   const desmarcarForma=id=>{
     setFormasChecked(formasChecked.filter(x=>x!==id));
@@ -1199,8 +1205,80 @@ function Arquivo({onCarregar}) {
   const limparFiltros = () => { setBusca(""); setFiltroProcedimento(""); setFiltroForma(""); setFiltroData({de:"",ate:""}); setFiltroValor({min:"",max:""}); };
   const temFiltro = busca||filtroProcedimento||filtroForma||filtroData.de||filtroData.ate||filtroValor.min||filtroValor.max;
 
+  const [msgImport, setMsgImport] = useState(null);
+
+  const importarJSON = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const dados = JSON.parse(ev.target.result);
+          const itens = Array.isArray(dados) ? dados : [dados];
+          const relatorios = carregarRelatorios();
+          const novos = itens.filter(item => item.id && item.paciente);
+          const idsExist = new Set(relatorios.map(r=>r.id));
+          const paraAdicionar = novos.filter(n=>!idsExist.has(n.id));
+          const duplicados = novos.length - paraAdicionar.length;
+
+          if(novos.length === 0) {
+            setMsgImport({tipo:"erro", texto:"Arquivo não reconhecido. Use arquivos JSON exportados pelo sistema."});
+            setTimeout(()=>setMsgImport(null), 4000);
+            return;
+          }
+
+          // Se todos são duplicados, forçar re-importação com novo ID
+          const finalParaAdd = paraAdicionar.length === 0 && duplicados > 0
+            ? novos.map(n=>({...n, id: Date.now() + Math.random()}))
+            : paraAdicionar;
+
+          const nova = [...finalParaAdd, ...relatorios].slice(0,200);
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(nova)); } catch(e){}
+          setLista(nova);
+          setExpandido(finalParaAdd[0]?.id || null);
+
+          let msg = finalParaAdd.length + " atendimento(s) importado(s)";
+          if(duplicados > 0 && paraAdicionar.length > 0) msg += " · " + duplicados + " já existia(m)";
+          if(duplicados > 0 && paraAdicionar.length === 0) msg += " (re-importado com novo ID)";
+          setMsgImport({tipo:"ok", texto:msg});
+          setTimeout(()=>setMsgImport(null), 4000);
+        } catch(err) {
+          setMsgImport({tipo:"erro", texto:"Arquivo inválido: " + err.message});
+          setTimeout(()=>setMsgImport(null), 4000);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const BotaoImportar = () => (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+      <div onClick={importarJSON} style={{
+        display:"flex",alignItems:"center",gap:6,padding:"8px 16px",
+        border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",
+        fontSize:12,color:GOLD_DARK,fontWeight:600,background:"#fff",
+      }}>📂 Importar JSON</div>
+      {msgImport&&(
+        <div style={{
+          fontSize:11,padding:"6px 12px",borderRadius:3,
+          background:msgImport.tipo==="ok"?GOLD_PALE:"#FFF0F0",
+          border:"1px solid "+(msgImport.tipo==="ok"?GOLD:"#E57373"),
+          color:msgImport.tipo==="ok"?GOLD_DARK:"#C62828",
+        }}>{msgImport.tipo==="ok"?"✓ ":""}{msgImport.texto}</div>
+      )}
+    </div>
+  );
+
   if (lista.length === 0) return (
     <div style={{maxWidth:640,margin:"0 auto",padding:"20px 16px 40px"}}>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+        <BotaoImportar/>
+      </div>
       <Card>
         <div style={{textAlign:"center",padding:"40px 0",color:"#9A8060"}}>
           <div style={{fontSize:32,marginBottom:12}}>📁</div>
@@ -1213,6 +1291,11 @@ function Arquivo({onCarregar}) {
 
   return (
     <div style={{maxWidth:680,margin:"0 auto",padding:"20px 16px 40px"}}>
+
+      {/* Cabeçalho com importar */}
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+        <BotaoImportar/>
+      </div>
 
       {/* Estatísticas */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
@@ -1323,11 +1406,31 @@ function Arquivo({onCarregar}) {
                     </div>
                   )}
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
-                    {onCarregar&&r._p1&&(
-                      <div onClick={()=>onCarregar(r)} style={{fontSize:11,color:GOLD_DARK,cursor:"pointer",padding:"5px 12px",border:"1px solid "+GOLD,borderRadius:2,fontWeight:600}}>
-                        ✎ Abrir para edição
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {onCarregar&&r._p1&&(
+                        <div onClick={()=>onCarregar(r)} style={{fontSize:11,color:GOLD_DARK,cursor:"pointer",padding:"5px 12px",border:"1px solid "+GOLD,borderRadius:2,fontWeight:600}}>
+                          ✎ Abrir para edição
+                        </div>
+                      )}
+                      <div onClick={()=>{
+                        try {
+                          const json = JSON.stringify(r, null, 2);
+                          const nome = "integra_"+((r.paciente||"atendimento").replace(/[^a-zA-Z0-9]/g,"_"))+"_"+new Date(r.data||Date.now()).toLocaleDateString("pt-BR").replace(/\//g,"-")+".json";
+                          const bytes = new TextEncoder().encode(json);
+                          const blob = new Blob([bytes], {type:"application/octet-stream"});
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = nome;
+                          a.style.display = "none";
+                          document.body.appendChild(a);
+                          a.click();
+                          setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+                        } catch(e) { alert("Erro ao exportar: " + e.message); }
+                      }} style={{fontSize:11,color:"#5C4A2A",cursor:"pointer",padding:"5px 12px",border:"1px solid "+BORDER,borderRadius:2,fontWeight:600}}>
+                        ⬇ Baixar JSON
                       </div>
-                    )}
+                    </div>
                     {confirmExcluir===r.id?(
                       <div style={{display:"flex",gap:8,alignItems:"center"}}>
                         <span style={{fontSize:11,color:"#9A8060"}}>Confirmar exclusão?</span>
@@ -1783,9 +1886,10 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
             <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 6 }}>Observação</div>
             <textarea
               style={{ width: "100%", padding: "8px 10px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, color: "#1C1410", background: "#fff", outline: "none", fontFamily: "inherit", resize: "vertical", minHeight: 52 }}
-              spellCheck={true} lang="pt-BR" value={item.obs || ""}
+              spellCheck={true} lang="pt-BR"
+              value={item.obs || ""}
               onChange={e => onChange({ ...item, obs: e.target.value })}
-              spellCheck={true} lang="pt-BR" placeholder="Anotações clínicas, materiais, observações..."
+              placeholder="Anotações clínicas, materiais, observações..."
             />
           </div>
         </div>
@@ -2437,40 +2541,29 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
 
-            {/* Linha de valor + desconto — sempre no topo */}
-            {(()=>{
-              const lb = [...formasAv,...(bolAv?["boleto"]:[])].map(id=>nomes[id]).join(" · ");
-              return(
-                <div style={{padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,marginBottom:14}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
-                    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                      {dp>0?(
-                        <>
-                          <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vB)}</span>
-                          <span style={{fontSize:11,color:"#9A8060"}}>→</span>
-                          <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
-                          <span style={{fontSize:11,color:"#9A8060"}}>({dp}% de desconto)</span>
-                        </>
-                      ):(
-                        <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
-                      )}
-                    </div>
-                    {lb&&temAVista&&!temParcelado&&<span style={{fontSize:12,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
-                  </div>
-                  {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060",marginTop:3}}>Taxa 1,99% PagBank no débito</div>}
-                </div>
-              );
-            })()}
-
-            {/* ALTERNATIVA 1 — À vista */}
+            {/* ALTERNATIVA 1 — À vista com valor e desconto incorporados */}
             {temAVista && (()=>{
               const lb = [...formasAv,...(bolAv?["boleto"]:[])].map(id=>nomes[id]).join(" · ");
               return(
                 <div style={{marginBottom:14}}>
                   <LabelAlternativa num="1" titulo="Pagamento à vista"/>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3}}>
-                    <span style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{lb}</span>
-                    <span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                  <div style={{padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                        {dp>0?(
+                          <>
+                            <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vB)}</span>
+                            <span style={{fontSize:11,color:"#9A8060"}}>→</span>
+                            <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                            <span style={{fontSize:11,color:"#9A8060"}}>({dp}% de desconto)</span>
+                          </>
+                        ):(
+                          <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                        )}
+                      </div>
+                      {lb&&<span style={{fontSize:12,fontWeight:600,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
+                    </div>
+                    {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060",marginTop:3}}>Taxa 1,99% PagBank no débito</div>}
                   </div>
                 </div>
               );
