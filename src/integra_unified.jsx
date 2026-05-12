@@ -11,7 +11,7 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
       body { margin: 0 !important; background: white !important; }
       .no-print { display: none !important; }
       #root > div { padding-bottom: 0 !important; }
-      @page { margin: 1cm; size: A4 portrait; }
+      @page { margin: 0.5cm; size: A4 portrait; }
     }
   `;
   document.head.appendChild(_s);
@@ -732,7 +732,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
     const avLabel=[temPix&&"PIX",temDin&&"Dinheiro",temBolAv&&"Boleto",temDeb&&"Débito"].filter(Boolean).join(" · ");
 
     return(
-      <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden"}}>
+      <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",marginTop:4}}>
         <div style={{background:"linear-gradient(135deg,#2C1810 0%,#1A0F08 100%)",padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <svg width="28" height="36" viewBox="0 0 40 52" fill="none"><ellipse cx="20" cy="26" rx="18" ry="24" stroke="#B8962E" strokeWidth="1.5"/><text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill="#B8962E">i</text></svg>
@@ -2406,8 +2406,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
   );
 
   return (
-    <div style={{maxWidth:680,margin:"0 auto",padding:"20px 16px 40px"}}>
-      <div style={{marginBottom:14,display:"flex",justifyContent:"flex-end"}}>
+    <div style={{maxWidth:680,margin:"0 auto",padding:"4px 16px 40px"}}>
+      <div style={{marginBottom:8,display:"flex",justifyContent:"flex-end"}}>
         {!isPreview&&<div className="no-print" style={{display:"flex",gap:10,alignItems:"center"}}>
           {onSalvar&&<div onClick={onSalvar} style={{
             display:"flex",alignItems:"center",gap:8,padding:"10px 20px",
@@ -2851,6 +2851,7 @@ function useUndo(initialState) {
 
 // ─── GOOGLE DRIVE INTEGRATION ────────────────────────
 const GDRIVE_CLIENT_ID = "608550621257-trrkg2omi2g74he41282ka2qbue4nein.apps.googleusercontent.com";
+const GDRIVE_ORIGIN = "https://integra-clinica-three.vercel.app";
 const GDRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const GDRIVE_FOLDER_NAME = "Íntegra Clínica — Atendimentos";
 
@@ -2960,6 +2961,13 @@ function DriveSync({relatorio}) {
   const [msgDrive, setMsgDrive] = React.useState(null);
 
   const login = async () => {
+    // Se estiver em URL de preview, redirecionar para URL principal
+    if(window.location.hostname !== "integra-clinica-three.vercel.app" &&
+       window.location.hostname !== "localhost") {
+      const redirect = GDRIVE_ORIGIN + window.location.pathname;
+      window.location.href = redirect;
+      return;
+    }
     setMsgDrive({tipo:"ok",texto:"Carregando..."});
     try {
       await gdriveEnsureScript();
@@ -2992,7 +3000,7 @@ function DriveSync({relatorio}) {
   };
 
   return (
-    <div style={{marginTop:10}}>
+    <div className="no-print" style={{marginTop:10}}>
       {!logado ? (
         <div onClick={login} style={{
           display:"flex",alignItems:"center",gap:8,padding:"8px 16px",
