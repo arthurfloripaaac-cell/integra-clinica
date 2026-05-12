@@ -486,7 +486,7 @@ function P2({data, setData}) {
                       <div style={{width:8,height:8,borderRadius:"50%",background:a.cor}}/>
                       <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{a.label}</span>
                     </div>
-                    <div style={{fontSize:10,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line"}}>{descreverRegiao(a.dentes,true)}</div>
+                    <div style={{fontSize:10,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"55%"}}>{descreverRegiao(a.dentes,true)}</div>
                   </div>
                 </div>
               ))}
@@ -498,7 +498,7 @@ function P2({data, setData}) {
       {/* Informações Clínicas */}
       <Card>
         <SectionTitle>Informações Clínicas</SectionTitle>
-        <textarea value={obsTexto} onChange={e=>{set("obsTexto",e.target.value);set("obsCorrigido","");}} placeholder="Digite informações clínicas adicionais..." style={{...inp,minHeight:90,resize:"vertical",lineHeight:1.6,width:"100%"}}/>
+        <textarea spellCheck={true} lang="pt-BR" value={obsTexto} onChange={e=>{set("obsTexto",e.target.value);set("obsCorrigido","");}} placeholder="Digite informações clínicas adicionais..." style={{...inp,minHeight:90,resize:"vertical",lineHeight:1.6,width:"100%"}}/>
         {obsTexto.trim()&&(
           <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
             <div onClick={corrigir} style={{padding:"6px 14px",borderRadius:20,background:corrigindo?"#ccc":GOLD,color:"#fff",fontSize:11,fontWeight:700,cursor:corrigindo?"default":"pointer"}}>
@@ -1773,7 +1773,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
               style={{ width: "100%", padding: "8px 10px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, color: "#1C1410", background: "#fff", outline: "none", fontFamily: "inherit", resize: "vertical", minHeight: 52 }}
               value={item.obs || ""}
               onChange={e => onChange({ ...item, obs: e.target.value })}
-              placeholder="Anotações clínicas, materiais, observações..."
+              spellCheck={true} lang="pt-BR" placeholder="Anotações clínicas, materiais, observações..."
             />
           </div>
         </div>
@@ -1803,6 +1803,7 @@ function P4({onTotalChange, p4State, setP4State}) {
   const [novoNome, setNovoNome] = useState("");
   const [novoValor, setNovoValor] = useState("");
   const [novoModo, setNovoModo] = useState("dente");
+  const [novoObs, setNovoObs] = useState("");
   const [mostrarForm, setMostrarForm] = useState(false);
 
   const atualizarItem = (idx, novo) => {
@@ -1821,6 +1822,7 @@ function P4({onTotalChange, p4State, setP4State}) {
       modo: novoModo,
       ativo: true,
       valor: novoValor || "0",
+      obs: novoObs.trim(),
       dentes: [],
       regiao: novoModo === "regiao" ? "boca" : null,
       qtd: 1,
@@ -1828,6 +1830,7 @@ function P4({onTotalChange, p4State, setP4State}) {
     }]);
     setNovoNome("");
     setNovoValor("");
+    setNovoObs("");
     setMostrarForm(false);
   };
 
@@ -1982,7 +1985,7 @@ function P4({onTotalChange, p4State, setP4State}) {
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: ativo ? "#fff" : BORDER, flexShrink: 0 }} />
                     {editandoProcs ? (
                       <input
-                        style={{ background: "transparent", border: "none", outline: "none", fontSize: 12, fontWeight: ativo ? 700 : 400, color: ativo ? "#fff" : "#5C4A2A", fontFamily: "inherit", width: Math.max(60, proc.nome.length * 7) + "px", cursor: "text" }}
+                        spellCheck={false} style={{ background: "transparent", border: "none", outline: "none", fontSize: 12, fontWeight: ativo ? 700 : 400, color: ativo ? "#fff" : "#5C4A2A", fontFamily: "inherit", width: Math.max(60, proc.nome.length * 7) + "px", cursor: "text" }}
                         value={proc.nome}
                         onClick={e => e.stopPropagation()}
                         onChange={e => isCustom
@@ -2088,6 +2091,17 @@ function P4({onTotalChange, p4State, setP4State}) {
                     <option value="livre">Valor livre</option>
                   </select>
                 </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 600 }}>Observação / Descrição</label>
+                <textarea
+                  spellCheck={true}
+                  lang="pt-BR"
+                  style={{ padding: "10px 12px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, outline: "none", fontFamily: "inherit", resize: "vertical", minHeight: 60, color: "#1C1410" }}
+                  value={novoObs}
+                  onChange={e => setNovoObs(e.target.value)}
+                  placeholder="Descrição, materiais, observações clínicas..."
+                />
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <div onClick={()=>adicionarCustom(false)} style={{
@@ -2202,8 +2216,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
   const dp = ds===-1?(parseFloat(dc)||0):ds;
   const vB = parseFloat(String(vb).replace(",","."))||0;
   const vF = dp>0 ? vB*(1-dp/100) : vB;
-  const entradaValor2=entrada?(entradaTipo==="pct"?vF*(parseFloat(entradaVal)||0)/100:(parseFloat(String(entradaVal).replace(",","."))||0)):0;
-  const saldo2=entrada?Math.max(0,vF-entradaValor2):vF;
+  // Entrada sempre sobre vB (valor base sem desconto) — desconto só aplica no pagamento total à vista
+  const baseEntradaRel = entrada ? vB : vF;
+  const entradaValor2=entrada?(entradaTipo==="pct"?baseEntradaRel*(parseFloat(entradaVal)||0)/100:(parseFloat(String(entradaVal).replace(",","."))||0)):0;
+  const saldo2=entrada?Math.max(0,baseEntradaRel-entradaValor2):vF;
   const nb = parseInt(bp)||1, nic = parseInt(ci)||0;
   // Crédito sempre usa valor SEM desconto (PagBank não permite desconto no crédito)
   const baseCreditoSemDesc=(entrada&&entradaValor2>0&&saldoTipo==="parcelado")
@@ -2325,7 +2341,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                   <div style={{width:3,background:GOLD,flexShrink:0}}/>
                   <div style={{flex:1,padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{a.lb}</span>
-                    <span style={{fontSize:11,color:"#9A8060"}}>{descreverRegiao(a.dentes)}</span>
+                    <div style={{fontSize:10,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"60%"}}>{descreverRegiao(a.dentes,true)}</div>
                   </div>
                 </div>
               ))}
@@ -2359,7 +2375,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                   : proc.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>{const vd=it.valoresDente&&it.valoresDente[n];return nomeDente(n)+(vd&&vd!==it.valor?" — "+fmt2(parseMoeda(vd)):"");}).join("\n"):"—")
                   :(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":"Arcada inferior");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
-                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{proc.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div></div>
+                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{proc.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>{it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}</div>
                   <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               }),
@@ -2372,7 +2388,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                   : v;
                 const desc = it.modo==="livre" ? "" : it.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—"):(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":it.regiao==="inf"?"Arcada inferior":"—");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
-                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{it.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div></div>
+                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{it.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>{it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}</div>
                   <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               })].filter(Boolean)}
@@ -2537,6 +2553,148 @@ const p4Initial = {
 
 const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"3",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true};
 
+
+// ─── CALCULADORA FLUTUANTE ───────────────────────────
+function CalculadoraFlutuante() {
+  const [aberta, setAberta] = useState(false);
+  const [display, setDisplay] = useState("0");
+  const [expr, setExpr] = useState("");
+  const [historico, setHistorico] = useState([]);
+  const [esperandoOperando, setEsperandoOperando] = useState(false);
+
+  const pressionar = (val) => {
+    if(val==="C") { setDisplay("0"); setExpr(""); setEsperandoOperando(false); return; }
+    if(val==="⌫") {
+      setDisplay(d => d.length>1 ? d.slice(0,-1) : "0");
+      return;
+    }
+    if(val==="%") {
+      const n = parseFloat(display);
+      if(!isNaN(n)) setDisplay(String(n/100));
+      return;
+    }
+    if(["+","-","×","÷"].includes(val)) {
+      const op = val==="×"?"*":val==="÷"?"/":val;
+      setExpr(display+op);
+      setEsperandoOperando(true);
+      return;
+    }
+    if(val==="=") {
+      try {
+        const full = expr + display;
+        // eslint-disable-next-line no-new-func
+        const result = Function('"use strict"; return ('+full+')')();
+        const res = parseFloat(result.toFixed(8)).toString();
+        setHistorico(h=>[{expr:full,res},...h.slice(0,9)]);
+        setDisplay(res);
+        setExpr("");
+        setEsperandoOperando(false);
+      } catch(e) { setDisplay("Erro"); setExpr(""); }
+      return;
+    }
+    if(val===".") {
+      if(esperandoOperando) { setDisplay("0."); setEsperandoOperando(false); return; }
+      if(!display.includes(".")) setDisplay(d=>d+".");
+      return;
+    }
+    if(esperandoOperando) { setDisplay(val); setEsperandoOperando(false); }
+    else setDisplay(d => d==="0"||d==="Erro" ? val : d+val);
+  };
+
+  const btns = [
+    [{l:"C",c:"#5C4A2A"},{l:"⌫",c:"#5C4A2A"},{l:"%",c:"#5C4A2A"},{l:"÷",c:GOLD_DARK}],
+    [{l:"7"},{l:"8"},{l:"9"},{l:"×",c:GOLD_DARK}],
+    [{l:"4"},{l:"5"},{l:"6"},{l:"-",c:GOLD_DARK}],
+    [{l:"1"},{l:"2"},{l:"3"},{l:"+",c:GOLD_DARK}],
+    [{l:"0",w:2},{l:"."},{l:"=",c:GOLD_DARK}],
+  ];
+
+  return (
+    <>
+      {/* Botão flutuante */}
+      <div className="no-print" onClick={()=>setAberta(!aberta)} style={{
+        position:"fixed",bottom:76,left:16,zIndex:200,
+        background:aberta?"#2C1810":"#5C4A2A",color:"#fff",
+        borderRadius:24,padding:"10px 16px",fontSize:12,fontWeight:700,
+        cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.3)",
+        display:"flex",alignItems:"center",gap:6,
+      }}>🧮</div>
+
+      {/* Painel */}
+      {aberta&&(
+        <div className="no-print" style={{
+          position:"fixed",bottom:130,left:16,zIndex:300,
+          background:"#1A1A1A",borderRadius:16,
+          boxShadow:"0 8px 32px rgba(0,0,0,0.5)",
+          width:240,overflow:"hidden",
+        }}>
+          {/* Display */}
+          <div style={{padding:"12px 16px 8px",textAlign:"right"}}>
+            <div style={{fontSize:10,color:"#666",minHeight:16}}>{expr}</div>
+            <div style={{fontSize:32,fontWeight:300,color:"#fff",lineHeight:1.2,wordBreak:"break-all"}}>{display}</div>
+          </div>
+
+          {/* Histórico */}
+          {historico.length>0&&(
+            <div style={{maxHeight:120,overflowY:"auto",padding:"6px 12px",borderBottom:"1px solid #333",background:"#222"}}>
+              <div style={{fontSize:8,letterSpacing:2,textTransform:"uppercase",color:"#888",marginBottom:4}}>Histórico</div>
+              {historico.map((h,i)=>(
+                <div key={i} onClick={()=>{setDisplay(h.res);setExpr("");}} style={{padding:"5px 0",borderBottom:"1px solid #333",cursor:"pointer"}}>
+                  <div style={{fontSize:10,color:"#aaa",textAlign:"right"}}>{h.expr} =</div>
+                  <div style={{fontSize:14,color:"#fff",textAlign:"right",fontWeight:400}}>{h.res}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Botões */}
+          <div style={{padding:8,display:"flex",flexDirection:"column",gap:6}}>
+            {btns.map((row,ri)=>(
+              <div key={ri} style={{display:"flex",gap:6}}>
+                {row.map((btn,bi)=>(
+                  <div key={bi} onClick={()=>pressionar(btn.l)} style={{
+                    flex:btn.w||1,padding:"14px 0",borderRadius:10,
+                    background:btn.c||"#333",color:"#fff",
+                    fontSize:16,fontWeight:500,textAlign:"center",cursor:"pointer",
+                    userSelect:"none",transition:"opacity 0.1s",
+                  }}>{btn.l}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+
+// ─── HOOK DE DESFAZER ────────────────────────────────
+function useUndo(initialState) {
+  const [history, setHistory] = useState([initialState]);
+  const [index, setIndex] = useState(0);
+
+  const state = history[index];
+
+  const setState = (newState) => {
+    const novo = typeof newState === "function" ? newState(state) : newState;
+    const novoHist = history.slice(0, index + 1);
+    novoHist.push(novo);
+    if (novoHist.length > 20) novoHist.shift();
+    setHistory(novoHist);
+    setIndex(novoHist.length - 1);
+  };
+
+  const desfazer = () => {
+    if (index > 0) setIndex(i => i - 1);
+  };
+
+  const podeDesfazer = index > 0;
+
+  return [state, setState, desfazer, podeDesfazer];
+}
+
+
 function loadPersisted(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; }
 }
@@ -2548,17 +2706,17 @@ function App() {
   const [pag, setPag] = useState("p1");
   const [relatorioSalvo, setRelatorioSalvo] = useState(false);
   const [previewAberto, setPreviewAberto] = useState(false);
-  const [p1, setP1] = useState(p1Initial);
-  const [p2, setP2] = useState(()=>({...p2Initial, achados: getAchadosInicial()}));
-  const [p3, setP3] = useState(p3Initial);
-  const sp3 = (k,v) => setP3(prev=>({...prev,[k]:v}));
+  const [p1, setP1, desfazerP1, podeDesfazerP1] = useUndo(p1Initial);
+  const [p2, setP2, desfazerP2, podeDesfazerP2] = useUndo({...p2Initial, achados: getAchadosInicial()});
+  const [p3, _setP3, desfazerP3, podeDesfazerP3] = useUndo(p3Initial);
+  const setP3 = _setP3;
+  const sp3 = (k,v) => _setP3(prev=>({...prev,[k]:v}));
   const [p4Total, setP4Total] = useState(0);
-  const [p4State, setP4State] = useState(() => {
+  const [p4State, setP4State, desfazerP4, podeDesfazerP4] = useUndo(() => {
     const saved = loadPersisted("integra_p4config", p4Initial);
     return {
       ...p4Initial,
       procsBase: saved.procsBase || null,
-      // customProcs permanentes ficam como base, mas não ativas por padrão
       customProcs: (saved.customProcs||[]).map(c=>({...c, ativo:false})),
     };
   });
@@ -2586,6 +2744,7 @@ function App() {
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
       {pag!=="rel"&&<Header/>}
 
+      <CalculadoraFlutuante/>
       {/* Botão Preview flutuante */}
       {pag!=="rel"&&(
         <div className="no-print preview-btn" onClick={()=>setPreviewAberto(!previewAberto)} style={{
@@ -2648,6 +2807,22 @@ function App() {
         if(r._p4) setP4State(r._p4);
         setPag("p1");
       }}/>}
+      {/* Botão desfazer flutuante por aba */}
+      {(()=>{
+        const mapa = {p1:[desfazerP1,podeDesfazerP1],p2:[desfazerP2,podeDesfazerP2],p3:[desfazerP3,podeDesfazerP3],p4:[desfazerP4,podeDesfazerP4]};
+        const [fn, pode] = mapa[pag]||[null,false];
+        if(!fn||!pode) return null;
+        return(
+          <div className="no-print" onClick={fn} style={{
+            position:"fixed",bottom:76,right:70,zIndex:200,
+            background:"rgba(44,24,16,0.9)",color:GOLD_LIGHT,
+            borderRadius:20,padding:"8px 14px",fontSize:11,fontWeight:600,
+            cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.3)",
+            display:"flex",alignItems:"center",gap:5,border:"1px solid "+GOLD_DARK,
+          }}>↩ Desfazer</div>
+        );
+      })()}
+
       <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:"#1A0F08",borderTop:"2px solid #2C1810",zIndex:100}}>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p1"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p1"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p1")}>👤 Paciente</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p2"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p2"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p2")}>🦷 Avaliação</button>
