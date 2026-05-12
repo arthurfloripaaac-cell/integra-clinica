@@ -187,7 +187,7 @@ function P1({data, setData}) {
       <Card>
         <SectionTitle>Dados do Paciente</SectionTitle>
         <div style={{marginBottom:12}}>
-          <Field label="Nome completo"><input style={inp} value={nome} onChange={e=>set("nome",e.target.value)} placeholder="Nome completo"/></Field>
+          <Field label="Nome completo"><input style={inp} spellCheck={false} value={nome} onChange={e=>set("nome",e.target.value)} spellCheck={false} placeholder="Nome completo"/></Field>
         </div>
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12}}>
           <Field label="CPF"><input style={inp} value={cpf} onChange={e=>set("cpf",formatCpf(e.target.value))} placeholder="000.000.000-00"/></Field>
@@ -205,7 +205,7 @@ function P1({data, setData}) {
           <div style={{background:"rgba(91,45,142,0.05)", border:"1px solid rgba(91,45,142,0.2)", borderRadius:3, padding:"14px 16px", marginBottom:12}}>
             <div style={{fontSize:9, letterSpacing:2, textTransform:"uppercase", color:PURPLE, fontWeight:700, marginBottom:12}}>Responsável Legal</div>
             <div style={{marginBottom:10}}>
-              <Field label="Nome do responsável"><input style={inp} value={respNome} onChange={e=>set("respNome",e.target.value)} placeholder="Nome completo"/></Field>
+              <Field label="Nome do responsável"><input style={inp} value={respNome} onChange={e=>set("respNome",e.target.value)} spellCheck={false} placeholder="Nome completo"/></Field>
             </div>
             <Field label="CPF do responsável"><input style={inp} value={respCpf} onChange={e=>set("respCpf",formatCpf(e.target.value))} placeholder="000.000.000-00"/></Field>
           </div>
@@ -228,8 +228,8 @@ function P1({data, setData}) {
               <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:10}}>
                 {equipe.map((p,i)=>(
                   <div key={i} style={{display:"flex",gap:6,alignItems:"center"}}>
-                    <input style={{flex:1,padding:"6px 8px",border:"1px solid "+GOLD,borderRadius:2,fontSize:12,fontWeight:600,color:GOLD_DARK,background:GOLD_PALE,outline:"none",fontFamily:"inherit"}} value={p.nome} onChange={e=>editarMembro(i,"nome",e.target.value)} placeholder="Nome"/>
-                    <input style={{flex:1,padding:"6px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,color:"#5C4A2A",background:"#fff",outline:"none",fontFamily:"inherit"}} value={p.area} onChange={e=>editarMembro(i,"area",e.target.value)} placeholder="Especialidade"/>
+                    <input spellCheck={false} style={{flex:1,padding:"6px 8px",border:"1px solid "+GOLD,borderRadius:2,fontSize:12,fontWeight:600,color:GOLD_DARK,background:GOLD_PALE,outline:"none",fontFamily:"inherit"}} value={p.nome} onChange={e=>editarMembro(i,"nome",e.target.value)} placeholder="Nome"/>
+                    <input style={{flex:1,padding:"6px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,color:"#5C4A2A",background:"#fff",outline:"none",fontFamily:"inherit"}} value={p.area} onChange={e=>editarMembro(i,"area",e.target.value)} spellCheck={false} placeholder="Especialidade"/>
                     <div onClick={()=>removerMembro(i)} style={{fontSize:10,color:"#9A8060",cursor:"pointer",padding:"4px 8px",border:"1px solid "+BORDER,borderRadius:2,flexShrink:0}}>✕</div>
                   </div>
                 ))}
@@ -238,8 +238,8 @@ function P1({data, setData}) {
                 <div onClick={()=>setAdicionandoMembro(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"8px",border:"1.5px dashed "+BORDER,borderRadius:2,cursor:"pointer",color:GOLD_DARK,fontSize:11,fontWeight:600}}>+ Novo membro</div>
               ):(
                 <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                  <input style={{flex:1,padding:"7px 8px",border:"1px solid "+GOLD,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit"}} value={novoMembro.nome} onChange={e=>setNovoMembro(p=>({...p,nome:e.target.value}))} placeholder="Nome completo" autoFocus/>
-                  <input style={{flex:1,padding:"7px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,outline:"none",fontFamily:"inherit"}} value={novoMembro.area} onChange={e=>setNovoMembro(p=>({...p,area:e.target.value}))} placeholder="Especialidade"/>
+                  <input style={{flex:1,padding:"7px 8px",border:"1px solid "+GOLD,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit"}} value={novoMembro.nome} onChange={e=>setNovoMembro(p=>({...p,nome:e.target.value}))} spellCheck={false} spellCheck={false} placeholder="Nome completo" autoFocus/>
+                  <input style={{flex:1,padding:"7px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,outline:"none",fontFamily:"inherit"}} value={novoMembro.area} onChange={e=>setNovoMembro(p=>({...p,area:e.target.value}))} spellCheck={false} placeholder="Especialidade"/>
                   <div onClick={adicionarMembro} style={{padding:"7px 12px",background:GOLD,color:"#fff",borderRadius:2,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0}}>+ Add</div>
                   <div onClick={()=>{setAdicionandoMembro(false);setNovoMembro({nome:"",area:""}); }} style={{padding:"7px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,cursor:"pointer",color:"#9A8060",flexShrink:0}}>✕</div>
                 </div>
@@ -383,9 +383,21 @@ function P2({data, setData}) {
               </div>);
             })}
           </div>
-          {achadoAtivo&&<div style={{marginTop:10,padding:"8px 12px",background:aObj.cor+"15",border:"1.5px solid "+aObj.cor,borderRadius:3,fontSize:11,color:aObj.cor,fontWeight:600,display:"flex",justifyContent:"space-between"}}>
-            <span>Marcando: {aObj.label}</span>
-            <span onClick={()=>set("achadoAtivo",null)} style={{cursor:"pointer",opacity:0.7}}>✕ fechar</span>
+          {achadoAtivo&&<div style={{marginTop:10,background:aObj.cor+"15",border:"1.5px solid "+aObj.cor,borderRadius:3,overflow:"hidden"}}>
+            <div style={{padding:"8px 12px",fontSize:11,color:aObj.cor,fontWeight:600,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span>Marcando: {aObj.label}</span>
+              <span onClick={()=>set("achadoAtivo",null)} style={{cursor:"pointer",opacity:0.7}}>✕ fechar</span>
+            </div>
+            <div style={{padding:"0 12px 10px"}}>
+              <textarea
+                spellCheck={true}
+                lang="pt-BR"
+                value={(data.obsAchados||{})[achadoAtivo]||""}
+                onChange={e=>set("obsAchados",{...(data.obsAchados||{}),[achadoAtivo]:e.target.value})}
+                placeholder={"Observação sobre "+aObj.label.toLowerCase()+"..."}
+                style={{width:"100%",padding:"6px 8px",border:"1px solid "+aObj.cor+"44",borderRadius:2,fontSize:11,outline:"none",fontFamily:"inherit",resize:"vertical",minHeight:44,background:"rgba(255,255,255,0.7)",color:"#1C1410",boxSizing:"border-box"}}
+              />
+            </div>
           </div>}
         </div>
 
@@ -1366,7 +1378,7 @@ function getAchadosInicial() {
     return saved ? JSON.parse(saved) : ACHADOS_DEFAULT;
   } catch(e) { return ACHADOS_DEFAULT; }
 }
-const p2Initial = {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null};
+const p2Initial = {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{}};
 
 
 
@@ -1771,7 +1783,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
             <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 6 }}>Observação</div>
             <textarea
               style={{ width: "100%", padding: "8px 10px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, color: "#1C1410", background: "#fff", outline: "none", fontFamily: "inherit", resize: "vertical", minHeight: 52 }}
-              value={item.obs || ""}
+              spellCheck={true} lang="pt-BR" value={item.obs || ""}
               onChange={e => onChange({ ...item, obs: e.target.value })}
               spellCheck={true} lang="pt-BR" placeholder="Anotações clínicas, materiais, observações..."
             />
@@ -2065,7 +2077,7 @@ function P4({onTotalChange, p4State, setP4State}) {
                   style={{ padding: "10px 12px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 13, outline: "none", fontFamily: "inherit" }}
                   value={novoNome}
                   onChange={e => setNovoNome(e.target.value)}
-                  placeholder="Ex: Faceta de porcelana"
+                  spellCheck={false} placeholder="Ex: Faceta de porcelana"
                   autoFocus
                 />
               </div>
@@ -2340,8 +2352,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                 <div key={a.id} style={{display:"flex",alignItems:"stretch",border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                   <div style={{width:3,background:GOLD,flexShrink:0}}/>
                   <div style={{flex:1,padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{a.lb}</span>
-                    <div style={{fontSize:10,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"60%"}}>{descreverRegiao(a.dentes,true)}</div>
+                    <div>
+                      <span style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{a.lb}</span>
+                      {(p2.obsAchados||{})[a.id]&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{(p2.obsAchados||{})[a.id]}</div>}
+                    </div>
+                    <div style={{fontSize:10,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"50%"}}>{descreverRegiao(a.dentes,true)}</div>
                   </div>
                 </div>
               ))}
@@ -2570,7 +2585,20 @@ function CalculadoraFlutuante() {
     }
     if(val==="%") {
       const n = parseFloat(display);
-      if(!isNaN(n)) setDisplay(String(n/100));
+      if(!isNaN(n)) {
+        // Se há expressão pendente (ex: "500-"), calcula % do primeiro operando
+        if(expr) {
+          const match = expr.match(/(-?\d+\.?\d*)[+\-*/]$/);
+          if(match) {
+            const base = parseFloat(match[1]);
+            const pctVal = base * n / 100;
+            setDisplay(String(pctVal));
+            return;
+          }
+        }
+        // Sem operação pendente: divide por 100
+        setDisplay(String(n/100));
+      }
       return;
     }
     if(["+","-","×","÷"].includes(val)) {
@@ -2615,9 +2643,9 @@ function CalculadoraFlutuante() {
       <div className="no-print" onClick={()=>setAberta(!aberta)} style={{
         position:"fixed",bottom:76,left:16,zIndex:200,
         background:aberta?"#2C1810":"#5C4A2A",color:"#fff",
-        borderRadius:24,padding:"10px 16px",fontSize:12,fontWeight:700,
+        borderRadius:24,padding:"9px 13px",fontSize:13,fontWeight:700,
         cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.3)",
-        display:"flex",alignItems:"center",gap:6,
+        display:"flex",alignItems:"center",gap:5,
       }}>🧮</div>
 
       {/* Painel */}
@@ -2708,18 +2736,30 @@ function App() {
   const [previewAberto, setPreviewAberto] = useState(false);
   const [p1, setP1, desfazerP1, podeDesfazerP1] = useUndo(p1Initial);
   const [p2, setP2, desfazerP2, podeDesfazerP2] = useUndo({...p2Initial, achados: getAchadosInicial()});
-  const [p3, _setP3, desfazerP3, podeDesfazerP3] = useUndo(p3Initial);
-  const setP3 = _setP3;
-  const sp3 = (k,v) => _setP3(prev=>({...prev,[k]:v}));
+  const [p3, setP3] = useState(p3Initial);
+  const [p3History, setP3History] = useState([p3Initial]);
+  const [p3HIdx, setP3HIdx] = useState(0);
+  const sp3 = (k,v) => {
+    setP3(prev => {
+      const novo = {...prev,[k]:v};
+      setP3History(h => { const nh=[...h.slice(0,p3HIdx+1),novo]; setP3HIdx(nh.length-1); return nh.slice(-20); });
+      return novo;
+    });
+  };
+  const desfazerP3 = () => {
+    if(p3HIdx>0) { const ni=p3HIdx-1; setP3HIdx(ni); setP3(p3History[ni]); }
+  };
+  const podeDesfazerP3 = p3HIdx > 0;
   const [p4Total, setP4Total] = useState(0);
-  const [p4State, setP4State, desfazerP4, podeDesfazerP4] = useUndo(() => {
+  const _p4Init = (() => {
     const saved = loadPersisted("integra_p4config", p4Initial);
     return {
       ...p4Initial,
       procsBase: saved.procsBase || null,
       customProcs: (saved.customProcs||[]).map(c=>({...c, ativo:false})),
     };
-  });
+  })();
+  const [p4State, setP4State, desfazerP4, podeDesfazerP4] = useUndo(_p4Init);
 
   // Salvar configuração permanente dos procedimentos (não os itens do atendimento)
   useEffect(() => {
@@ -2750,9 +2790,9 @@ function App() {
         <div className="no-print preview-btn" onClick={()=>setPreviewAberto(!previewAberto)} style={{
           position:"fixed",bottom:76,right:16,zIndex:200,
           background:previewAberto?"#2C1810":GOLD,color:"#fff",
-          borderRadius:24,padding:"10px 16px",fontSize:11,fontWeight:700,
+          borderRadius:24,padding:"9px 14px",fontSize:10,fontWeight:700,
           cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.3)",
-          display:"flex",alignItems:"center",gap:6,letterSpacing:1,
+          display:"flex",alignItems:"center",gap:5,letterSpacing:1,
           textTransform:"uppercase",
         }}>
           {previewAberto?"✕ Fechar":"👁 Preview"}
@@ -2814,9 +2854,9 @@ function App() {
         if(!fn||!pode) return null;
         return(
           <div className="no-print" onClick={fn} style={{
-            position:"fixed",bottom:76,right:70,zIndex:200,
-            background:"rgba(44,24,16,0.9)",color:GOLD_LIGHT,
-            borderRadius:20,padding:"8px 14px",fontSize:11,fontWeight:600,
+            position:"fixed",bottom:120,right:16,zIndex:200,
+            background:"rgba(44,24,16,0.92)",color:GOLD_LIGHT,
+            borderRadius:20,padding:"7px 13px",fontSize:10,fontWeight:600,
             cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.3)",
             display:"flex",alignItems:"center",gap:5,border:"1px solid "+GOLD_DARK,
           }}>↩ Desfazer</div>
