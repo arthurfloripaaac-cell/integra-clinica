@@ -510,7 +510,7 @@ function P2({data, setData}) {
       {/* Informações Clínicas */}
       <Card>
         <SectionTitle>Informações Clínicas</SectionTitle>
-        <textarea spellCheck={true} lang="pt-BR" value={obsTexto} onChange={e=>{set("obsTexto",e.target.value);set("obsCorrigido","");}} placeholder="Digite informações clínicas adicionais..." style={{...inp,minHeight:90,resize:"vertical",lineHeight:1.6,width:"100%"}}/>
+        <textarea spellCheck={true} lang="pt-BR" autoComplete="off" value={obsTexto} onChange={e=>{set("obsTexto",e.target.value);set("obsCorrigido","");}} onFocus={e=>e.target.setSelectionRange(e.target.value.length,e.target.value.length)} placeholder="Digite informações clínicas adicionais..." style={{...inp,minHeight:90,resize:"vertical",lineHeight:1.6,width:"100%",WebkitUserSelect:"text",userSelect:"text"}}/>
         {obsTexto.trim()&&(
           <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
             <div onClick={corrigir} style={{padding:"6px 14px",borderRadius:20,background:corrigindo?"#ccc":GOLD,color:"#fff",fontSize:11,fontWeight:700,cursor:corrigindo?"default":"pointer"}}>
@@ -642,11 +642,12 @@ function VerificadorTaxas({plano}) {
   );
 }
 
-function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno}) {
+function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno,p3QuemPaga,setP3QuemPaga}) {
   const [plano, setPlanoLocal] = React.useState(planoExterno||"dias14");
   const setPlano = (v) => { setPlanoLocal(v); if(setPlanoExterno) setPlanoExterno(v); };
   const planoAtual = plano;
-  const [quemPaga, setQuemPaga] = React.useState("comprador");
+  const quemPaga = p3QuemPaga || "comprador";
+  const setQuemPaga = (v) => { if(setP3QuemPaga) setP3QuemPaga(v); };
   const [modoCred, setModoCred] = React.useState("cobrar");
   const [valorCobrarInput, setValorCobrarInput] = React.useState("");
 
@@ -1123,7 +1124,16 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
 
 const STORAGE_KEY = "integra_relatorios_v1";
 
-function salvarRelatorio(p1, p2, p3, p4State) {
+function verificarDuplicata(p1) {
+  const relatorios = carregarRelatorios();
+  // Verificar se existe atendimento com mesmo paciente e mesma data de consulta
+  return relatorios.find(r =>
+    r.paciente === (p1.nome||"Sem nome") &&
+    r.dataConsulta === (p1.dataConsulta||"")
+  ) || null;
+}
+
+function salvarRelatorio(p1, p2, p3, p4State, sobrepor=false) {
   const relatorios = carregarRelatorios();
   const novo = {
     id: Date.now(),
@@ -1150,6 +1160,15 @@ function salvarRelatorio(p1, p2, p3, p4State) {
     _p3: p3,
     _p4: p4State,
   };
+  if(sobrepor) {
+    // Substituir existente com mesmo paciente+data
+    const idx = relatorios.findIndex(r => r.paciente===novo.paciente && r.dataConsulta===novo.dataConsulta);
+    if(idx >= 0) {
+      relatorios[idx] = novo;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200))); } catch(e){}
+      return novo;
+    }
+  }
   relatorios.unshift(novo);
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200))); } catch(e){}
   return novo;
@@ -2340,7 +2359,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
   }),[p1,p2,p3,p4State]);
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
   const {achadosDente={},obsTexto=""} = p2;
-  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true,plano="dias14"} = p3;
+  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true,plano="dias14",quemPaga="comprador"} = p3;
   const dp = ds===-1?(parseFloat(dc)||0):ds;
   const vB = parseFloat(String(vb).replace(",","."))||0;
   const vF = dp>0 ? vB*(1-dp/100) : vB;
@@ -2354,7 +2373,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
     ?(entrada?Math.max(0,vB-(entrada?(entradaTipo==="pct"?vB*(parseFloat(entradaVal)||0)/100:(parseFloat(String(entradaVal).replace(",","."))||0)):0)):vB)
     :vB;
   const creditoBaseRel=(entrada&&entradaValor2>0&&saldoTipo==="parcelado")?baseCreditoSemDesc:vB;
-  const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>({n,...(plano==="hora"?calcCreditoHora(creditoBaseRel,n):calcCredito14dias(creditoBaseRel,n))})):[];
+  const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>({n,...calcCreditoPlano(creditoBaseRel,n,plano,quemPaga)})):[];
 
   const defaultItensRel = PROC_BASE.map(p => ({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],subtipos:{},regiao:p.id==="profilaxia"?"boca":p.id==="clareamento"?"boca":null,qtd:1}));
   const procsBaseRel = p4State?.procsBase || PROC_BASE.map(p => ({...p}));
@@ -2672,7 +2691,7 @@ const p4Initial = {
   procsBase: null, // null = será carregado do localStorage ou PROC_BASE
 };
 
-const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"3",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true};
+const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"3",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true,quemPaga:"comprador"};
 
 
 // ─── CALCULADORA FLUTUANTE ───────────────────────────
@@ -2881,18 +2900,44 @@ async function gdriveGetFolder() {
   return _gdriveFolderId;
 }
 
-async function gdriveSalvarAtendimento(atendimento) {
+async function gdriveListarArquivos(folderId, paciente) {
+  const q = "name+contains+%27integra_"+encodeURIComponent((paciente||"").replace(/[^a-z0-9]/gi,"_").slice(0,20))+"%27+and+%27"+folderId+"%27+in+parents+and+trashed%3Dfalse";
+  const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name)",{headers:{Authorization:"Bearer "+_gdriveToken}});
+  const d = await res.json();
+  return d.files||[];
+}
+
+async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
   if(!_gdriveToken) throw new Error("Não autenticado");
   const folderId = await gdriveGetFolder();
-  const nome = "integra_"+(atendimento.paciente||"p").replace(/[^a-z0-9]/gi,"_")+"_"+atendimento.id+".json";
+  const nomeBase = "integra_"+(atendimento.paciente||"p").replace(/[^a-z0-9]/gi,"_");
   const json = JSON.stringify(atendimento,null,2);
+
+  if(sobrepor !== "novo") {
+    // Verificar se existe arquivo similar (mesmo paciente)
+    const existentes = await gdriveListarArquivos(folderId, atendimento.paciente);
+    if(existentes.length > 0 && sobrepor !== true) {
+      // Retornar info para o componente decidir
+      return {precisaConfirmar: true, existentes, folderId, atendimento};
+    }
+    if(sobrepor === true && existentes.length > 0) {
+      // Atualizar o primeiro encontrado
+      const fileId = existentes[0].id;
+      const form = new FormData();
+      form.append("metadata",new Blob([JSON.stringify({name:existentes[0].name})],{type:"application/json"}));
+      form.append("file",new Blob([json],{type:"application/json"}));
+      await fetch("https://www.googleapis.com/upload/drive/v3/files/"+fileId+"?uploadType=multipart",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+      return {salvo:true};
+    }
+  }
+
+  const nome = nomeBase+"_"+atendimento.id+".json";
   const metadata = {name:nome,mimeType:"application/json",parents:[folderId]};
   const form = new FormData();
   form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
   form.append("file",new Blob([json],{type:"application/json"}));
-  await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{
-    method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form
-  });
+  await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+  return {salvo:true};
 }
 
 function DriveSync({relatorio}) {
@@ -2911,11 +2956,22 @@ function DriveSync({relatorio}) {
     }
   };
 
-  const salvar = async () => {
+  const salvar = async (opcao) => {
     if(!relatorio) return;
     setSalvando(true);
     try {
-      await gdriveSalvarAtendimento(relatorio);
+      const res = await gdriveSalvarAtendimento(relatorio, opcao);
+      if(res && res.precisaConfirmar) {
+        setSalvando(false);
+        const sobrepor = window.confirm(
+          "Já existe arquivo para " + (relatorio.paciente||"este paciente") + " no Drive.
+
+OK = Sobrepor existente
+Cancelar = Salvar cópia"
+        );
+        await salvar(sobrepor);
+        return;
+      }
       setMsgDrive({tipo:"ok",texto:"✓ Salvo no Google Drive"});
       setTimeout(()=>setMsgDrive(null),3000);
     } catch(e) {
@@ -3069,8 +3125,20 @@ function App() {
         saldoTipo={p3.saldoTipo} setSaldoTipo={v=>sp3("saldoTipo",v)}
         ct={p3.ct!==false} setCt={v=>sp3("ct",v)} bt={p3.bt!==false} setBt={v=>sp3("bt",v)}
         planoExterno={p3.plano||"dias14"} setPlanoExterno={v=>sp3("plano",v)}
+        p3QuemPaga={p3.quemPaga||"comprador"} setP3QuemPaga={v=>sp3("quemPaga",v)}
       />}
-      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{salvarRelatorio(p1,p2,p3,p4State);setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);}} salvoOk={relatorioSalvo}/>}
+      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{
+  const dup = verificarDuplicata(p1);
+  if(dup) {
+    const opcao = window.confirm(
+      "Já existe um atendimento salvo para " + (p1.nome||"este paciente") + " na data " + (p1.dataConsulta||"esta data") + ".\n\nOK = Sobrepor existente.\nCancelar = Salvar como cópia."
+    );
+    salvarRelatorio(p1,p2,p3,p4State, opcao);
+  } else {
+    salvarRelatorio(p1,p2,p3,p4State,false);
+  }
+  setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
+}} salvoOk={relatorioSalvo}/>}
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
         if(r._p2) setP2(r._p2);
