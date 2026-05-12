@@ -395,7 +395,7 @@ function P2({data, setData}) {
                 value={(data.obsAchados||{})[achadoAtivo]||""}
                 onChange={e=>set("obsAchados",{...(data.obsAchados||{}),[achadoAtivo]:e.target.value})}
                 placeholder={"Observação sobre "+aObj.label.toLowerCase()+"..."}
-                style={{width:"100%",padding:"6px 8px",border:"1px solid "+aObj.cor+"44",borderRadius:2,fontSize:11,outline:"none",fontFamily:"inherit",resize:"vertical",minHeight:44,background:"rgba(255,255,255,0.7)",color:"#1C1410",boxSizing:"border-box"}}
+                style={{width:"100%",padding:"6px 8px",border:"1px solid "+aObj.cor+"44",borderRadius:2,fontSize:11,fontFamily:"inherit",resize:"vertical",minHeight:44,background:"#fff",color:"#1C1410"}}
               />
             </div>
           </div>}
@@ -510,7 +510,7 @@ function P2({data, setData}) {
       {/* Informações Clínicas */}
       <Card>
         <SectionTitle>Informações Clínicas</SectionTitle>
-        <textarea spellCheck={true} lang="pt-BR" autoComplete="off" value={obsTexto} onChange={e=>{set("obsTexto",e.target.value);set("obsCorrigido","");}} onFocus={e=>e.target.setSelectionRange(e.target.value.length,e.target.value.length)} placeholder="Digite informações clínicas adicionais..." style={{...inp,minHeight:90,resize:"vertical",lineHeight:1.6,width:"100%",WebkitUserSelect:"text",userSelect:"text"}}/>
+        <textarea spellCheck={true} lang="pt-BR" value={obsTexto} onChange={e=>{set("obsTexto",e.target.value);set("obsCorrigido","");}} placeholder="Digite informações clínicas adicionais..." style={{...inp,minHeight:90,resize:"vertical",lineHeight:1.6,width:"100%"}}/>
         {obsTexto.trim()&&(
           <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
             <div onClick={corrigir} style={{padding:"6px 14px",borderRadius:20,background:corrigindo?"#ccc":GOLD,color:"#fff",fontSize:11,fontWeight:700,cursor:corrigindo?"default":"pointer"}}>
@@ -2859,9 +2859,23 @@ let _gdriveFolderId = null;
 
 async function gdriveEnsureScript() {
   if(window.google && window.google.accounts) return;
+  // Check if already loading
+  const existing = document.querySelector('script[src*="accounts.google.com/gsi"]');
+  if(existing) {
+    await new Promise((res,rej)=>{
+      let t=0;
+      const iv=setInterval(()=>{
+        t+=100;
+        if(window.google&&window.google.accounts){clearInterval(iv);res();}
+        if(t>8000){clearInterval(iv);rej(new Error("Timeout"));}
+      },100);
+    });
+    return;
+  }
   await new Promise((res,rej)=>{
     const s=document.createElement("script");
     s.src="https://accounts.google.com/gsi/client";
+    s.async=true;
     s.onload=res; s.onerror=rej;
     document.head.appendChild(s);
   });
@@ -2946,13 +2960,15 @@ function DriveSync({relatorio}) {
   const [msgDrive, setMsgDrive] = React.useState(null);
 
   const login = async () => {
+    setMsgDrive({tipo:"ok",texto:"Carregando..."});
     try {
+      await gdriveEnsureScript();
       await gdriveLogin();
       setLogado(true);
-      setMsgDrive({tipo:"ok",texto:"✓ Conectado ao Google Drive"});
+      setMsgDrive({tipo:"ok",texto:"Conectado ao Drive"});
       setTimeout(()=>setMsgDrive(null),3000);
     } catch(e) {
-      setMsgDrive({tipo:"erro",texto:"Erro: "+e.message});
+      setMsgDrive({tipo:"erro",texto:"Erro: "+(e&&e.message?e.message:"verifique popup bloqueado")});
     }
   };
 
@@ -2963,12 +2979,7 @@ function DriveSync({relatorio}) {
       const res = await gdriveSalvarAtendimento(relatorio, opcao);
       if(res && res.precisaConfirmar) {
         setSalvando(false);
-        const sobrepor = window.confirm(
-          "Já existe arquivo para " + (relatorio.paciente||"este paciente") + " no Drive.
-
-OK = Sobrepor existente
-Cancelar = Salvar cópia"
-        );
+        const sobrepor = window.confirm("Arquivo ja existe no Drive. OK=Sobrepor / Cancelar=Copia");
         await salvar(sobrepor);
         return;
       }
@@ -3130,9 +3141,7 @@ function App() {
       {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{
   const dup = verificarDuplicata(p1);
   if(dup) {
-    const opcao = window.confirm(
-      "Já existe um atendimento salvo para " + (p1.nome||"este paciente") + " na data " + (p1.dataConsulta||"esta data") + ".\n\nOK = Sobrepor existente.\nCancelar = Salvar como cópia."
-    );
+    const opcao = window.confirm("Atendimento ja existe. OK=Sobrepor / Cancelar=Salvar copia");
     salvarRelatorio(p1,p2,p3,p4State, opcao);
   } else {
     salvarRelatorio(p1,p2,p3,p4State,false);
