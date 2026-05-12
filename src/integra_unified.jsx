@@ -2326,6 +2326,18 @@ const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FF
 
 // v3.0
 function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
+  const _driveData = React.useMemo(()=>({
+    id: Date.now(),
+    data: new Date().toISOString(),
+    paciente: p1.nome||"Sem nome",
+    cpf: p1.cpf||"",
+    telefone: p1.telefone||"",
+    dataNasc: p1.dataNasc||"",
+    responsavel: p1.responsavel||"",
+    dataConsulta: p1.dataConsulta||new Date().toISOString().slice(0,10),
+    valorTotal: parseFloat(p3.vb)||0,
+    _p1:p1, _p2:p2, _p3:p3, _p4:p4State,
+  }),[p1,p2,p3,p4State]);
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
   const {achadosDente={},obsTexto=""} = p2;
   const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true,plano="dias14"} = p3;
@@ -2394,6 +2406,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
             🖨️ Imprimir / Salvar PDF
           </div>
         </div>}
+        {!isPreview&&<DriveSync relatorio={_driveData}/>}
       </div>
       <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden"}}>
 
@@ -2813,6 +2826,131 @@ function useUndo(initialState) {
   const podeDesfazer = index > 0;
 
   return [state, setState, desfazer, podeDesfazer];
+}
+
+
+
+// ─── GOOGLE DRIVE INTEGRATION ────────────────────────
+const GDRIVE_CLIENT_ID = "608550621257-trrkg2omi2g74he41282ka2qbue4nein.apps.googleusercontent.com";
+const GDRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const GDRIVE_FOLDER_NAME = "Íntegra Clínica — Atendimentos";
+
+let _gdriveToken = null;
+let _gdriveFolderId = null;
+
+async function gdriveEnsureScript() {
+  if(window.google && window.google.accounts) return;
+  await new Promise((res,rej)=>{
+    const s=document.createElement("script");
+    s.src="https://accounts.google.com/gsi/client";
+    s.onload=res; s.onerror=rej;
+    document.head.appendChild(s);
+  });
+}
+
+async function gdriveLogin() {
+  await gdriveEnsureScript();
+  return new Promise((resolve,reject)=>{
+    const tc = window.google.accounts.oauth2.initTokenClient({
+      client_id: GDRIVE_CLIENT_ID,
+      scope: GDRIVE_SCOPE,
+      callback: (r)=>{
+        if(r.access_token){ _gdriveToken=r.access_token; resolve(r.access_token); }
+        else reject(new Error("Login cancelado"));
+      },
+    });
+    tc.requestAccessToken({prompt:""});
+  });
+}
+
+async function gdriveGetFolder() {
+  if(_gdriveFolderId) return _gdriveFolderId;
+  const res = await fetch(
+    "https://www.googleapis.com/drive/v3/files?q=name%3D%27"+encodeURIComponent(GDRIVE_FOLDER_NAME)+"%27+and+mimeType%3D%27application%2Fvnd.google-apps.folder%27+and+trashed%3Dfalse&fields=files(id)",
+    {headers:{Authorization:"Bearer "+_gdriveToken}}
+  );
+  const d = await res.json();
+  if(d.files && d.files.length>0){ _gdriveFolderId=d.files[0].id; return _gdriveFolderId; }
+  const cr = await fetch("https://www.googleapis.com/drive/v3/files",{
+    method:"POST",
+    headers:{Authorization:"Bearer "+_gdriveToken,"Content-Type":"application/json"},
+    body:JSON.stringify({name:GDRIVE_FOLDER_NAME,mimeType:"application/vnd.google-apps.folder"}),
+  });
+  const pasta = await cr.json();
+  _gdriveFolderId=pasta.id;
+  return _gdriveFolderId;
+}
+
+async function gdriveSalvarAtendimento(atendimento) {
+  if(!_gdriveToken) throw new Error("Não autenticado");
+  const folderId = await gdriveGetFolder();
+  const nome = "integra_"+(atendimento.paciente||"p").replace(/[^a-z0-9]/gi,"_")+"_"+atendimento.id+".json";
+  const json = JSON.stringify(atendimento,null,2);
+  const metadata = {name:nome,mimeType:"application/json",parents:[folderId]};
+  const form = new FormData();
+  form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
+  form.append("file",new Blob([json],{type:"application/json"}));
+  await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{
+    method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form
+  });
+}
+
+function DriveSync({relatorio}) {
+  const [logado, setLogado] = React.useState(!!_gdriveToken);
+  const [salvando, setSalvando] = React.useState(false);
+  const [msgDrive, setMsgDrive] = React.useState(null);
+
+  const login = async () => {
+    try {
+      await gdriveLogin();
+      setLogado(true);
+      setMsgDrive({tipo:"ok",texto:"✓ Conectado ao Google Drive"});
+      setTimeout(()=>setMsgDrive(null),3000);
+    } catch(e) {
+      setMsgDrive({tipo:"erro",texto:"Erro: "+e.message});
+    }
+  };
+
+  const salvar = async () => {
+    if(!relatorio) return;
+    setSalvando(true);
+    try {
+      await gdriveSalvarAtendimento(relatorio);
+      setMsgDrive({tipo:"ok",texto:"✓ Salvo no Google Drive"});
+      setTimeout(()=>setMsgDrive(null),3000);
+    } catch(e) {
+      setMsgDrive({tipo:"erro",texto:"Erro: "+e.message});
+    }
+    setSalvando(false);
+  };
+
+  return (
+    <div style={{marginTop:10}}>
+      {!logado ? (
+        <div onClick={login} style={{
+          display:"flex",alignItems:"center",gap:8,padding:"8px 16px",
+          background:"#fff",border:"1px solid #dadce0",borderRadius:4,
+          cursor:"pointer",fontSize:12,fontWeight:600,color:"#3c4043",
+          boxShadow:"0 1px 3px rgba(0,0,0,0.12)",width:"fit-content",
+        }}>
+          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Conectar ao Google Drive
+        </div>
+      ) : (
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div onClick={salvar} style={{
+            display:"flex",alignItems:"center",gap:6,padding:"7px 14px",
+            background:salvando?"#e8f5e9":"#fff",border:"1px solid #34A853",
+            borderRadius:4,cursor:salvando?"default":"pointer",fontSize:11,fontWeight:600,color:"#1e7e34",
+          }}>
+            {salvando?"⏳ Salvando...":"☁ Salvar no Drive"}
+          </div>
+          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;setLogado(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
+        </div>
+      )}
+      {msgDrive&&<div style={{fontSize:10,marginTop:5,color:msgDrive.tipo==="ok"?"#1e7e34":"#C62828"}}>{msgDrive.texto}</div>}
+    </div>
+  );
 }
 
 
