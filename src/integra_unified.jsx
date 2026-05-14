@@ -709,13 +709,11 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
   const toggleForma=id=>{
     const wasChecked = formasChecked.includes(id);
     if(!wasChecked) {
-      // Não marcado: marca e abre painel
       setFormasChecked([...formasChecked, id]);
-      setFormaAtiva(id);
-    } else {
-      // Já marcado: alterna painel (abre se fechado, fecha se aberto)
-      setFormaAtiva(prev => prev === id ? null : id);
     }
+    // Sempre abre o painel ao clicar — resolve valor antes de passar ao sp3
+    const novoAtivo = formaAtiva === id ? null : id;
+    setFormaAtiva(novoAtivo);
   };
   const desmarcarForma=id=>{
     setFormasChecked(formasChecked.filter(x=>x!==id));
@@ -1727,6 +1725,15 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
       borderRadius: 4, overflow: "hidden",
       background: item.ativo ? "#fff" : "#FAFAF8",
     }}>
+      {item._showMiniOrc && (
+        <MiniOrcamento
+          valor={subtotal}
+          procNome={proc.nome}
+          propostaInicial={item.proposta}
+          onSave={(prop)=>onChange({...item, proposta:prop, _showMiniOrc:false})}
+          onClose={()=>onChange({...item,_showMiniOrc:false})}
+        />
+      )}
       {/* Header do procedimento */}
       <div style={{
         display: "flex", alignItems: "center", gap: 0,
@@ -1751,9 +1758,16 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
         {/* Info */}
         <div style={{ flex: 1, padding: "12px 8px 12px 4px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: item.ativo ? "#1C1410" : "#9A8060" }}>
-                {proc.nome}
+            <div style={{flex:1}}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: item.ativo ? "#1C1410" : "#9A8060" }}>
+                  {proc.nome}
+                </div>
+                {item.ativo && (
+                  <div onClick={e=>{e.stopPropagation();onChange({...item,_showMiniOrc:!item._showMiniOrc});}} style={{fontSize:9,color:item.proposta?GOLD_DARK:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+(item.proposta?GOLD:BORDER),borderRadius:20,marginLeft:8,whiteSpace:"nowrap"}}>
+                    {item.proposta?"✓ Proposta própria":"+ Proposta individual"}
+                  </div>
+                )}
               </div>
               {item.ativo && (
                 <div style={{ marginTop: 4 }}>
@@ -2459,7 +2473,7 @@ const ACHADOS_MAP = {gengivite:"Gengivite",carie_ativa:"Cárie ativa",suspeita_c
 const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FFB74D",perda_ossea:"#7986CB",retracao:"#F06292",desgaste:"#4DB6AC",erosao:"#81C784",fratura:"#FF8A65",ausente:"#90A4AE"};
 
 // v3.0
-function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
+function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoRel}) {
   const _driveData = React.useMemo(()=>({
     id: Date.now(),
     data: new Date().toISOString(),
@@ -2488,7 +2502,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
     ?(entrada?Math.max(0,vB-(entrada?(entradaTipo==="pct"?vB*(parseFloat(entradaVal)||0)/100:(parseFloat(String(entradaVal).replace(",","."))||0)):0)):vB)
     :vB;
   const creditoBaseRel=(entrada&&entradaValor2>0&&saldoTipo==="parcelado")?baseCreditoSemDesc:vB;
-  const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>({n,...calcCreditoPlano(creditoBaseRel,n,plano,quemPaga)})):[];
+  const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(creditoBaseRel,n,plano,quemPaga);return{n,...r};}):[];
 
   const defaultItensRel = PROC_BASE.map(p => ({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],subtipos:{},regiao:p.id==="profilaxia"?"boca":p.id==="clareamento"?"boca":null,qtd:1}));
   const procsBaseRel = p4State?.procsBase || PROC_BASE.map(p => ({...p}));
@@ -2648,6 +2662,9 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                     {(it.subtopicos||[]).length>0&&<div style={{marginTop:4,paddingLeft:8,borderLeft:"2px solid "+BORDER}}>
                       {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:10,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
                     </div>}
+                  {it.proposta&&<div style={{marginTop:3,display:"flex",alignItems:"center",gap:4}}>
+                    <span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"1px 6px",borderRadius:8,border:"1px solid "+GOLD_LIGHT}}>✓ Proposta individual</span>
+                  </div>}
                   </div>
                   <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
@@ -2675,6 +2692,95 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
             </div>
           </>}
 
+          {/* Propostas individuais por procedimento */}
+          {(()=>{
+            const itensSep = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
+            if(!itensSep.length || (p3.modoRel||"soma")==="soma") return null;
+            return(
+              <div style={{marginTop:16}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                  <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Propostas Individuais</span>
+                  <div style={{flex:1,height:1,background:BORDER}}/>
+                </div>
+                {itensSep.map((it,idx)=>{
+                  const proc=(p4State?.procsBase||PROC_BASE).find(p=>p.id===it.id)||{nome:it.nome||it.id};
+                  const prop=it.proposta;
+                  const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
+                  const dp2=prop.ds||0;
+                  const vf2=dp2>0?vb2*(1-dp2/100):vb2;
+                  const nomes2={pix:"PIX",dinheiro:"Dinheiro",credito:"Cartão de crédito",boleto:"Boleto parcelado"};
+                  return(
+                    {(()=>{
+                      // Calcular parcelas do cartão para esta proposta
+                      const propPlano = prop.plano||"hora";
+                      const propQuem = prop.quemPaga||"comprador";
+                      const propCi = parseInt(prop.ci||"0");
+                      const propCp = prop.cp ? parseInt(prop.cp) : null;
+                      const tCprop = (prop.fc&&prop.fc.includes("credito"))
+                        ? [1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vf2,n,propPlano,propQuem);return{n,...r};})
+                        : [];
+                      const tCfilt = propCp ? tCprop.filter(r=>r.n===1||r.n<=propCp) : tCprop;
+                      // Boleto
+                      const propBp = parseInt(prop.bp||"6");
+                      const propBj = prop.bj||"sem_juros";
+                      const propBi = parseInt(prop.bi||"3");
+                      const boletoLs = prop.fc&&prop.fc.includes("boleto")&&(prop.bm||"avista")==="parcelado"
+                        ? Array.from({length:propBp},(_,i)=>{
+                            const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi;
+                            const sj=n<=nl,pc=propBj==="combinado"?Math.max(0,n-nl):sj?0:n;
+                            const t=sj?vf2:vf2*(1+0.012*pc);
+                            return{n,p:t/n,sj,t};
+                          })
+                        : [];
+                      return(
+                        <div key={idx} style={{marginBottom:10,border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
+                          <div style={{padding:"8px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{proc.nome}</span>
+                            <div style={{textAlign:"right"}}>
+                              <span style={{fontSize:12,fontWeight:700,color:GOLD_DARK}}>{fmt2(vf2)}</span>
+                              {dp2>0&&<span style={{fontSize:10,color:"#9A8060",marginLeft:6}}>({dp2}% desc. sobre {fmt2(vb2)})</span>}
+                            </div>
+                          </div>
+                          {/* À vista / PIX */}
+                          {prop.fc&&(prop.fc.includes("pix")||prop.fc.includes("dinheiro"))&&(
+                            <div style={{padding:"6px 14px",fontSize:11,color:"#5C4A2A",borderBottom:tCfilt.length||boletoLs.length?"1px solid "+BORDER:"none"}}>
+                              {[prop.fc.includes("pix")&&"PIX",prop.fc.includes("dinheiro")&&"Dinheiro"].filter(Boolean).join(" · ")} — {fmt2(vf2)}
+                            </div>
+                          )}
+                          {/* Cartão */}
+                          {tCfilt.length>0&&(
+                            <div style={{borderBottom:boletoLs.length?"1px solid "+BORDER:"none"}}>
+                              <div style={{padding:"6px 14px 4px",fontSize:10,fontWeight:700,color:"#1C1410",letterSpacing:0.5}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x sem juros</span>}</div>
+                              {(()=>{
+                                const meio=Math.ceil(tCfilt.length/2);
+                                const col1=tCfilt.slice(0,meio),col2=tCfilt.slice(meio);
+                                const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(vf2):fmt2(p)}</span><span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span></div>);};
+                                return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((r,i)=>rr(r,i,i===col1.length-1))}</div><div>{col2.map((r,i)=>rr(r,i,i===col2.length-1))}</div></div>);
+                              })()}
+                            </div>
+                          )}
+                          {/* Boleto */}
+                          {boletoLs.length>0&&(
+                            <div>
+                              <div style={{padding:"6px 14px 4px",fontSize:10,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</div>
+                              {(()=>{
+                                const meio=Math.ceil(boletoLs.length/2);
+                                const col1=boletoLs.slice(0,meio),col2=boletoLs.slice(meio);
+                                const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span><span style={{fontSize:9,color:l.sj?GOLD_DARK:"#9A8060"}}>{l.sj?"s/j":"tot "+fmt2(l.t)}</span></div>);
+                                return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((l,i)=>rb(l,i,i===col1.length-1))}</div><div>{col2.map((l,i)=>rb(l,i,i===col2.length-1))}</div></div>);
+                              })()}
+                            </div>
+                          )}
+                          {prop.obs&&<div style={{padding:"5px 14px 8px",fontSize:10,color:"#9A8060",fontStyle:"italic"}}>{prop.obs}</div>}
+                        </div>
+                      );
+                    })()}
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           {/* Proposta Financeira */}
           {temOrc && (()=>{
             const cpSel = p3.cp ? parseInt(p3.cp) : null;
@@ -2697,6 +2803,19 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
             );
 
             return (<>
+            {/* Toggle modo relatório — soma ou separado */}
+            {(()=>{
+              const temPropostaSep = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)].length > 0;
+              const modoRel = p3.modoRel||"soma";
+              return temPropostaSep ? (
+                <div className="no-print" style={{display:"flex",alignItems:"center",gap:8,marginTop:16,marginBottom:8,padding:"8px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3}}>
+                  <span style={{fontSize:11,color:"#5C4A2A",flex:1}}>Apresentação da proposta:</span>
+                  {[["soma","Soma tudo"],["separado","Separado por procedimento"]].map(([k,l])=>(
+                    <div key={k} onClick={()=>onSetModoRel&&onSetModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:10,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
+                  ))}
+                </div>
+              ) : null;
+            })()}
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
@@ -2813,7 +2932,7 @@ const p4Initial = {
   procsBase: null, // null = será carregado do localStorage ou PROC_BASE
 };
 
-const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"0",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true,quemPaga:"comprador",boletoComDesconto:false};
+const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"0",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true,quemPaga:"comprador",boletoComDesconto:false,modoRel:"soma"};
 
 
 // ─── CALCULADORA FLUTUANTE ───────────────────────────
@@ -3254,6 +3373,82 @@ function Configs({onClose}) {
 }
 
 
+// ─── MINI ORÇAMENTO POR PROCEDIMENTO — Calculadora Completa ─────
+function MiniOrcamento({valor, procNome, propostaInicial, onSave, onClose}) {
+  const cfg = loadConfigs();
+  const init = propostaInicial || {};
+  // Sempre usar o valor atual do procedimento como base
+  const valorStr = valor > 0 ? String(valor) : (init.vb||"0");
+  const [p3mini, setP3mini] = React.useState({
+    vb: valorStr,
+    ds: init.ds||cfg.descontoPadrao||0,
+    dc: "", fc: init.fc||[], fa: null,
+    bm: init.bm||"avista", bp: init.bp||"6",
+    bj: init.bj||"sem_juros", bi: "3", ci: cfg.parcelasIsentas||"0",
+    cp: null, tb: "calc",
+    entrada: init.entrada||false,
+    entradaTipo: init.entradaTipo||"pct",
+    entradaVal: init.entradaVal||"30",
+    saldoTipo: init.saldoTipo||"parcelado",
+    ct: true, bt: true,
+    quemPaga: init.quemPaga||cfg.quemPaga||"comprador",
+    plano: init.plano||cfg.plano||"hora",
+    boletoComDesconto: init.boletoComDesconto||false,
+  });
+  const sp = (k,v) => setP3mini(prev=>({...prev,[k]:v}));
+
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:CREAM,borderRadius:8,width:"100%",maxWidth:540,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 40px rgba(0,0,0,0.4)",display:"flex",flexDirection:"column"}}>
+        {/* Header */}
+        <div style={{background:"#2C1810",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderRadius:"8px 8px 0 0",flexShrink:0}}>
+          <div>
+            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_LIGHT,marginBottom:2}}>Proposta Individual</div>
+            <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{procNome}</div>
+          </div>
+          <span onClick={onClose} style={{cursor:"pointer",color:"#9A8060",fontSize:20,lineHeight:1}}>✕</span>
+        </div>
+        {/* Calculadora completa */}
+        <div style={{overflowY:"auto",flex:1}}>
+          <P3
+            vb={p3mini.vb} setVb={v=>sp("vb",v)}
+            ds={p3mini.ds} setDs={v=>sp("ds",v)}
+            dc={p3mini.dc} setDc={v=>sp("dc",v)}
+            fc={p3mini.fc} setFc={v=>sp("fc",v)}
+            fa={p3mini.fa} setFa={v=>sp("fa",v)}
+            bm={p3mini.bm} setBm={v=>sp("bm",v)}
+            bp={p3mini.bp} setBp={v=>sp("bp",v)}
+            bj={p3mini.bj} setBj={v=>sp("bj",v)}
+            bi={p3mini.bi} setBi={v=>sp("bi",v)}
+            ci={p3mini.ci} setCi={v=>sp("ci",v)}
+            cp={p3mini.cp} setCp={v=>sp("cp",v)}
+            tb={p3mini.tb} setTb={v=>sp("tb",v)}
+            entrada={p3mini.entrada} setEntrada={v=>sp("entrada",v)}
+            entradaTipo={p3mini.entradaTipo} setEntradaTipo={v=>sp("entradaTipo",v)}
+            entradaVal={p3mini.entradaVal} setEntradaVal={v=>sp("entradaVal",v)}
+            saldoTipo={p3mini.saldoTipo} setSaldoTipo={v=>sp("saldoTipo",v)}
+            ct={p3mini.ct} setCt={v=>sp("ct",v)}
+            bt={p3mini.bt} setBt={v=>sp("bt",v)}
+            planoExterno={p3mini.plano} setPlanoExterno={v=>sp("plano",v)}
+            p3QuemPaga={p3mini.quemPaga} setP3QuemPaga={v=>sp("quemPaga",v)}
+            boletoComDesconto={p3mini.boletoComDesconto} setBoletoComDesconto={v=>sp("boletoComDesconto",v)}
+          />
+        </div>
+        {/* Botões */}
+        <div style={{padding:"12px 16px",borderTop:"1px solid "+BORDER,display:"flex",gap:8,flexShrink:0,background:"#fff"}}>
+          <div onClick={()=>onSave({...p3mini, _procNome:procNome})} style={{flex:1,padding:"11px",background:GOLD_DARK,color:"#fff",borderRadius:4,cursor:"pointer",fontSize:12,fontWeight:700,textAlign:"center"}}>
+            ✓ Salvar proposta
+          </div>
+          <div onClick={onClose} style={{padding:"11px 16px",border:"1px solid "+BORDER,borderRadius:4,cursor:"pointer",fontSize:12,color:"#9A8060",textAlign:"center"}}>
+            Cancelar
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function loadPersisted(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; }
 }
@@ -3373,7 +3568,7 @@ function App() {
             <span onClick={()=>setPreviewAberto(false)} style={{color:"#9A8060",cursor:"pointer",fontSize:16}}>✕</span>
           </div>
           <div style={{transform:"scale(0.72)",transformOrigin:"top left",width:"139%",pointerEvents:"none"}}>
-            <Relatorio {...previewProps} isPreview={true}/>
+            <Relatorio {...previewProps} isPreview={true} onSetModoRel={v=>sp3("modoRel",v)}/>
           </div>
         </div>
       )}
@@ -3403,7 +3598,7 @@ function App() {
         p3QuemPaga={p3.quemPaga||"comprador"} setP3QuemPaga={v=>sp3("quemPaga",v)}
         boletoComDesconto={p3.boletoComDesconto||false} setBoletoComDesconto={v=>sp3("boletoComDesconto",v)}
       />}
-      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{
+      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSetModoRel={v=>sp3("modoRel",v)} onSalvar={()=>{
   const dup = verificarDuplicata(p1);
   if(dup) {
     const opcao = window.confirm("Atendimento ja existe. OK=Sobrepor / Cancelar=Salvar copia");
