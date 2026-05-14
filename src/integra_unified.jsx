@@ -2448,7 +2448,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
   }),[p1,p2,p3,p4State]);
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
   const {achadosDente={},obsTexto=""} = p2;
-  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true,plano="dias14",quemPaga="comprador"} = p3;
+  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true,plano="dias14",quemPaga="comprador",boletoComDesconto=false} = p3;
   const dp = ds===-1?(parseFloat(dc)||0):ds;
   const vB = parseFloat(String(vb).replace(",","."))||0;
   const vF = dp>0 ? vB*(1-dp/100) : vB;
@@ -3219,7 +3219,7 @@ function savePersisted(key, val) {
 function App() {
   const [pag, setPag] = useState("p1");
   const [showConfigs, setShowConfigs] = useState(false);
-  const appConfigs = React.useMemo(()=>loadConfigs(),[]);
+  // configs loaded directly in p3 useState initializer
   const [relatorioSalvo, setRelatorioSalvo] = useState(false);
   const [previewAberto, setPreviewAberto] = useState(false);
   const [p1, setP1, desfazerP1, podeDesfazerP1] = useUndo(p1Initial);
@@ -3244,13 +3244,16 @@ function App() {
     if(p2HIdx>0){ const ni=p2HIdx-1; setP2HIdx(ni); _setP2Raw(p2Hist[ni]); }
   };
   const podeDesfazerP2 = p2HIdx > 0;
-  const [p3, setP3] = useState(()=>({
-    ...p3Initial,
-    ds: appConfigs.descontoPadrao||0,
-    ci: appConfigs.parcelasIsentas||"3",
-    quemPaga: appConfigs.quemPaga||"comprador",
-    plano: appConfigs.plano||"hora",
-  }));
+  const [p3, setP3] = useState(()=>{
+    const cfg = loadConfigs();
+    return {
+      ...p3Initial,
+      ds: cfg.descontoPadrao||0,
+      ci: cfg.parcelasIsentas||"3",
+      quemPaga: cfg.quemPaga||"comprador",
+      plano: cfg.plano||"hora",
+    };
+  });
   const [p3History, setP3History] = useState([p3Initial]);
   const [p3HIdx, setP3HIdx] = useState(0);
   const sp3 = (k,v) => {
