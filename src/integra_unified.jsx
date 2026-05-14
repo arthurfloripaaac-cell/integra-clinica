@@ -102,7 +102,7 @@ function Field({label, children}) {
   );
 }
 
-const inp = {width:"100%", padding:"10px 12px", border:"1px solid "+BORDER, borderRadius:2, fontSize:13, color:"#1C1410", background:"#fff", outline:"none", fontFamily:"inherit"};
+const inp = {width:"100%", padding:"10px 12px", border:"1px solid "+BORDER, borderRadius:2, fontSize:13, color:"#1C1410", background:"#fff", outline:"2px solid transparent", fontFamily:"inherit"};
 const sel = {...inp, cursor:"pointer"};
 
 // ─── PARTE 1: DADOS DO PACIENTE ───────────────────
@@ -383,21 +383,41 @@ function P2({data, setData}) {
               </div>);
             })}
           </div>
-          {achadoAtivo&&<div style={{marginTop:10,background:aObj.cor+"15",border:"1.5px solid "+aObj.cor,borderRadius:3,overflow:"hidden"}}>
-            <div style={{padding:"8px 12px",fontSize:11,color:aObj.cor,fontWeight:600,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span>Marcando: {aObj.label}</span>
-              <span onClick={()=>set("achadoAtivo",null)} style={{cursor:"pointer",opacity:0.7}}>✕ fechar</span>
+          {achadoAtivo&&<div style={{marginTop:10}}>
+            {/* Header do achado — SEM background colorido para não interferir no spellCheck */}
+            <div style={{padding:"8px 12px",border:"1px solid #ddd",borderRadius:"3px 3px 0 0",fontSize:11,color:"#5C4A2A",fontWeight:600,display:"flex",justifyContent:"space-between",alignItems:"center",background:"#fafafa"}}>
+              <span style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{width:8,height:8,borderRadius:"50%",background:aObj.cor,display:"inline-block"}}/>
+                Marcando: {aObj.label}
+              </span>
+              <span onClick={()=>set("achadoAtivo",null)} style={{cursor:"pointer",color:"#9A8060",fontSize:12}}>✕ fechar</span>
             </div>
-            <div style={{padding:"0 12px 10px"}}>
-              <textarea
-                spellCheck={true}
-                lang="pt-BR"
-                value={(data.obsAchados||{})[achadoAtivo]||""}
-                onChange={e=>set("obsAchados",{...(data.obsAchados||{}),[achadoAtivo]:e.target.value})}
-                placeholder={"Observação sobre "+aObj.label.toLowerCase()+"..."}
-                style={{width:"100%",padding:"6px 8px",border:"1px solid "+aObj.cor+"44",borderRadius:2,fontSize:11,fontFamily:"inherit",resize:"vertical",minHeight:44,background:"#fff",color:"#1C1410"}}
-              />
-            </div>
+            {/* Textarea FORA de qualquer container colorido */}
+            <textarea
+              spellCheck="true"
+              lang="pt-BR"
+              autoCorrect="on"
+              autoCapitalize="sentences"
+              value={(data.obsAchados||{})[achadoAtivo]||""}
+              onChange={e=>set("obsAchados",{...(data.obsAchados||{}),[achadoAtivo]:e.target.value})}
+              placeholder={"Observação: "+aObj.label.toLowerCase()+"..."}
+              style={{
+                display:"block",
+                width:"100%",
+                padding:"10px 12px",
+                border:"1px solid #ddd",
+                borderTop:"none",
+                borderRadius:"0 0 3px 3px",
+                fontSize:13,
+                fontFamily:"Arial,sans-serif",
+                resize:"vertical",
+                minHeight:60,
+                background:"#fff",
+                color:"#222",
+                boxSizing:"border-box",
+                outline:"none",
+              }}
+            />
           </div>}
         </div>
 
@@ -510,14 +530,14 @@ function P2({data, setData}) {
       {/* Informações Clínicas */}
       <Card>
         <SectionTitle>Informações Clínicas</SectionTitle>
-        <textarea spellCheck={true} lang="pt-BR" value={obsTexto} onChange={e=>{set("obsTexto",e.target.value);set("obsCorrigido","");}} placeholder="Digite informações clínicas adicionais..." style={{...inp,minHeight:90,resize:"vertical",lineHeight:1.6,width:"100%"}}/>
+        <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={obsTexto} onChange={e=>set("obsTexto",e.target.value)} placeholder="Digite informações clínicas adicionais..." style={{width:"100%",padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:2,fontSize:13,color:"#1C1410",background:"#fff",fontFamily:"inherit",minHeight:90,resize:"vertical",lineHeight:1.6}}/>
         {obsTexto.trim()&&(
           <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
             <div onClick={corrigir} style={{padding:"6px 14px",borderRadius:20,background:corrigindo?"#ccc":GOLD,color:"#fff",fontSize:11,fontWeight:700,cursor:corrigindo?"default":"pointer"}}>
               {corrigindo?"Corrigindo...":"✓ Corrigir ortografia"}
             </div>
             {obsCorrigido&&obsCorrigido!==obsTexto&&(
-              <div onClick={()=>{set("obsTexto",obsCorrigido);set("obsCorrigido","");}} style={{padding:"6px 14px",borderRadius:20,border:"1px solid "+GOLD,color:GOLD_DARK,fontSize:11,cursor:"pointer"}}>Aplicar correção</div>
+              <div onClick={()=>{ setData(prev=>({...prev, obsTexto:obsCorrigido, obsCorrigido:""})); }} style={{padding:"6px 14px",borderRadius:20,border:"1px solid "+GOLD,color:GOLD_DARK,fontSize:11,cursor:"pointer"}}>Aplicar correção</div>
             )}
           </div>
         )}
@@ -1904,12 +1924,73 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 6 }}>Observação</div>
             <textarea
-              style={{ width: "100%", padding: "8px 10px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, color: "#1C1410", background: "#fff", outline: "none", fontFamily: "inherit", resize: "vertical", minHeight: 52 }}
-              spellCheck={true} lang="pt-BR"
+              spellCheck="true"
+              lang="pt-BR"
+              autoCorrect="on"
+              autoCapitalize="sentences"
               value={item.obs || ""}
               onChange={e => onChange({ ...item, obs: e.target.value })}
               placeholder="Anotações clínicas, materiais, observações..."
+              style={{
+                display:"block",
+                width:"100%",
+                padding:"8px 10px",
+                border:"1px solid #ccc",
+                borderRadius:2,
+                fontSize:12,
+                fontFamily:"system-ui,sans-serif",
+                resize:"vertical",
+                minHeight:52,
+                background:"#ffffff",
+                color:"#000000",
+                boxSizing:"border-box",
+              }}
             />
+          </div>
+
+          {/* Subtópicos / Etapas do procedimento */}
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>Etapas / Detalhes</div>
+              <div
+                onClick={() => onChange({ ...item, subtopicos: [...(item.subtopicos || []), ""] })}
+                style={{ fontSize: 10, color: GOLD_DARK, cursor: "pointer", padding: "2px 8px", border: "1px solid " + GOLD, borderRadius: 20, fontWeight: 600 }}
+              >+ Adicionar</div>
+            </div>
+            {(item.subtopicos || []).length === 0 && (
+              <div style={{ fontSize: 11, color: "#9A8060", fontStyle: "italic", padding: "4px 0" }}>
+                Nenhuma etapa adicionada — clique em "+ Adicionar" para criar subtópicos
+              </div>
+            )}
+            {(item.subtopicos || []).map((st, si) => (
+              <div key={si} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: GOLD_DARK, fontWeight: 700, minWidth: 18 }}>{si + 1}.</div>
+                <textarea
+                  spellCheck="true"
+                  lang="pt-BR"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  rows={1}
+                  style={{ flex: 1, padding: "6px 10px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, color: "#1C1410", background: "#fff", fontFamily: "inherit", resize: "none", lineHeight: 1.4, overflow: "hidden" }}
+                  value={st}
+                  onChange={e => {
+                    e.target.style.height = "auto";
+                    e.target.style.height = e.target.scrollHeight + "px";
+                    const novos = [...(item.subtopicos || [])];
+                    novos[si] = e.target.value;
+                    onChange({ ...item, subtopicos: novos });
+                  }}
+                  placeholder={"Etapa " + (si + 1) + "..."}
+                />
+                <div
+                  onClick={() => {
+                    const novos = (item.subtopicos || []).filter((_, i) => i !== si);
+                    onChange({ ...item, subtopicos: novos });
+                  }}
+                  style={{ fontSize: 11, color: "#9A8060", cursor: "pointer", padding: "4px 6px", flexShrink: 0 }}
+                >✕</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -2230,9 +2311,8 @@ function P4({onTotalChange, p4State, setP4State}) {
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <label style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 600 }}>Observação / Descrição</label>
                 <textarea
-                  spellCheck={true}
-                  lang="pt-BR"
-                  style={{ padding: "10px 12px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, outline: "none", fontFamily: "inherit", resize: "vertical", minHeight: 60, color: "#1C1410" }}
+                  spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences"
+                  style={{ padding: "10px 12px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, fontFamily: "inherit", resize: "vertical", minHeight: 60, color: "#1C1410" }}
                   value={novoObs}
                   onChange={e => setNovoObs(e.target.value)}
                   placeholder="Descrição, materiais, observações clínicas..."
@@ -2526,7 +2606,14 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                   : proc.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>{const vd=it.valoresDente&&it.valoresDente[n];return nomeDente(n)+(vd&&vd!==it.valor?" — "+fmt2(parseMoeda(vd)):"");}).join("\n"):"—")
                   :(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":"Arcada inferior");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
-                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{proc.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>{it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}</div>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{proc.nome}</div>
+                    <div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
+                    {it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
+                    {(it.subtopicos||[]).length>0&&<div style={{marginTop:4,paddingLeft:8,borderLeft:"2px solid "+BORDER}}>
+                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:10,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
+                    </div>}
+                  </div>
                   <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               }),
@@ -2539,7 +2626,14 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                   : v;
                 const desc = it.modo==="livre" ? "" : it.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—"):(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":it.regiao==="inf"?"Arcada inferior":"—");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
-                  <div><div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{it.nome}</div><div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>{it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}</div>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{it.nome}</div>
+                    <div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
+                    {it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
+                    {(it.subtopicos||[]).length>0&&<div style={{marginTop:4,paddingLeft:8,borderLeft:"2px solid "+BORDER}}>
+                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:10,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
+                    </div>}
+                  </div>
                   <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               })].filter(Boolean)}
@@ -2823,26 +2917,32 @@ function CalculadoraFlutuante() {
 
 
 // ─── HOOK DE DESFAZER ────────────────────────────────
+function undoReducer(state, action) {
+  switch(action.type) {
+    case "SET": {
+      const novo = typeof action.payload === "function" ? action.payload(state.history[state.index]) : action.payload;
+      const hist = state.history.slice(0, state.index + 1);
+      hist.push(novo);
+      if(hist.length > 20) hist.shift();
+      return {history: hist, index: hist.length - 1};
+    }
+    case "UNDO":
+      return state.index > 0 ? {...state, index: state.index - 1} : state;
+    default:
+      return state;
+  }
+}
+
 function useUndo(initialState) {
-  const [history, setHistory] = useState([initialState]);
-  const [index, setIndex] = useState(0);
+  const [undoState, dispatch] = React.useReducer(undoReducer, {
+    history: [initialState],
+    index: 0,
+  });
 
-  const state = history[index];
-
-  const setState = (newState) => {
-    const novo = typeof newState === "function" ? newState(state) : newState;
-    const novoHist = history.slice(0, index + 1);
-    novoHist.push(novo);
-    if (novoHist.length > 20) novoHist.shift();
-    setHistory(novoHist);
-    setIndex(novoHist.length - 1);
-  };
-
-  const desfazer = () => {
-    if (index > 0) setIndex(i => i - 1);
-  };
-
-  const podeDesfazer = index > 0;
+  const state = undoState.history[undoState.index];
+  const setState = (newState) => dispatch({type:"SET", payload:newState});
+  const desfazer = () => dispatch({type:"UNDO"});
+  const podeDesfazer = undoState.index > 0;
 
   return [state, setState, desfazer, podeDesfazer];
 }
@@ -3041,7 +3141,27 @@ function App() {
   const [relatorioSalvo, setRelatorioSalvo] = useState(false);
   const [previewAberto, setPreviewAberto] = useState(false);
   const [p1, setP1, desfazerP1, podeDesfazerP1] = useUndo(p1Initial);
-  const [p2, setP2, desfazerP2, podeDesfazerP2] = useUndo({...p2Initial, achados: getAchadosInicial()});
+  // p2: useState normal para evitar perda de foco no obsTexto
+  // desfazer manual com histórico separado
+  const [p2, _setP2Raw] = useState({...p2Initial, achados: getAchadosInicial()});
+  const [p2Hist, setP2Hist] = useState([{...p2Initial, achados: getAchadosInicial()}]);
+  const [p2HIdx, setP2HIdx] = useState(0);
+  const setP2 = (val) => {
+    const novo = typeof val === "function" ? val(p2) : val;
+    _setP2Raw(novo);
+    // Só registra no histórico para ações clínicas (não para texto digitado)
+    const isTextoDigitado = typeof val !== "function" &&
+      val !== null && typeof val === "object" &&
+      Object.keys(val).length <= 2 &&
+      (val.obsTexto !== undefined || val.obsCorrigido !== undefined || val.obsAchados !== undefined);
+    if(!isTextoDigitado) {
+      setP2Hist(h => { const nh=[...h.slice(0,p2HIdx+1),novo]; setP2HIdx(nh.length-1); return nh.slice(-20); });
+    }
+  };
+  const desfazerP2 = () => {
+    if(p2HIdx>0){ const ni=p2HIdx-1; setP2HIdx(ni); _setP2Raw(p2Hist[ni]); }
+  };
+  const podeDesfazerP2 = p2HIdx > 0;
   const [p3, setP3] = useState(p3Initial);
   const [p3History, setP3History] = useState([p3Initial]);
   const [p3HIdx, setP3HIdx] = useState(0);
