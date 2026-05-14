@@ -662,8 +662,8 @@ function VerificadorTaxas({plano}) {
   );
 }
 
-function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno,p3QuemPaga,setP3QuemPaga}) {
-  const [plano, setPlanoLocal] = React.useState(planoExterno||"dias14");
+function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno,p3QuemPaga,setP3QuemPaga,boletoComDesconto=false,setBoletoComDesconto}) {
+  const [plano, setPlanoLocal] = React.useState(planoExterno||"hora");
   const setPlano = (v) => { setPlanoLocal(v); if(setPlanoExterno) setPlanoExterno(v); };
   const planoAtual = plano;
   const quemPaga = p3QuemPaga || "comprador";
@@ -1000,6 +1000,15 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                       ))}
                     </div>
                     <div style={{fontSize:10,color:"#9A8060",marginTop:6}}>Até {boletoIsento}x sem juros · demais com 1,2% a.m.</div>
+                  </div>
+                )}
+                {/* Toggle aplicar desconto no boleto */}
+                {descPct>0&&(
+                  <div style={{marginTop:8,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
+                    <span style={{fontSize:11,color:"#5C4A2A"}}>Aplicar desconto ({descPct}%) no boleto</span>
+                    <div onClick={()=>setBoletoComDesconto&&setBoletoComDesconto(!boletoComDesconto)} style={{width:36,height:20,borderRadius:10,background:boletoComDesconto?GOLD:"#ccc",cursor:"pointer",position:"relative",transition:"all 0.2s"}}>
+                      <div style={{position:"absolute",top:2,left:boletoComDesconto?16:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"all 0.2s"}}/>
+                    </div>
                   </div>
                 )}
                 {/* Toggle ocultar total boleto */}
@@ -1935,14 +1944,14 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
                 display:"block",
                 width:"100%",
                 padding:"8px 10px",
-                border:"1px solid #ccc",
+                border:"1px solid "+BORDER,
                 borderRadius:2,
                 fontSize:12,
-                fontFamily:"system-ui,sans-serif",
+                fontFamily:"inherit",
                 resize:"vertical",
                 minHeight:52,
-                background:"#ffffff",
-                color:"#000000",
+                background:"#fff",
+                color:"#1C1410",
                 boxSizing:"border-box",
               }}
             />
@@ -2740,7 +2749,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                     {/* Boleto parcelado */}
                     {fc.includes("boleto")&&bm==="parcelado"&&(()=>{
                       const nl=bj==="sem_juros"?nb:bj==="com_juros"?0:parseInt(bi)||0;
-                      const bBase=creditoBaseRel;
+                      const bBase=boletoComDesconto?vF:vB; // desconto só se toggle ativado
                       const ls=Array.from({length:nb},(_,i)=>{
                         const n=i+1,sj=n<=nl,pc=bj==="combinado"?Math.max(0,n-nl):sj?0:n;
                         const t=sj?bBase:bBase*(1+0.012*pc);
@@ -2785,7 +2794,7 @@ const p4Initial = {
   procsBase: null, // null = será carregado do localStorage ou PROC_BASE
 };
 
-const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"3",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true,quemPaga:"comprador"};
+const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"3",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true,quemPaga:"comprador",boletoComDesconto:false};
 
 
 // ─── CALCULADORA FLUTUANTE ───────────────────────────
@@ -3129,6 +3138,77 @@ function DriveSync({relatorio}) {
 }
 
 
+// ─── CONFIGURAÇÕES PADRÃO ────────────────────────────
+const CONFIG_KEY = "integra_configs_v1";
+
+function loadConfigs() {
+  try { return JSON.parse(localStorage.getItem(CONFIG_KEY)||"{}"); } catch(e){ return {}; }
+}
+function saveConfigs(c) {
+  try { localStorage.setItem(CONFIG_KEY, JSON.stringify(c)); } catch(e){}
+}
+
+function Configs({onClose}) {
+  const [cfg, setCfg] = React.useState(loadConfigs);
+  const set = (k,v) => { const n={...cfg,[k]:v}; setCfg(n); saveConfigs(n); };
+
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:8,padding:24,maxWidth:400,width:"90%",maxHeight:"80vh",overflowY:"auto",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <span style={{fontSize:14,fontWeight:700,color:GOLD_DARK,letterSpacing:1}}>Configurações Padrão</span>
+          <span onClick={onClose} style={{cursor:"pointer",color:"#9A8060",fontSize:18}}>✕</span>
+        </div>
+
+        {/* Plano PagBank padrão */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Plano PagBank padrão</div>
+          <div style={{display:"flex",gap:8}}>
+            {[["hora","Na hora"],["dias14","14 dias"]].map(([k,l])=>(
+              <div key={k} onClick={()=>set("plano",k)} style={{flex:1,padding:"8px 12px",borderRadius:3,cursor:"pointer",border:"2px solid "+(cfg.plano===k?GOLD_DARK:BORDER),background:cfg.plano===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:cfg.plano===k?700:400,color:cfg.plano===k?GOLD_DARK:"#5C4A2A",textAlign:"center"}}>{l}</div>
+            ))}
+          </div>
+        </div>
+
+        {/* Quem paga juros padrão */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Juros pagos por (padrão)</div>
+          <div style={{display:"flex",gap:8}}>
+            {[["comprador","Paciente"],["vendedor","Clínica"]].map(([k,l])=>(
+              <div key={k} onClick={()=>set("quemPaga",k)} style={{flex:1,padding:"8px 12px",borderRadius:3,cursor:"pointer",border:"2px solid "+(cfg.quemPaga===k?GOLD_DARK:BORDER),background:cfg.quemPaga===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:cfg.quemPaga===k?700:400,color:cfg.quemPaga===k?GOLD_DARK:"#5C4A2A",textAlign:"center"}}>{l}</div>
+            ))}
+          </div>
+        </div>
+
+        {/* Parcelas sem juros padrão */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Parcelas sem juros padrão</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {[0,1,2,3,4,5,6].map(n=>(
+              <div key={n} onClick={()=>set("parcelasIsentas",String(n))} style={{width:36,height:36,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid "+((cfg.parcelasIsentas||"3")===String(n)?GOLD_DARK:BORDER),background:(cfg.parcelasIsentas||"3")===String(n)?GOLD:"#fff",color:(cfg.parcelasIsentas||"3")===String(n)?"#fff":"#5C4A2A",fontSize:11,cursor:"pointer"}}>{n}</div>
+            ))}
+          </div>
+        </div>
+
+        {/* Desconto padrão */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Desconto à vista padrão (%)</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {[0,5,10,15,20].map(n=>(
+              <div key={n} onClick={()=>set("descontoPadrao",n)} style={{padding:"6px 14px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+((cfg.descontoPadrao||0)===n?GOLD_DARK:BORDER),background:(cfg.descontoPadrao||0)===n?GOLD_PALE:"#fff",fontSize:11,fontWeight:(cfg.descontoPadrao||0)===n?700:400,color:(cfg.descontoPadrao||0)===n?GOLD_DARK:"#5C4A2A"}}>{n}%</div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{marginTop:20,padding:"10px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,fontSize:11,color:GOLD_DARK}}>
+          ✓ Configurações salvas automaticamente
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function loadPersisted(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch(e) { return fallback; }
 }
@@ -3138,6 +3218,8 @@ function savePersisted(key, val) {
 
 function App() {
   const [pag, setPag] = useState("p1");
+  const [showConfigs, setShowConfigs] = useState(false);
+  const appConfigs = React.useMemo(()=>loadConfigs(),[]);
   const [relatorioSalvo, setRelatorioSalvo] = useState(false);
   const [previewAberto, setPreviewAberto] = useState(false);
   const [p1, setP1, desfazerP1, podeDesfazerP1] = useUndo(p1Initial);
@@ -3162,7 +3244,13 @@ function App() {
     if(p2HIdx>0){ const ni=p2HIdx-1; setP2HIdx(ni); _setP2Raw(p2Hist[ni]); }
   };
   const podeDesfazerP2 = p2HIdx > 0;
-  const [p3, setP3] = useState(p3Initial);
+  const [p3, setP3] = useState(()=>({
+    ...p3Initial,
+    ds: appConfigs.descontoPadrao||0,
+    ci: appConfigs.parcelasIsentas||"3",
+    quemPaga: appConfigs.quemPaga||"comprador",
+    plano: appConfigs.plano||"hora",
+  }));
   const [p3History, setP3History] = useState([p3Initial]);
   const [p3HIdx, setP3HIdx] = useState(0);
   const sp3 = (k,v) => {
@@ -3265,6 +3353,7 @@ function App() {
         ct={p3.ct!==false} setCt={v=>sp3("ct",v)} bt={p3.bt!==false} setBt={v=>sp3("bt",v)}
         planoExterno={p3.plano||"dias14"} setPlanoExterno={v=>sp3("plano",v)}
         p3QuemPaga={p3.quemPaga||"comprador"} setP3QuemPaga={v=>sp3("quemPaga",v)}
+        boletoComDesconto={p3.boletoComDesconto||false} setBoletoComDesconto={v=>sp3("boletoComDesconto",v)}
       />}
       {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSalvar={()=>{
   const dup = verificarDuplicata(p1);
@@ -3299,6 +3388,7 @@ function App() {
         );
       })()}
 
+      {showConfigs&&<Configs onClose={()=>setShowConfigs(false)}/>}
       <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:"#1A0F08",borderTop:"2px solid #2C1810",zIndex:100}}>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p1"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p1"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p1")}>👤 Paciente</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p2"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p2"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p2")}>🦷 Avaliação</button>
@@ -3306,6 +3396,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p3"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p3"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p3")}>💰 Orçamento</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="rel"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="rel"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("rel")}>📋 Relatório</button>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
+        <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
     </div>
   );
