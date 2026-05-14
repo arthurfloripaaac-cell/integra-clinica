@@ -3068,6 +3068,7 @@ function DriveSync({relatorio}) {
   const [logado, setLogado] = React.useState(!!_gdriveToken);
   const [salvando, setSalvando] = React.useState(false);
   const [msgDrive, setMsgDrive] = React.useState(null);
+  const [modalDrive, setModalDrive] = React.useState(null); // {onSobrepor, onDuplicar}
 
   const login = async () => {
     // Se estiver em URL de preview, redirecionar para URL principal
@@ -3096,8 +3097,11 @@ function DriveSync({relatorio}) {
       const res = await gdriveSalvarAtendimento(relatorio, opcao);
       if(res && res.precisaConfirmar) {
         setSalvando(false);
-        const sobrepor = window.confirm("Arquivo ja existe no Drive. OK=Sobrepor / Cancelar=Copia");
-        await salvar(sobrepor);
+        setModalDrive({
+          onSobrepor: async () => { setModalDrive(null); await salvar(true); },
+          onDuplicar: async () => { setModalDrive(null); await salvar("novo"); },
+          onCancelar: () => setModalDrive(null),
+        });
         return;
       }
       setMsgDrive({tipo:"ok",texto:"✓ Salvo no Google Drive"});
@@ -3110,6 +3114,28 @@ function DriveSync({relatorio}) {
 
   return (
     <div className="no-print" style={{marginTop:10}}>
+      {/* Modal sobrepor/duplicar/cancelar */}
+      {modalDrive&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:600,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:"#fff",borderRadius:8,padding:28,maxWidth:360,width:"90%",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
+            <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK,marginBottom:8}}>Arquivo já existe no Drive</div>
+            <div style={{fontSize:12,color:"#5C4A2A",marginBottom:20,lineHeight:1.6}}>
+              Já existe um arquivo para <strong>{relatorio?.paciente||"este paciente"}</strong> no Google Drive. O que deseja fazer?
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <div onClick={modalDrive.onSobrepor} style={{padding:"11px 16px",background:GOLD_DARK,color:"#fff",borderRadius:4,cursor:"pointer",fontSize:12,fontWeight:700,textAlign:"center"}}>
+                Sobrepor arquivo existente
+              </div>
+              <div onClick={modalDrive.onDuplicar} style={{padding:"11px 16px",background:"#fff",color:GOLD_DARK,border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:12,fontWeight:600,textAlign:"center"}}>
+                Duplicar (salvar como cópia)
+              </div>
+              <div onClick={modalDrive.onCancelar} style={{padding:"11px 16px",background:"#fff",color:"#9A8060",border:"1px solid "+BORDER,borderRadius:4,cursor:"pointer",fontSize:12,textAlign:"center"}}>
+                Cancelar
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {!logado ? (
         <div onClick={login} style={{
           display:"flex",alignItems:"center",gap:8,padding:"8px 16px",
