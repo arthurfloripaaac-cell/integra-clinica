@@ -662,7 +662,7 @@ function VerificadorTaxas({plano}) {
   );
 }
 
-function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno,p3QuemPaga,setP3QuemPaga,boletoComDesconto=false,setBoletoComDesconto}) {
+function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno,p3QuemPaga,setP3QuemPaga,boletoComDesconto=false,setBoletoComDesconto,p4State=null}) {
   const [plano, setPlanoLocal] = React.useState(planoExterno||"hora");
   const setPlano = (v) => { setPlanoLocal(v); if(setPlanoExterno) setPlanoExterno(v); };
   const planoAtual = plano;
@@ -735,6 +735,8 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
   );
 
   // PROPOSTA RENDER
+  const [modoPreview, setModoPreview] = React.useState("soma");
+
   const renderProposta=()=>{
     if(valorFinal<=0||formasChecked.length===0) return(
       <div style={{padding:20,background:"#fff",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,color:"#9A8060",textAlign:"center"}}>
@@ -749,8 +751,86 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
     const avIcons=[temPix&&"⚡",temDin&&"💵",temBolAv&&"📄",temDeb&&"💳"].filter(Boolean).join("");
     const avLabel=[temPix&&"PIX",temDin&&"Dinheiro",temBolAv&&"Boleto",temDeb&&"Débito"].filter(Boolean).join(" · ");
 
+    // Verificar se há propostas individuais
+    const itensSepP3 = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
+    const temSep = itensSepP3.length > 0;
+
     return(
-      <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",marginTop:4}}>
+      <div>
+        {/* Toggle modo preview */}
+        {temSep&&(
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:4}}>
+            <span style={{fontSize:11,color:"#5C4A2A",flex:1,fontWeight:600}}>Modo de apresentação:</span>
+            <div style={{display:"flex",gap:6}}>
+              {[["soma","Soma tudo"],["separado","Separado"]].map(([k,l])=>(
+                <div key={k} onClick={()=>setModoPreview(k)} style={{padding:"6px 12px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoPreview===k?GOLD_DARK:BORDER),background:modoPreview===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:modoPreview===k?700:400,color:modoPreview===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Propostas individuais — modo separado */}
+        {temSep&&modoPreview==="separado"&&(
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:10}}>Propostas Individuais</div>
+            {itensSepP3.map((it,idx)=>{
+              const proc=(p4State?.procsBase||[]).find(p=>p.id===it.id)||{nome:it.nome||it.id};
+              const prop=it.proposta;
+              const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
+              const dp2=prop.ds||0;
+              const vf2=dp2>0?vb2*(1-dp2/100):vb2;
+              const propPlano=prop.plano||"hora";
+              const propQuem=prop.quemPaga||"comprador";
+              const propCi=parseInt(prop.ci||"0");
+              const propCp=prop.cp?parseInt(prop.cp):null;
+              const tCp=(prop.fc&&prop.fc.includes("credito"))
+                ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vf2,n,propPlano,propQuem);return{n,...r};})
+                :[];
+              const tCpf=propCp?tCp.filter(r=>r.n===1||r.n<=propCp):tCp;
+              const propBp=parseInt(prop.bp||"6");
+              const propBj=prop.bj||"sem_juros";
+              const propBi=parseInt(prop.bi||"3");
+              const bLs=(prop.fc&&prop.fc.includes("boleto")&&(prop.bm||"avista")==="parcelado")
+                ?Array.from({length:propBp},(_,i)=>{const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi;const sj=n<=nl,pc=propBj==="combinado"?Math.max(0,n-nl):sj?0:n;const t=sj?vf2:vf2*(1+0.012*pc);return{n,p:t/n,sj,t};})
+                :[];
+              const nomes={pix:"PIX",dinheiro:"Dinheiro",credito:"Cartão de crédito",boleto:"Boleto parcelado"};
+              return(
+                <div key={idx} style={{marginBottom:10,border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",background:"#fff"}}>
+                  <div style={{padding:"10px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:13,fontWeight:700,color:"#1C1410"}}>{proc.nome}</span>
+                    <div>
+                      <span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt(vf2)}</span>
+                      {dp2>0&&<span style={{fontSize:11,color:"#9A8060",marginLeft:6}}>({dp2}% desc.)</span>}
+                    </div>
+                  </div>
+                  {/* À vista */}
+                  {prop.fc&&(prop.fc.includes("pix")||prop.fc.includes("dinheiro"))&&(
+                    <div style={{padding:"8px 14px",fontSize:12,color:"#5C4A2A",borderBottom:tCpf.length||bLs.length?"1px solid "+BORDER:"none"}}>
+                      {[prop.fc.includes("pix")&&"PIX",prop.fc.includes("dinheiro")&&"Dinheiro"].filter(Boolean).join(" · ")} — {fmt(vf2)}
+                    </div>
+                  )}
+                  {/* Crédito */}
+                  {tCpf.length>0&&(
+                    <div style={{borderBottom:bLs.length?"1px solid "+BORDER:"none"}}>
+                      <div style={{padding:"7px 14px 4px",fontSize:11,fontWeight:700,color:"#1C1410"}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x sem juros</span>}</div>
+                      {(()=>{const m=Math.ceil(tCpf.length/2),c1=tCpf.slice(0,m),c2=tCpf.slice(m);const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt(vf2):fmt(p)}</span><span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt(t)}</span></div>);};return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{c1.map((r,i)=>rr(r,i,i===c1.length-1))}</div><div>{c2.map((r,i)=>rr(r,i,i===c2.length-1))}</div></div>);})()}
+                    </div>
+                  )}
+                  {/* Boleto */}
+                  {bLs.length>0&&(
+                    <div>
+                      <div style={{padding:"7px 14px 4px",fontSize:11,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</div>
+                      {(()=>{const m=Math.ceil(bLs.length/2),c1=bLs.slice(0,m),c2=bLs.slice(m);const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt(l.p)}</span><span style={{fontSize:9,color:l.sj?GOLD_DARK:"#9A8060"}}>{l.sj?"s/j":"tot "+fmt(l.t)}</span></div>);return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{c1.map((l,i)=>rb(l,i,i===c1.length-1))}</div><div>{c2.map((l,i)=>rb(l,i,i===c2.length-1))}</div></div>);})()}
+                    </div>
+                  )}
+                  {prop.obs&&<div style={{padding:"5px 14px 8px",fontSize:10,color:"#9A8060",fontStyle:"italic"}}>{prop.obs}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+      {modoPreview==="soma"&&<div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",marginTop:4}}>
         <div style={{background:"linear-gradient(135deg,#2C1810 0%,#1A0F08 100%)",padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <svg width="28" height="36" viewBox="0 0 40 52" fill="none"><ellipse cx="20" cy="26" rx="18" ry="24" stroke="#B8962E" strokeWidth="1.5"/><text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill="#B8962E">i</text></svg>
@@ -858,6 +938,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
             Íntegra Clínica Odontológica · (48) 3234-1002 · Rua Lauro Linhares, 1849 — Florianópolis/SC
           </div>
         </div>
+      </div>}
       </div>
     );
   };
@@ -2710,7 +2791,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   const vf2=dp2>0?vb2*(1-dp2/100):vb2;
                   const nomes2={pix:"PIX",dinheiro:"Dinheiro",credito:"Cartão de crédito",boleto:"Boleto parcelado"};
                   return(
-                    {(()=>{
+                    (()=>{
                       // Calcular parcelas do cartão para esta proposta
                       const propPlano = prop.plano||"hora";
                       const propQuem = prop.quemPaga||"comprador";
@@ -2774,7 +2855,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                           {prop.obs&&<div style={{padding:"5px 14px 8px",fontSize:10,color:"#9A8060",fontStyle:"italic"}}>{prop.obs}</div>}
                         </div>
                       );
-                    })()}
+                    })()
                   );
                 })}
               </div>
@@ -3597,6 +3678,7 @@ function App() {
         planoExterno={p3.plano||"dias14"} setPlanoExterno={v=>sp3("plano",v)}
         p3QuemPaga={p3.quemPaga||"comprador"} setP3QuemPaga={v=>sp3("quemPaga",v)}
         boletoComDesconto={p3.boletoComDesconto||false} setBoletoComDesconto={v=>sp3("boletoComDesconto",v)}
+        p4State={p4State}
       />}
       {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSetModoRel={v=>sp3("modoRel",v)} onSalvar={()=>{
   const dup = verificarDuplicata(p1);
