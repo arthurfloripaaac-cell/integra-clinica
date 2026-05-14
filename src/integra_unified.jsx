@@ -694,7 +694,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
 
   const tabelaCredito=useMemo(()=>{
     if(baseCredInput<=0) return[];
-    const rows = [1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>{
+    const rows = [1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{
       if(modoCred==="receber" && valorCobrarInput) {
         const r = calcInverso(baseCredInput, n, planoAtual, quemPaga);
         return {n, ...r};
@@ -793,12 +793,11 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                     {tabelaCredito.map((r,i)=>{
                       const sj=r.n>1&&r.n<=nIsentoCredito,parc=sj?creditoBase/r.n:r.parcela,tot=sj?creditoBase:r.total;
                       return(<div key={r.n} style={{display:"grid",gridTemplateColumns:"50px 1fr 1fr",padding:"7px 16px",background:i%2===0?"#fff":CREAM,borderBottom:i<tabelaCredito.length-1?"1px solid "+BORDER:"none"}}>
-                        <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{r.n===1?"À vista":r.n+"x"}{r.n===18?" *":""}</span>
+                        <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{r.n===1?"À vista":r.n+"x"}</span>
                         <span style={{fontSize:12,color:GOLD_DARK,fontWeight:600}}>{r.n===1?fmt(creditoBase):fmt(parc)}</span>
                         <span style={{fontSize:10,color:sj&&r.n>1?"#4CAF50":r.juros>0&&!sj?"#E57373":"#9A8060"}}>{r.n===1?"—":sj?"sem juros":"total "+fmt(tot)}</span>
                       </div>);
                     })}
-                    <div style={{padding:"5px 16px",fontSize:9,color:"#9A8060",background:"#fff"}}>* 18x apenas para Visa PagBank</div>
                   </div>
                 </div>
               );
@@ -1112,14 +1111,13 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                   const parc=sj?baseCredInput/r.n:r.parcela;
                   const tot=sj?baseCredInput:r.total;
                   return(<div key={r.n} onClick={()=>setCreditoParc(s?null:r.n)} style={{display:"grid",gridTemplateColumns:"50px 1fr 1fr 1fr",padding:"8px 14px",cursor:"pointer",background:s?GOLD_PALE:i%2===0?"#fff":CREAM,borderLeft:"3px solid "+(s?GOLD_DARK:"transparent"),borderBottom:i<tabelaCredito.length-1?"1px solid "+BORDER:"none"}}>
-                    <span style={{fontSize:11,fontWeight:s?700:600,color:s?GOLD_DARK:"#1C1410"}}>{r.n===1?"Àvista":r.n+"x"}{r.n===18?"*":""}</span>
+                    <span style={{fontSize:11,fontWeight:s?700:600,color:s?GOLD_DARK:"#1C1410"}}>{r.n===1?"Àvista":r.n+"x"}</span>
                     <span style={{fontSize:11,color:GOLD_DARK,fontWeight:s?700:500}}>{r.n===1?fmt(r.totalCliente||baseCredInput):fmt(parc)}</span>
                     <span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:r.juros>0&&!sj?"#9A8060":"#9A8060"}}>{r.n===1?fmt(r.totalCliente||baseCredInput):sj?"sem juros":fmt(tot)}</span>
                     <span style={{fontSize:11,color:GOLD_DARK}}>{fmt(r.liquido)}</span>
                   </div>);
                 })}
               </div>
-              <div style={{fontSize:9,color:"#9A8060",marginTop:6}}>* 18x apenas Visa PagBank</div>
 
               {/* Toggle mostrar total relatório */}
               <div style={{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
@@ -1687,12 +1685,13 @@ function OdontogramaMini({ selecionados, onToggle }) {
   );
 }
 
-function ProcedimentoItem({ proc, item, onChange, onRemove }) {
+function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
   const [expandido, setExpandido] = useState(false);
   const [valorPorDente, setValorPorDente] = useState(false);
 
   // Subtotal: se valorPorDente, soma valores individuais; senão, unitário × qtd
-  const subtotal = proc.modo === "dente"
+  const modoEfetivo = item.modo || proc.modo;
+  const subtotal = modoEfetivo === "dente"
     ? valorPorDente && item.valoresDente
       ? item.dentes?.reduce((acc, n) => acc + parseMoeda(item.valoresDente[n] || item.valor), 0) || 0
       : (item.dentes?.length || 0) * parseMoeda(item.valor)
@@ -1760,9 +1759,9 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
                 <div style={{ marginTop: 4 }}>
                   {proc.subtipos
                     ? <span style={{fontSize:10,color:"#9A8060"}}>{Object.keys(item.subtipos || {}).map(id => proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ") || "Selecione o tipo"}</span>
-                    : proc.modo === "dente"
+                    : modoEfetivo === "dente"
                     ? <span style={{fontSize:10,color:"#9A8060"}}>{descricaoDentes()}</span>
-                    : proc.modo === "regiao"
+                    : modoEfetivo === "regiao"
                     ? <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:2}}>
                         {[["boca","Boca toda"],["sup","Sup."],["inf","Inf."]].map(([k,l])=>(
                           <div key={k} onClick={e=>{e.stopPropagation();onChange({...item,regiao:k});}} style={{padding:"2px 8px",borderRadius:20,fontSize:10,cursor:"pointer",border:"1.5px solid "+(item.regiao===k?GOLD_DARK:BORDER),background:item.regiao===k?GOLD_PALE:"#fff",color:item.regiao===k?GOLD_DARK:"#5C4A2A",fontWeight:item.regiao===k?700:400}}>{l}</div>
@@ -1775,7 +1774,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
             {item.ativo && (
               <div style={{ textAlign: "right", flexShrink: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: GOLD_DARK }}>{fmt(subtotal)}</div>
-                {proc.modo === "dente" && item.dentes?.length > 1 && (
+                {modoEfetivo === "dente" && item.dentes?.length > 1 && (
                   <div style={{ fontSize: 9, color: "#9A8060" }}>{item.dentes.length}x {fmt(parseMoeda(item.valor))}</div>
                 )}
               </div>
@@ -1857,13 +1856,32 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
             </div>
           )}
 
+          {/* Tipo do procedimento — editável para procedimentos personalizados */}
+          {editavel && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 6 }}>Tipo</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[["dente","Por dente"],["regiao","Por região"],["livre","Valor livre"]].map(([k,l])=>(
+                  <div key={k} onClick={()=>onChange({...item, modo:k, dentes:[], regiao:k==="regiao"?"boca":null})}
+                    style={{flex:1,padding:"7px 10px",borderRadius:3,cursor:"pointer",textAlign:"center",
+                      border:"1.5px solid "+(modoEfetivo===k?GOLD_DARK:BORDER),
+                      background:modoEfetivo===k?GOLD_PALE:"#fff",
+                      color:modoEfetivo===k?GOLD_DARK:"#5C4A2A",
+                      fontSize:11,fontWeight:modoEfetivo===k?700:400}}>
+                    {l}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Valor — com opção de valor por dente individual */}
           {!proc.subtipos && <div style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>
-                Valor {proc.modo === "dente" ? (valorPorDente ? "individual por dente" : "por dente (único)") : ""}
+                Valor {modoEfetivo === "dente" ? (valorPorDente ? "individual por dente" : "por dente (único)") : ""}
               </div>
-              {proc.modo === "dente" && item.dentes?.length > 0 && (
+              {modoEfetivo === "dente" && item.dentes?.length > 0 && (
                 <div onClick={() => setValorPorDente(!valorPorDente)} style={{ fontSize: 10, color: valorPorDente ? GOLD_DARK : "#9A8060", cursor: "pointer", padding: "2px 8px", border: "1px solid " + (valorPorDente ? GOLD : BORDER), borderRadius: 20 }}>
                   {valorPorDente ? "✓ Individual" : "Definir por dente"}
                 </div>
@@ -1898,7 +1916,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
           </div>}
 
           {/* Seleção por região */}
-          {proc.modo === "regiao" && proc.modo !== "livre" && (
+          {modoEfetivo === "regiao" && modoEfetivo !== "livre" && (
             <div>
               <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 8 }}>Região</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -1916,7 +1934,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove }) {
           )}
 
           {/* Seleção por dente */}
-          {proc.modo === "dente" && proc.modo !== "livre" && (
+          {modoEfetivo === "dente" && modoEfetivo !== "livre" && (
             <div>
               <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 8 }}>
                 Selecione os dentes ({item.dentes?.length || 0} selecionado{item.dentes?.length !== 1 ? "s" : ""})
@@ -2272,7 +2290,15 @@ function P4({onTotalChange, p4State, setP4State}) {
                 <ProcedimentoItem
                   proc={proc}
                   item={it}
-                  onChange={novo => atualizarCustom(i, novo)}
+                  editavel={true}
+                  onChange={novo => {
+                    // Se modo mudou, atualizar também no proc via atualizarCustom
+                    if(novo.modo && novo.modo !== proc.modo) {
+                      atualizarCustom(i, {...novo});
+                    } else {
+                      atualizarCustom(i, novo);
+                    }
+                  }}
                 />
               </div>
             );
@@ -2462,7 +2488,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
     ?(entrada?Math.max(0,vB-(entrada?(entradaTipo==="pct"?vB*(parseFloat(entradaVal)||0)/100:(parseFloat(String(entradaVal).replace(",","."))||0)):0)):vB)
     :vB;
   const creditoBaseRel=(entrada&&entradaValor2>0&&saldoTipo==="parcelado")?baseCreditoSemDesc:vB;
-  const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n=>({n,...calcCreditoPlano(creditoBaseRel,n,plano,quemPaga)})):[];
+  const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>({n,...calcCreditoPlano(creditoBaseRel,n,plano,quemPaga)})):[];
 
   const defaultItensRel = PROC_BASE.map(p => ({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],subtipos:{},regiao:p.id==="profilaxia"?"boca":p.id==="clareamento"?"boca":null,qtd:1}));
   const procsBaseRel = p4State?.procsBase || PROC_BASE.map(p => ({...p}));
@@ -2732,17 +2758,13 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                           <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Cartão de crédito</span>
                           {nic>0&&<span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 6px",borderRadius:8}}>até {nic}x sem juros</span>}
                         </div>
-                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
-                          {tCFiltrado.map((r,i)=>{
-                            const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;
-                            return(<div key={r.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:"1px solid "+BORDER,borderRight:i%2===0?"1px solid "+BORDER:"none"}}>
-                              <span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}{r.n===18?"*":""}</span>
-                              <span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>
-                              {ct&&<span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}
-                            </div>);
-                          })}
-                        </div>
-                        <div style={{padding:"5px 14px",fontSize:8.5,color:"#9A8060",background:"#fff"}}>* 18x apenas Visa PagBank</div>
+                        {(()=>{
+                          const meio=Math.ceil(tCFiltrado.length/2);
+                          const col1=tCFiltrado.slice(0,meio), col2=tCFiltrado.slice(meio);
+                          const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;return(<div key={r.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>{ct&&<span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}</div>);};
+                          return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((r,i)=>rr(r,i,i===col1.length-1))}</div><div>{col2.map((r,i)=>rr(r,i,i===col2.length-1))}</div></div>);
+                        })()}
+      
                       </div>
                     </div>}
 
@@ -2760,15 +2782,12 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
                           <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,background:"#fff"}}>
                             <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</span>
                           </div>
-                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
-                            {ls.map((l,i)=>(
-                              <div key={l.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:"1px solid "+BORDER,borderRight:i%2===0?"1px solid "+BORDER:"none"}}>
-                                <span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{l.n+"x"}</span>
-                                <span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span>
-                                {bt&&<span style={{fontSize:9,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/juros":"tot "+fmt2(l.t)}</span>}
-                              </div>
-                            ))}
-                          </div>
+                          {(()=>{
+                            const meio=Math.ceil(ls.length/2);
+                            const col1=ls.slice(0,meio),col2=ls.slice(meio);
+                            const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span>{bt&&<span style={{fontSize:9,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/j":"tot "+fmt2(l.t)}</span>}</div>);
+                            return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((l,i)=>rb(l,i,i===col1.length-1))}</div><div>{col2.map((l,i)=>rb(l,i,i===col2.length-1))}</div></div>);
+                          })()}
                         </div>
                       </div>);
                     })()}
@@ -2780,7 +2799,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false}) {
 
           {/* Rodapé */}
           <div style={{borderTop:"1px solid "+BORDER,marginTop:22,paddingTop:14,fontSize:10,color:"#9A8060",fontStyle:"italic",textAlign:"center"}}>
-            Íntegra Clínica Odontológica · (48) 3234-1002 · Rua Lauro Linhares, 1849 — Trindade, Florianópolis/SC
+            Íntegra Clínica Odontológica · WhatsApp (48) 98404-2890 · Rua Lauro Linhares, 1849, Sala 204 — Trindade, Florianópolis/SC
           </div>
         </div>
       </div>
@@ -2794,7 +2813,7 @@ const p4Initial = {
   procsBase: null, // null = será carregado do localStorage ou PROC_BASE
 };
 
-const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"3",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true,quemPaga:"comprador",boletoComDesconto:false};
+const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"0",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true,quemPaga:"comprador",boletoComDesconto:false};
 
 
 // ─── CALCULADORA FLUTUANTE ───────────────────────────
@@ -3275,7 +3294,7 @@ function App() {
     return {
       ...p3Initial,
       ds: cfg.descontoPadrao||0,
-      ci: cfg.parcelasIsentas||"3",
+      ci: cfg.parcelasIsentas||"0",
       quemPaga: cfg.quemPaga||"comprador",
       plano: cfg.plano||"hora",
     };
