@@ -2790,7 +2790,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Dados do Paciente */}
           {temDados && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Dados do Paciente</span>
+              <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Dados do Paciente</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:6}}>
@@ -2803,15 +2803,15 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 ["Data da consulta",dataFmt(dataConsulta)],
               ].map(([l,v])=>(
                 <div key={l} style={{padding:"7px 10px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
-                  <div style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:3}}>{l}</div>
-                  <div style={{fontSize:12,color:"#5C4A2A",fontWeight:500}}>{v}</div>
+                  <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:3}}>{l}</div>
+                  <div style={{fontSize:13,color:"#5C4A2A",fontWeight:500}}>{v}</div>
                 </div>
               ))}
             </div>
             {isMinor && respNome && (
               <div style={{padding:"9px 12px",background:"rgba(91,45,142,0.05)",border:"1px solid rgba(91,45,142,0.2)",borderRadius:3,marginBottom:8}}>
-                <div style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:3}}>Responsável Legal</div>
-                <div style={{fontSize:12,color:"#5C4A2A"}}>{respNome} {respCpf?"· CPF: "+respCpf:""}</div>
+                <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:3}}>Responsável Legal</div>
+                <div style={{fontSize:13,color:"#5C4A2A"}}>{respNome} {respCpf?"· CPF: "+respCpf:""}</div>
               </div>
             )}
           </>}
@@ -2819,7 +2819,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Avaliação Clínica */}
           {temAval && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Avaliação Clínica</span>
+              <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Avaliação Clínica</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             {resumoAch.length>0 && <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
@@ -2828,16 +2828,16 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   <div style={{width:3,background:PURPLE,flexShrink:0}}/>
                   <div style={{flex:1,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
-                      <span style={{fontSize:12,fontWeight:600,color:"#5C4A2A"}}>{a.lb}</span>
-                      {(p2.obsAchados||{})[a.id]&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{(p2.obsAchados||{})[a.id]}</div>}
+                      <span style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{a.lb}</span>
+                      {(p2.obsAchados||{})[a.id]&&<div style={{fontSize:11,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{(p2.obsAchados||{})[a.id]}</div>}
                     </div>
-                    <div style={{fontSize:10,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"50%"}}>{descreverRegiao(a.dentes,true)}</div>
+                    <div style={{fontSize:11,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"50%"}}>{descreverRegiao(a.dentes,true)}</div>
                   </div>
                 </div>
               ))}
             </div>}
-            {obsTexto && <div style={{padding:"12px 14px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3,fontSize:12,color:"#5C4A2A",lineHeight:1.7}}>
-              <div style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:6}}>Informações Clínicas</div>
+            {obsTexto && <div style={{padding:"12px 14px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3,fontSize:13,color:"#5C4A2A",lineHeight:1.7}}>
+              <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:6}}>Informações Clínicas</div>
               {obsTexto}
             </div>}
           </>}
@@ -2845,7 +2845,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Plano de Tratamento */}
           {temPlano && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Plano de Tratamento</span>
+              <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Plano de Tratamento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:0}}>
@@ -2866,15 +2866,15 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   :(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":"Arcada inferior");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
                   <div>
-                    <div style={{fontSize:12,fontWeight:600,color:"#5C4A2A"}}>{proc.nome}</div>
-                    <div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
-                    {it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
+                    <div style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{proc.nome}</div>
+                    <div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
+                    {it.obs&&<div style={{fontSize:11,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
                     {(it.subtopicos||[]).length>0&&<div style={{marginTop:4,paddingLeft:8,borderLeft:"2px solid "+BORDER}}>
-                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:10,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
+                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:11,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
                     </div>}
 
                   </div>
-                  <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
+                  <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               }),
               ...p4Custom.map(it => {
@@ -2887,14 +2887,14 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 const desc = it.modo==="livre" ? "" : it.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—"):(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":it.regiao==="inf"?"Arcada inferior":"—");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
                   <div>
-                    <div style={{fontSize:12,fontWeight:600,color:"#5C4A2A"}}>{it.nome}</div>
-                    <div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
-                    {it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
+                    <div style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{it.nome}</div>
+                    <div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
+                    {it.obs&&<div style={{fontSize:11,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
                     {(it.subtopicos||[]).length>0&&<div style={{marginTop:4,paddingLeft:8,borderLeft:"2px solid "+BORDER}}>
-                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:10,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
+                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:11,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
                     </div>}
                   </div>
-                  <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
+                  <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               })].filter(Boolean)}
             </div>
@@ -2907,7 +2907,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             return(
               <div style={{marginTop:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                  <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Propostas Individuais</span>
+                  <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Propostas Individuais</span>
                   <div style={{flex:1,height:1,background:BORDER}}/>
                 </div>
                 {itensSep.map((it,idx)=>{
@@ -2944,10 +2944,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       return(
                         <div key={idx} style={{marginBottom:10,border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                           <div style={{padding:"8px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                            <span style={{fontSize:12,fontWeight:700,color:"#5C4A2A"}}>{proc.nome}</span>
+                            <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>{proc.nome}</span>
                             <div style={{textAlign:"right"}}>
-                              <span style={{fontSize:12,fontWeight:700,color:GOLD_DARK}}>{fmt2(vf2)}</span>
-                              {dp2>0&&<span style={{fontSize:10,color:"#9A8060",marginLeft:6}}>({dp2}% desc. sobre {fmt2(vb2)})</span>}
+                              <span style={{fontSize:14,fontWeight:700,color:GOLD_DARK}}>{fmt2(vf2)}</span>
+                              {dp2>0&&<span style={{fontSize:11,color:"#9A8060",marginLeft:6}}>({dp2}% desc. sobre {fmt2(vb2)})</span>}
                             </div>
                           </div>
                           {/* À vista / PIX */}
@@ -2959,11 +2959,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                           {/* Cartão */}
                           {tCfilt.length>0&&(
                             <div style={{borderBottom:boletoLs.length?"1px solid "+BORDER:"none"}}>
-                              <div style={{padding:"6px 14px 4px",fontSize:10,fontWeight:700,color:"#5C4A2A",letterSpacing:0.5}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x sem juros</span>}</div>
+                              <div style={{padding:"6px 14px 4px",fontSize:11,fontWeight:700,color:"#5C4A2A",letterSpacing:0.5}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x sem juros</span>}</div>
                               {(()=>{
                                 const meio=Math.ceil(tCfilt.length/2);
                                 const col1=tCfilt.slice(0,meio),col2=tCfilt.slice(meio);
-                                const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(vf2):fmt2(p)}</span><span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span></div>);};
+                                const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(vf2):fmt2(p)}</span><span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span></div>);};
                                 return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((r,i)=>rr(r,i,i===col1.length-1))}</div><div>{col2.map((r,i)=>rr(r,i,i===col2.length-1))}</div></div>);
                               })()}
                             </div>
@@ -2971,16 +2971,16 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                           {/* Boleto */}
                           {boletoLs.length>0&&(
                             <div>
-                              <div style={{padding:"6px 14px 4px",fontSize:10,fontWeight:700,color:"#5C4A2A"}}>Boleto parcelado</div>
+                              <div style={{padding:"6px 14px 4px",fontSize:11,fontWeight:700,color:"#5C4A2A"}}>Boleto parcelado</div>
                               {(()=>{
                                 const meio=Math.ceil(boletoLs.length/2);
                                 const col1=boletoLs.slice(0,meio),col2=boletoLs.slice(meio);
-                                const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span><span style={{fontSize:9,color:l.sj?GOLD_DARK:"#9A8060"}}>{l.sj?"s/j":"tot "+fmt2(l.t)}</span></div>);
+                                const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span><span style={{fontSize:10,color:l.sj?GOLD_DARK:"#9A8060"}}>{l.sj?"s/j":"tot "+fmt2(l.t)}</span></div>);
                                 return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((l,i)=>rb(l,i,i===col1.length-1))}</div><div>{col2.map((l,i)=>rb(l,i,i===col2.length-1))}</div></div>);
                               })()}
                             </div>
                           )}
-                          {prop.obs&&<div style={{padding:"5px 14px 8px",fontSize:10,color:"#9A8060",fontStyle:"italic"}}>{prop.obs}</div>}
+                          {prop.obs&&<div style={{padding:"5px 14px 8px",fontSize:11,color:"#9A8060",fontStyle:"italic"}}>{prop.obs}</div>}
                         </div>
                       );
                     })()
@@ -3005,8 +3005,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 
             const LabelAlternativa = ({num, titulo}) => (
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                {duasAlternativas&&<div style={{width:22,height:22,borderRadius:"50%",background:PURPLE,color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{num}</div>}
-                <span style={{fontSize:10,fontWeight:700,color:"#5C4A2A",letterSpacing:1,textTransform:"uppercase"}}>{titulo}</span>
+                {duasAlternativas&&<div style={{width:22,height:22,borderRadius:"50%",background:PURPLE,color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{num}</div>}
+                <span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",letterSpacing:1,textTransform:"uppercase"}}>{titulo}</span>
                 <div style={{flex:1,height:1,background:BORDER}}/>
               </div>
             );
@@ -3020,13 +3020,13 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 <div className="no-print" style={{display:"flex",alignItems:"center",gap:8,marginTop:16,marginBottom:8,padding:"8px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3}}>
                   <span style={{fontSize:11,color:"#5C4A2A",flex:1}}>Apresentação da proposta:</span>
                   {[["soma","Soma tudo"],["separado","Separado por procedimento"]].map(([k,l])=>(
-                    <div key={k} onClick={()=>onSetModoRel&&onSetModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:10,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
+                    <div key={k} onClick={()=>onSetModoRel&&onSetModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
                   ))}
                 </div>
               ) : null;
             })()}
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Proposta de Investimento</span>
+              <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
 
@@ -3041,18 +3041,18 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                         {dp>0?(
                           <>
-                            <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vB)}</span>
+                            <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vB)}</span>
                             <span style={{fontSize:11,color:"#9A8060"}}>→</span>
-                            <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                            <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
                             <span style={{fontSize:11,color:"#9A8060"}}>({dp}% de desconto)</span>
                           </>
                         ):(
-                          <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                          <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
                         )}
                       </div>
-                      {lb&&<span style={{fontSize:12,fontWeight:600,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
+                      {lb&&<span style={{fontSize:13,fontWeight:600,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
                     </div>
-                    {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060",marginTop:3}}>Taxa 1,99% PagBank no débito</div>}
+                    {fc.includes("debito")&&<div style={{fontSize:10,color:"#9A8060",marginTop:3}}>Taxa 1,99% PagBank no débito</div>}
                   </div>
                 </div>
               );
@@ -3067,7 +3067,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   {/* Entrada */}
                   {entrada && entradaValor2>0 && (
                     <div style={{padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,marginBottom:8}}>
-                      <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:3}}>
                         <span style={{color:GOLD_DARK,fontWeight:600}}>Entrada</span>
                         <span style={{color:GOLD_DARK,fontWeight:700}}>{fmt2(entradaValor2)}{entradaTipo==="pct"?" ("+entradaVal+"%)":""}</span>
                       </div>
@@ -3083,13 +3083,13 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                     {fc.includes("credito")&&<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                       <div style={{borderLeft:"3px solid "+GOLD}}>
                         <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",gap:8,background:"#fff"}}>
-                          <span style={{fontSize:12,fontWeight:700,color:"#5C4A2A"}}>Cartão de crédito</span>
-                          {nic>0&&<span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 6px",borderRadius:8}}>até {nic}x sem juros</span>}
+                          <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>Cartão de crédito</span>
+                          {nic>0&&<span style={{fontSize:10,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 6px",borderRadius:8}}>até {nic}x sem juros</span>}
                         </div>
                         {(()=>{
                           const meio=Math.ceil(tCFiltrado.length/2);
                           const col1=tCFiltrado.slice(0,meio), col2=tCFiltrado.slice(meio);
-                          const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;return(<div key={r.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>{ct&&<span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}</div>);};
+                          const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;return(<div key={r.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>{ct&&<span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}</div>);};
                           return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((r,i)=>rr(r,i,i===col1.length-1))}</div><div>{col2.map((r,i)=>rr(r,i,i===col2.length-1))}</div></div>);
                         })()}
       
@@ -3108,12 +3108,12 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       return(<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                         <div style={{borderLeft:"3px solid "+GOLD}}>
                           <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,background:"#fff"}}>
-                            <span style={{fontSize:12,fontWeight:700,color:"#5C4A2A"}}>Boleto parcelado</span>
+                            <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>Boleto parcelado</span>
                           </div>
                           {(()=>{
                             const meio=Math.ceil(ls.length/2);
                             const col1=ls.slice(0,meio),col2=ls.slice(meio);
-                            const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span>{bt&&<span style={{fontSize:9,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/j":"tot "+fmt2(l.t)}</span>}</div>);
+                            const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span>{bt&&<span style={{fontSize:10,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/j":"tot "+fmt2(l.t)}</span>}</div>);
                             return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((l,i)=>rb(l,i,i===col1.length-1))}</div><div>{col2.map((l,i)=>rb(l,i,i===col2.length-1))}</div></div>);
                           })()}
                         </div>
