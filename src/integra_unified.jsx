@@ -8,10 +8,10 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
   _s.textContent = `
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      body { margin: 0 !important; background: white !important; }
+      body { margin: 0 !important; padding: 0 !important; background: white !important; }
       .no-print { display: none !important; }
-      #root > div { padding-bottom: 0 !important; }
-      @page { margin: 0.5cm; size: A4 portrait; }
+      .relatorio-container { border: none !important; border-radius: 0 !important; min-height: 100vh !important; }
+      @page { margin: 6mm 8mm; }
     }
   `;
   document.head.appendChild(_s);
@@ -2724,10 +2724,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
         </div>}
         {!isPreview&&<DriveSync relatorio={_driveData}/>}
       </div>
-      <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
+      <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
 
         {/* Cabeçalho */}
-        <div style={{position:"relative",overflow:"hidden",padding:"16px 28px 12px",borderBottom:"2px solid "+GOLD}}>
+        <div style={{position:"relative",overflow:"hidden",padding:"22px 28px 18px",borderBottom:"2px solid "+GOLD}}>
           <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none"}} viewBox="0 0 680 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
             <polygon points="0,0 480,0 680,80 200,80" fill="#5B2D6E" opacity="0.06"/>
             <line x1="0" y1="0" x2="200" y2="80" stroke="#5B2D6E" strokeWidth="2.5" opacity="0.30"/>
@@ -2750,11 +2750,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           </div>
         </div>
 
-        <div style={{padding:"14px 24px",flex:1}}>
+        <div style={{padding:"22px 24px",flex:1}}>
 
           {/* Dados do Paciente */}
           {temDados && <>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
               <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Dados do Paciente</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
@@ -2783,15 +2783,15 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 
           {/* Avaliação Clínica */}
           {temAval && <>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,marginTop:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Avaliação Clínica</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
-            {resumoAch.length>0 && <div style={{display:"flex",flexDirection:"column",gap:3,marginBottom:8}}>
+            {resumoAch.length>0 && <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
               {resumoAch.map(a=>(
                 <div key={a.id} style={{display:"flex",alignItems:"stretch",border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                   <div style={{width:3,background:PURPLE,flexShrink:0}}/>
-                  <div style={{flex:1,padding:"6px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{flex:1,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
                       <span style={{fontSize:12,fontWeight:600,color:"#5C4A2A"}}>{a.lb}</span>
                       {(p2.obsAchados||{})[a.id]&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{(p2.obsAchados||{})[a.id]}</div>}
@@ -2809,7 +2809,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 
           {/* Plano de Tratamento */}
           {temPlano && <>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,marginTop:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Plano de Tratamento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
@@ -2969,7 +2969,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             const nomes = {pix:"PIX", dinheiro:"Dinheiro", debito:"Cartão de débito", boleto:"Boleto"};
 
             const LabelAlternativa = ({num, titulo}) => (
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
                 {duasAlternativas&&<div style={{width:22,height:22,borderRadius:"50%",background:PURPLE,color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{num}</div>}
                 <span style={{fontSize:10,fontWeight:700,color:"#5C4A2A",letterSpacing:1,textTransform:"uppercase"}}>{titulo}</span>
                 <div style={{flex:1,height:1,background:BORDER}}/>
@@ -2990,7 +2990,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 </div>
               ) : null;
             })()}
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,marginTop:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
