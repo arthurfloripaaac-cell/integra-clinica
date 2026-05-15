@@ -43,7 +43,7 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
         background: #fff !important;
       }
       .rel-content {
-        padding-top: 56px !important;
+        padding-top: 44px !important;
         padding-bottom: 60px !important;
       }
       @page { margin: 8mm 10mm; size: A4 portrait; }
