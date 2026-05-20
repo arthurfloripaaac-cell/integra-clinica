@@ -2257,7 +2257,7 @@ function ArquivoDriveSection({onCarregar}) {
   const [filtro, setFiltro] = React.useState("");
 
   const login = async () => {
-    if(window.location.hostname !== "integra-clinica-three.vercel.app" && window.location.hostname !== "localhost") {
+    if(!window.location.hostname.includes("integra-clinica") && window.location.hostname !== "localhost") {
       window.location.href = GDRIVE_ORIGIN + window.location.pathname;
       return;
     }
@@ -3572,7 +3572,7 @@ function DriveSync({relatorio, onCarregar}) {
 
   const login = async () => {
     // Se estiver em URL de preview, redirecionar para URL principal
-    if(window.location.hostname !== "integra-clinica-three.vercel.app" &&
+    if(!window.location.hostname.includes("integra-clinica") &&
        window.location.hostname !== "localhost") {
       const redirect = GDRIVE_ORIGIN + window.location.pathname;
       window.location.href = redirect;
@@ -3983,14 +3983,14 @@ function App() {
   if(r._p1) setP1(r._p1);
   if(r._p2) setP2(r._p2);
   if(r._p3) setP3({...p3Initial,...r._p3});
-  if(r._p4) setP4State(r._p4);
+  if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
   setPag("p1");
 }}/>}
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
         if(r._p2) setP2(r._p2);
         if(r._p3) setP3({...p3Initial,...r._p3});
-        if(r._p4) setP4State(r._p4);
+        if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
         setPag("p1");
       }}/>}
       {/* Botão desfazer flutuante por aba */}
