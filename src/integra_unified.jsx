@@ -158,7 +158,7 @@ function formatCpf(v) {
   return d.replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2");
 }
 
-function P1({data, setData}) {
+function P1({data, setData, onNovoPaciente}) {
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = data;
 
   const [equipe, setEquipe] = React.useState(EQUIPE);
@@ -220,7 +220,16 @@ function P1({data, setData}) {
   return (
     <div style={{maxWidth:640, margin:"0 auto", padding:"20px 16px 40px"}}>
       <Card>
-        <SectionTitle>Dados do Paciente</SectionTitle>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+          <SectionTitle style={{margin:0}}>Dados do Paciente</SectionTitle>
+          {onNovoPaciente&&<div onClick={()=>{
+            const temDados = data.nome && data.nome.trim().length>0;
+            if(temDados && !window.confirm("Iniciar novo paciente? Os dados atuais n\u00e3o salvos ser\u00e3o perdidos.")) return;
+            onNovoPaciente();
+          }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#fff",border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK}}>
+            + Novo Paciente
+          </div>}
+        </div>
         <div style={{marginBottom:12}}>
           <Field label="Nome completo"><input style={inp} spellCheck={false} value={nome} onChange={e=>set("nome",e.target.value)} spellCheck={false} placeholder="Nome completo"/></Field>
         </div>
@@ -1707,10 +1716,10 @@ function Arquivo({onCarregar}) {
 
 // ─── APP PRINCIPAL ────────────────────────────────
 const p1Initial = {
-  nome:"João da Silva",
-  cpf:"000.000.000-00",
-  telefone:"(48) 99999-9999",
-  dataNasc:"1985-06-15",
+  nome:"",
+  cpf:"",
+  telefone:"",
+  dataNasc:"",
   idade:"",
   isMinor:false,
   respNome:"",
@@ -3450,7 +3459,7 @@ async function gdriveLogin() {
         reject(new Error(err.type||"Erro OAuth"));
       },
     });
-    tc.requestAccessToken({prompt:"consent"});
+    tc.requestAccessToken({prompt:"select_account"});
   });
 }
 
@@ -4066,7 +4075,13 @@ function App() {
         </div>
       )}
 
-      {pag==="p1"&&<P1 data={p1} setData={setP1}/>}
+      {pag==="p1"&&<P1 data={p1} setData={setP1} onNovoPaciente={()=>{
+  setP1(p1Initial);
+  _setP2Raw({...p2Initial, achados: getAchadosInicial()});
+  setP3(prev=>({...p3Initial, ds:prev.ds, ci:prev.ci, quemPaga:prev.quemPaga, plano:prev.plano}));
+  setP4State(prev=>({...p4Initial, procsBase:prev.procsBase, customProcs:(prev.customProcs||[]).map(c=>({...c,ativo:false,dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}))}));
+  _driveFileId=null; _driveFileName=null; _lastSyncHash="";
+}}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State}/>}
       {pag==="p3"&&<P3
