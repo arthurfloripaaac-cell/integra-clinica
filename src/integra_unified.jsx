@@ -3651,6 +3651,19 @@ function savePersisted(key, val) {
 function App() {
   const [pag, setPag] = useState("p1");
   const [showConfigs, setShowConfigs] = useState(false);
+
+  React.useEffect(()=>{
+    const handler = (e) => {
+      const r = e.detail;
+      if(r._p1) setP1(r._p1);
+      if(r._p2) setP2(r._p2);
+      if(r._p3) setP3(r._p3);
+      if(r._p4) setP4State(r._p4);
+      setPag("p1");
+    };
+    window.addEventListener("integra-carregar", handler);
+    return ()=>window.removeEventListener("integra-carregar", handler);
+  }, []);
   // configs loaded directly in p3 useState initializer
   const [relatorioSalvo, setRelatorioSalvo] = useState(false);
   const [previewAberto, setPreviewAberto] = useState(false);
@@ -3801,18 +3814,6 @@ function App() {
   }
   setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
 }} salvoOk={relatorioSalvo}/>}
-      React.useEffect(()=>{
-    const handler = (e) => {
-      const r = e.detail;
-      if(r._p1) { setP1(r._p1); }
-      if(r._p2) setP2(r._p2);
-      if(r._p3) setP3(r._p3);
-      if(r._p4) setP4State(r._p4);
-      setPag("p1");
-    };
-    window.addEventListener("integra-carregar", handler);
-    return ()=>window.removeEventListener("integra-carregar", handler);
-  }, []);
 
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
