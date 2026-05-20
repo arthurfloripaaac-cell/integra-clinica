@@ -3926,7 +3926,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
 
   if(!logado) return null;
 
-  const statusIcon = status==="saving"?"\u23F3":status==="saved"?"\u2705":status==="error"?"\u26A0\uFE0F":status==="loading"?"\u{1F504}":"\u26AA";
+  const statusIcon = status==="saving"?"⏳":status==="saved"?"✅":status==="error"?"⚠️":status==="loading"?"🔄":"⚪";
   const statusText = status==="saving"?"Salvando...":status==="saved"?"Sincronizado":status==="error"?"Erro ao salvar":status==="loading"?"Carregando...":"";
   const timeFmt = lastSaved ? lastSaved.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
 
@@ -3942,7 +3942,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
         Salvar
       </div>
       {_driveFileId&&<div onClick={sincronizar} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+BORDER,color:"#9A8060",fontSize:9}}>
-        \u{1F504}
+        🔄
       </div>}
     </div>
   );
