@@ -3473,10 +3473,13 @@ async function gdriveGetFolder() {
 }
 
 async function gdriveListarArquivos(folderId, paciente) {
-  const q = "name+contains+%27integra_"+encodeURIComponent((paciente||"").replace(/[^a-z0-9]/gi,"_").slice(0,20))+"%27+and+%27"+folderId+"%27+in+parents+and+trashed%3Dfalse";
+  const nomeNorm = (paciente||"").replace(/[^a-z0-9]/gi,"_").toLowerCase();
+  const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27integra_%27";
   const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name)",{headers:{Authorization:"Bearer "+_gdriveToken}});
   const d = await res.json();
-  return d.files||[];
+  const all = d.files||[];
+  if(!nomeNorm) return all;
+  return all.filter(f=>f.name.toLowerCase().includes(nomeNorm.slice(0,15)));
 }
 
 async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
@@ -3827,6 +3830,124 @@ function savePersisted(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
 }
 
+// ─── AUTO-SYNC DRIVE ──────────────────────────────
+let _lastSyncHash = "";
+let _driveFileId = null;
+let _driveFileName = null;
+
+function driveDataHash(p1,p2,p3,p4) {
+  return JSON.stringify({p1:p1.nome+p1.cpf+p1.telefone+p1.dataNasc+p1.dataConsulta+p1.responsavel,p2k:Object.keys(p2.achadosDente||{}).length,p2o:(p2.obsTexto||"").length,p3v:p3.vb,p4a:((p4?.itens||[]).filter(i=>i.ativo).length)});
+}
+
+function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
+  const [status, setStatus] = React.useState("idle");
+  const [lastSaved, setLastSaved] = React.useState(null);
+  const [autoOn, setAutoOn] = React.useState(false);
+  const logado = !!_gdriveToken;
+
+  const temDados = p1.nome && p1.nome !== "João da Silva" && p1.nome.trim().length > 2;
+
+  const salvarNoDrive = React.useCallback(async (forcar=false) => {
+    if(!_gdriveToken || !temDados) return;
+    const hash = driveDataHash(p1,p2,p3,p4State);
+    if(!forcar && hash === _lastSyncHash) return;
+    setStatus("saving");
+    try {
+      const folderId = await gdriveGetFolder();
+      const nomeBase = "integra_"+(p1.nome||"p").replace(/[^a-z0-9]/gi,"_");
+      const atendimento = {
+        id: _driveFileId ? undefined : Date.now(),
+        data: new Date().toISOString(),
+        paciente: p1.nome||"Sem nome",
+        cpf: p1.cpf||"",
+        telefone: p1.telefone||"",
+        dataNasc: p1.dataNasc||"",
+        responsavel: p1.responsavel||"",
+        dataConsulta: p1.dataConsulta||new Date().toISOString().slice(0,10),
+        valorTotal: parseFloat(p3.vb)||0,
+        _p1:p1, _p2:p2, _p3:p3, _p4:p4State,
+      };
+      const json = JSON.stringify(atendimento,null,2);
+      if(!_driveFileId) {
+        const nomeNorm = (p1.nome||"").replace(/[^a-z0-9]/gi,"_").toLowerCase();
+        const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27integra_%27";
+        const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name)",{headers:{Authorization:"Bearer "+_gdriveToken}});
+        const d = await res.json();
+        const existente = (d.files||[]).find(f=>f.name.toLowerCase().includes(nomeNorm.slice(0,15)));
+        if(existente) { _driveFileId=existente.id; _driveFileName=existente.name; }
+      }
+      if(_driveFileId) {
+        const form = new FormData();
+        form.append("metadata",new Blob([JSON.stringify({name:_driveFileName})],{type:"application/json"}));
+        form.append("file",new Blob([json],{type:"application/json"}));
+        await fetch("https://www.googleapis.com/upload/drive/v3/files/"+_driveFileId+"?uploadType=multipart",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+      } else {
+        const nome = nomeBase+"_"+Date.now()+".json";
+        _driveFileName = nome;
+        const metadata = {name:nome,mimeType:"application/json",parents:[folderId]};
+        const form = new FormData();
+        form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
+        form.append("file",new Blob([json],{type:"application/json"}));
+        const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+        const created = await r.json();
+        _driveFileId = created.id;
+      }
+      _lastSyncHash = hash;
+      setLastSaved(new Date());
+      setStatus("saved");
+    } catch(e) {
+      console.error("AutoSync erro:",e);
+      setStatus("error");
+    }
+  },[p1,p2,p3,p4State,temDados]);
+
+  const sincronizar = React.useCallback(async () => {
+    if(!_gdriveToken || !_driveFileId) return;
+    setStatus("loading");
+    try {
+      const dados = await gdriveCarregarArquivo(_driveFileId);
+      if(dados._p1) setP1(dados._p1);
+      if(dados._p2) setP2(dados._p2);
+      if(dados._p3) setP3(prev=>({...prev,...dados._p3}));
+      if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
+      _lastSyncHash = driveDataHash(dados._p1||p1,dados._p2||p2,dados._p3||p3,dados._p4||p4State);
+      setStatus("saved");
+    } catch(e) {
+      console.error("Sync erro:",e);
+      setStatus("error");
+    }
+  },[p1,p2,p3,p4State,setP1,setP2,setP3,setP4State]);
+
+  React.useEffect(()=>{
+    if(!autoOn || !logado || !temDados) return;
+    const iv = setInterval(()=>salvarNoDrive(), 30000);
+    return ()=>clearInterval(iv);
+  },[autoOn,logado,temDados,salvarNoDrive]);
+
+  if(!logado) return null;
+
+  const statusIcon = status==="saving"?"\u23F3":status==="saved"?"\u2705":status==="error"?"\u26A0\uFE0F":status==="loading"?"\u{1F504}":"\u26AA";
+  const statusText = status==="saving"?"Salvando...":status==="saved"?"Sincronizado":status==="error"?"Erro ao salvar":status==="loading"?"Carregando...":"";
+  const timeFmt = lastSaved ? lastSaved.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
+
+  return (
+    <div className="no-print" style={{position:"fixed",top:60,right:16,zIndex:180,display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.95)",border:"1px solid "+BORDER,borderRadius:20,padding:"4px 12px",boxShadow:"0 2px 8px rgba(0,0,0,0.1)",fontSize:10}}>
+      <span>{statusIcon}</span>
+      {statusText&&<span style={{color:status==="error"?"#C62828":"#5C4A2A"}}>{statusText}</span>}
+      {timeFmt&&status==="saved"&&<span style={{color:"#9A8060"}}>{timeFmt}</span>}
+      <div onClick={()=>{setAutoOn(!autoOn);if(!autoOn)salvarNoDrive(true);}} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:autoOn?GOLD_PALE:"#fff",border:"1px solid "+(autoOn?GOLD:BORDER),color:autoOn?GOLD_DARK:"#9A8060",fontWeight:600,fontSize:9}}>
+        {autoOn?"Auto ✓":"Auto"}
+      </div>
+      <div onClick={()=>salvarNoDrive(true)} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+BORDER,color:"#9A8060",fontSize:9}}>
+        Salvar
+      </div>
+      {_driveFileId&&<div onClick={sincronizar} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+BORDER,color:"#9A8060",fontSize:9}}>
+        \u{1F504}
+      </div>}
+    </div>
+  );
+}
+
 function App() {
   const [pag, setPag] = useState("p1");
   const [showConfigs, setShowConfigs] = useState(false);
@@ -3911,6 +4032,7 @@ function App() {
   return (
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
       {pag!=="rel"&&<Header/>}
+      <DriveAutoSync p1={p1} p2={p2} p3={p3} p4State={p4State} setP1={setP1} setP2={setP2} setP3={setP3} setP4State={setP4State}/>
 
       <CalculadoraFlutuante/>
       {/* Botão Preview flutuante */}
