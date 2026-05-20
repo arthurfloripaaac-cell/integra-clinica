@@ -8,45 +8,10 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
   _s.textContent = `
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
-      #root { background: #fff !important; }
-      #root > div { padding: 0 !important; background: #fff !important; }
+      body { margin: 0 !important; background: white !important; }
       .no-print { display: none !important; }
-      .relatorio-outer {
-        max-width: 100% !important;
-        padding: 0 !important;
-        margin: 0 !important;
-      }
-      .relatorio-container {
-        border: none !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        display: block !important;
-        min-height: auto !important;
-      }
-      .rel-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        background: #fff !important;
-      }
-      .rel-footer {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        background: #fff !important;
-      }
-      .rel-content {
-        padding-top: 44px !important;
-        padding-bottom: 60px !important;
-      }
-      @page { margin: 8mm 10mm; size: A4 portrait; }
+      #root > div { padding-bottom: 0 !important; }
+      @page { margin: 0.5cm; size: A4 portrait; }
     }
   `;
   document.head.appendChild(_s);
@@ -93,7 +58,7 @@ function listaDentes(arr) {
 
 // ─── PALETA ───────────────────────────────────────
 const GOLD = "#B8962E", GOLD_DARK = "#7A6020", GOLD_LIGHT = "#D4B96A";
-const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D6E", PURPLE_LIGHT = "#7B4D8E", PURPLE_BORDER = "#D4C0DE";
+const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D8E";
 
 const fmt = v => "R$ " + (v||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
 
@@ -158,7 +123,7 @@ function formatCpf(v) {
   return d.replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2");
 }
 
-function P1({data, setData, onNovoPaciente}) {
+function P1({data, setData}) {
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = data;
 
   const [equipe, setEquipe] = React.useState(EQUIPE);
@@ -220,16 +185,7 @@ function P1({data, setData, onNovoPaciente}) {
   return (
     <div style={{maxWidth:640, margin:"0 auto", padding:"20px 16px 40px"}}>
       <Card>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-          <SectionTitle style={{margin:0}}>Dados do Paciente</SectionTitle>
-          {onNovoPaciente&&<div onClick={()=>{
-            const temDados = data.nome && data.nome.trim().length>0;
-            if(temDados && !window.confirm("Iniciar novo paciente? Os dados atuais n\u00e3o salvos ser\u00e3o perdidos.")) return;
-            onNovoPaciente();
-          }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#fff",border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK}}>
-            + Novo Paciente
-          </div>}
-        </div>
+        <SectionTitle>Dados do Paciente</SectionTitle>
         <div style={{marginBottom:12}}>
           <Field label="Nome completo"><input style={inp} spellCheck={false} value={nome} onChange={e=>set("nome",e.target.value)} spellCheck={false} placeholder="Nome completo"/></Field>
         </div>
@@ -706,7 +662,7 @@ function VerificadorTaxas({plano}) {
   );
 }
 
-function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno,p3QuemPaga,setP3QuemPaga,boletoComDesconto=false,setBoletoComDesconto,p4State=null,modoRel="soma",setModoRel}) {
+function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno,p3QuemPaga,setP3QuemPaga,boletoComDesconto=false,setBoletoComDesconto,p4State=null}) {
   const [plano, setPlanoLocal] = React.useState(planoExterno||"hora");
   const setPlano = (v) => { setPlanoLocal(v); if(setPlanoExterno) setPlanoExterno(v); };
   const planoAtual = plano;
@@ -779,7 +735,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
   );
 
   // PROPOSTA RENDER
-  // modoPreview agora vem via props (modoRel/setModoRel)
+  const [modoPreview, setModoPreview] = React.useState("soma");
 
   const renderProposta=()=>{
     if(valorFinal<=0||formasChecked.length===0) return(
@@ -807,14 +763,14 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
             <span style={{fontSize:11,color:"#5C4A2A",flex:1,fontWeight:600}}>Modo de apresentação:</span>
             <div style={{display:"flex",gap:6}}>
               {[["soma","Soma tudo"],["separado","Separado"]].map(([k,l])=>(
-                <div key={k} onClick={()=>setModoRel&&setModoRel(k)} style={{padding:"6px 12px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
+                <div key={k} onClick={()=>setModoPreview(k)} style={{padding:"6px 12px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoPreview===k?GOLD_DARK:BORDER),background:modoPreview===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:modoPreview===k?700:400,color:modoPreview===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
               ))}
             </div>
           </div>
         )}
 
         {/* Propostas individuais — modo separado */}
-        {temSep&&modoRel==="separado"&&(
+        {temSep&&modoPreview==="separado"&&(
           <div style={{marginBottom:12}}>
             <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:10}}>Propostas Individuais</div>
             {itensSepP3.map((it,idx)=>{
@@ -834,9 +790,8 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               const propBp=parseInt(prop.bp||"6");
               const propBj=prop.bj||"sem_juros";
               const propBi=parseInt(prop.bi||"3");
-              const bBase2=prop.boletoComDesconto?vf2:vb2;
               const bLs=(prop.fc&&prop.fc.includes("boleto")&&(prop.bm||"avista")==="parcelado")
-                ?Array.from({length:propBp},(_,i)=>{const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi;const sj=n<=nl,pc=propBj==="combinado"?Math.max(0,n-nl):sj?0:n;const t=sj?bBase2:bBase2*(1+0.012*pc);return{n,p:t/n,sj,t};})
+                ?Array.from({length:propBp},(_,i)=>{const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi;const sj=n<=nl,pc=propBj==="combinado"?Math.max(0,n-nl):sj?0:n;const t=sj?vf2:vf2*(1+0.012*pc);return{n,p:t/n,sj,t};})
                 :[];
               const nomes={pix:"PIX",dinheiro:"Dinheiro",credito:"Cartão de crédito",boleto:"Boleto parcelado"};
               return(
@@ -875,19 +830,13 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
           </div>
         )}
 
-      {modoRel==="soma"&&<div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",marginTop:4}}>
-        <div style={{padding:"16px 22px",borderBottom:"2px solid "+GOLD,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <svg width="30" height="30" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="20" cy="20" r="14" stroke={GOLD} strokeWidth="1.2" fill="none"/>
-              {[0,45,90,135,180,225,270,315].map((a,i)=>{const rad=a*Math.PI/180;const x=20+14*Math.cos(rad);const y=20+14*Math.sin(rad);return(<rect key={i} x={x-2.5} y={y-2.5} width="5" height="5" rx="0.8" fill={GOLD} transform={"rotate("+a+" "+x+" "+y+")"}/>);})}
-            </svg>
-            <div>
-              <div style={{fontFamily:"Georgia,serif",fontSize:15,fontWeight:400,color:GOLD_DARK,letterSpacing:4,textTransform:"uppercase",lineHeight:1}}>Íntegra</div>
-              <div style={{fontSize:7,letterSpacing:2,color:GOLD,textTransform:"uppercase",marginTop:2}}>Clínica Odontológica</div>
-            </div>
+      {modoPreview==="soma"&&<div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",marginTop:4}}>
+        <div style={{background:"linear-gradient(135deg,#2C1810 0%,#1A0F08 100%)",padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <svg width="28" height="36" viewBox="0 0 40 52" fill="none"><ellipse cx="20" cy="26" rx="18" ry="24" stroke="#B8962E" strokeWidth="1.5"/><text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill="#B8962E">i</text></svg>
+            <div><div style={{fontFamily:"Georgia",fontSize:16,fontWeight:700,color:"#fff",letterSpacing:3,textTransform:"uppercase"}}>Íntegra</div><div style={{fontSize:7,letterSpacing:2,color:GOLD_LIGHT,textTransform:"uppercase"}}>Clínica Odontológica</div></div>
           </div>
-          <div style={{textAlign:"right"}}><div style={{fontSize:9,color:GOLD,letterSpacing:1.5,textTransform:"uppercase"}}>Proposta de Investimento</div></div>
+          <div style={{textAlign:"right"}}><div style={{fontSize:9,color:GOLD_LIGHT,letterSpacing:1}}>PROPOSTA DE INVESTIMENTO</div></div>
         </div>
         <div style={{padding:"18px 22px"}}>
           <div style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:14}}>Formas de pagamento disponíveis</div>
@@ -986,7 +935,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
             })}
           </div>
           <div style={{borderTop:"1px solid "+BORDER,marginTop:20,paddingTop:14,fontSize:10,color:"#9A8060",fontStyle:"italic"}}>
-            www.odontologiaintegra.com.br · WhatsApp (48) 98404-2890 · (48) 3234-1002
+            Íntegra Clínica Odontológica · (48) 3234-1002 · Rua Lauro Linhares, 1849 — Florianópolis/SC
           </div>
         </div>
       </div>}
@@ -1271,86 +1220,6 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
             </div>
           )}
         </Card>
-
-        {/* Painel de resumo — propostas individuais */}
-        {(()=>{
-          const itensSepCalc = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
-          if(!itensSepCalc.length) return null;
-          return(
-            <Card>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                <SectionTitle style={{margin:0}}>Propostas Individuais ({itensSepCalc.length})</SectionTitle>
-                <div style={{display:"flex",gap:4}}>
-                  {[["soma","Soma tudo"],["separado","Separado"]].map(([k,l])=>(
-                    <div key={k} onClick={()=>setModoRel&&setModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:10,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
-                  ))}
-                </div>
-              </div>
-              {modoRel==="separado"?(
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  {itensSepCalc.map((it,idx)=>{
-                    const proc=(p4State?.procsBase||[]).find(p=>p.id===it.id)||{nome:it.nome||it.id};
-                    const prop=it.proposta;
-                    const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
-                    const dp2=prop.ds||0;
-                    const vf2=dp2>0?vb2*(1-dp2/100):vb2;
-                    const propPlano=prop.plano||"hora";
-                    const propQuem=prop.quemPaga||"comprador";
-                    const propCi=parseInt(prop.ci||"0");
-                    const propCp=prop.cp?parseInt(prop.cp):null;
-                    const tCp2=(prop.fc&&prop.fc.includes("credito"))
-                      ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vf2,n,propPlano,propQuem);return{n,...r};})
-                      :[];
-                    const tCpf2=propCp?tCp2.filter(r=>r.n===1||r.n<=propCp):tCp2;
-                    const propBp=parseInt(prop.bp||"6");
-                    const propBj=prop.bj||"sem_juros";
-                    const propBi2=parseInt(prop.bi||"3");
-                    const bBaseC=prop.boletoComDesconto?vf2:vb2;
-                    const bLs2=(prop.fc&&prop.fc.includes("boleto")&&(prop.bm||"avista")==="parcelado")
-                      ?Array.from({length:propBp},(_,i)=>{const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi2;const sj=n<=nl,pc=propBj==="combinado"?Math.max(0,n-nl):sj?0:n;const t=sj?bBaseC:bBaseC*(1+0.012*pc);return{n,p:t/n,sj,t};})
-                      :[];
-                    const formasList=[prop.fc&&prop.fc.includes("pix")&&"PIX",prop.fc&&prop.fc.includes("dinheiro")&&"Dinheiro",prop.fc&&prop.fc.includes("credito")&&"Cartão",prop.fc&&prop.fc.includes("boleto")&&"Boleto"].filter(Boolean).join(" · ");
-                    return(
-                      <div key={idx} style={{border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",background:"#fff"}}>
-                        <div style={{padding:"8px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <div>
-                            <div style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{proc.nome}</div>
-                            <div style={{fontSize:10,color:"#9A8060",marginTop:1}}>{formasList}</div>
-                          </div>
-                          <div style={{textAlign:"right"}}>
-                            <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt(vf2)}</div>
-                            {dp2>0&&<div style={{fontSize:9,color:"#9A8060"}}>{dp2}% desc.</div>}
-                          </div>
-                        </div>
-                        {/* Crédito resumo */}
-                        {tCpf2.length>0&&(
-                          <div style={{borderBottom:bLs2.length?"1px solid "+BORDER:"none"}}>
-                            <div style={{padding:"6px 14px 3px",fontSize:10,fontWeight:700,color:"#1C1410"}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x s/j</span>}</div>
-                            {(()=>{const m=Math.ceil(tCpf2.length/2),c1=tCpf2.slice(0,m),c2=tCpf2.slice(m);const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"3px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"À vista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt(vf2):fmt(p)}</span><span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt(t)}</span></div>);};return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{c1.map((r,i)=>rr(r,i,i===c1.length-1))}</div><div>{c2.map((r,i)=>rr(r,i,i===c2.length-1))}</div></div>);})()}
-                          </div>
-                        )}
-                        {/* Boleto resumo */}
-                        {bLs2.length>0&&(
-                          <div>
-                            <div style={{padding:"6px 14px 3px",fontSize:10,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</div>
-                            {(()=>{const m=Math.ceil(bLs2.length/2),c1=bLs2.slice(0,m),c2=bLs2.slice(m);const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",gap:6,padding:"3px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt(l.p)}</span><span style={{fontSize:9,color:l.sj?GOLD_DARK:"#9A8060"}}>{l.sj?"s/j":"tot "+fmt(l.t)}</span></div>);return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{c1.map((l,i)=>rb(l,i,i===c1.length-1))}</div><div>{c2.map((l,i)=>rb(l,i,i===c2.length-1))}</div></div>);})()}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <div style={{fontSize:10,color:"#9A8060",textAlign:"center",marginTop:4}}>Propostas configuradas no Plano · Edite clicando em "✓ Proposta própria" no procedimento</div>
-                </div>
-              ):(
-                <div style={{padding:12,background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3,textAlign:"center"}}>
-                  <div style={{fontSize:11,color:GOLD_DARK,fontWeight:600}}>{itensSepCalc.length} procedimento(s) com proposta individual</div>
-                  <div style={{fontSize:10,color:"#9A8060",marginTop:4}}>No modo "Soma tudo", a calculadora acima se aplica ao total. Troque para "Separado" para ver cada proposta.</div>
-                </div>
-              )}
-            </Card>
-          );
-        })()}
-
       </>}
       {tab==="proposta"&&renderProposta()}
     </div>
@@ -1668,23 +1537,8 @@ function Arquivo({onCarregar}) {
                           ✎ Abrir para edição
                         </div>
                       )}
-                      <div onClick={()=>{
-                        try {
-                          const json = JSON.stringify(r, null, 2);
-                          const nome = "integra_"+((r.paciente||"atendimento").replace(/[^a-zA-Z0-9]/g,"_"))+"_"+new Date(r.data||Date.now()).toLocaleDateString("pt-BR").replace(/\//g,"-")+".json";
-                          const bytes = new TextEncoder().encode(json);
-                          const blob = new Blob([bytes], {type:"application/octet-stream"});
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = nome;
-                          a.style.display = "none";
-                          document.body.appendChild(a);
-                          a.click();
-                          setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-                        } catch(e) { alert("Erro ao exportar: " + e.message); }
-                      }} style={{fontSize:11,color:"#5C4A2A",cursor:"pointer",padding:"5px 12px",border:"1px solid "+BORDER,borderRadius:2,fontWeight:600}}>
-                        ⬇ Baixar JSON
+                      <div onClick={()=>setConfirmExcluir(r.id)} style={{fontSize:11,color:"#9A8060",cursor:"pointer",padding:"5px 12px",border:"1px solid #ddd",borderRadius:2,fontWeight:600}}>
+                        🗑 Excluir
                       </div>
                     </div>
                     {confirmExcluir===r.id?(
@@ -1703,23 +1557,16 @@ function Arquivo({onCarregar}) {
           ))}
         </div>
       )}
-
-      {/* Seção Google Drive */}
-      <Card style={{marginTop:16}}>
-        <SectionTitle>Google Drive</SectionTitle>
-        <ArquivoDriveSection onCarregar={onCarregar}/>
-      </Card>
-
     </div>
   );
 }
 
 // ─── APP PRINCIPAL ────────────────────────────────
 const p1Initial = {
-  nome:"",
-  cpf:"",
-  telefone:"",
-  dataNasc:"",
+  nome:"João da Silva",
+  cpf:"000.000.000-00",
+  telefone:"(48) 99999-9999",
+  dataNasc:"1985-06-15",
   idade:"",
   isMinor:false,
   respNome:"",
@@ -2254,90 +2101,6 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
           </div>
         </div>
       )}
-
-    </div>
-  );
-}
-
-function ArquivoDriveSection({onCarregar}) {
-  const [logado, setLogado] = React.useState(!!_gdriveToken);
-  const [arquivos, setArquivos] = React.useState(null);
-  const [erro, setErro] = React.useState(null);
-  const [carregando, setCarregando] = React.useState(null);
-  const [filtro, setFiltro] = React.useState("");
-
-  const login = async () => {
-    if(!window.location.hostname.includes("integra-clinica") && window.location.hostname !== "localhost") {
-      window.location.href = GDRIVE_ORIGIN + window.location.pathname;
-      return;
-    }
-    setErro(null);
-    try {
-      await gdriveEnsureScript();
-      await gdriveLogin();
-      setLogado(true);
-    } catch(e) { setErro(e.message); }
-  };
-
-  const listar = async () => {
-    try { setArquivos(await gdriveListarTodos()); } catch(e) { setErro(e.message); }
-  };
-
-  React.useEffect(()=>{ if(logado) listar(); },[logado]);
-
-  const extrairNome = (fn) => {
-    const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," ");
-    return m.charAt(0).toUpperCase()+m.slice(1);
-  };
-
-  const fmtData = (iso) => {
-    if(!iso) return "";
-    const d = new Date(iso);
-    return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-  };
-
-  const carregar = async (arq) => {
-    setCarregando(arq.id);
-    try { const dados = await gdriveCarregarArquivo(arq.id); if(onCarregar) onCarregar(dados); } catch(e) { setErro("Erro: "+e.message); }
-    setCarregando(null);
-  };
-
-  const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase())) : [];
-
-  if(!logado) return (
-    <div style={{textAlign:"center",padding:20}}>
-      <div onClick={login} style={{display:"inline-flex",alignItems:"center",gap:8,padding:"10px 18px",background:"#fff",border:"1px solid #dadce0",borderRadius:4,cursor:"pointer",fontSize:12,fontWeight:600,color:"#3c4043",boxShadow:"0 1px 3px rgba(0,0,0,0.12)"}}>
-        <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-        Conectar ao Google Drive
-      </div>
-      {erro&&<div style={{fontSize:11,color:"#C62828",marginTop:8}}>{erro}</div>}
-    </div>
-  );
-
-  return (
-    <div>
-      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
-        <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"7px 10px",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,outline:"none"}}/>
-        <div onClick={listar} style={{padding:"7px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:10,color:"#9A8060"}}>↻</div>
-        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;setLogado(false);setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Sair</div>
-      </div>
-      {erro&&<div style={{fontSize:11,color:"#C62828",marginBottom:8}}>{erro}</div>}
-      {!arquivos&&<div style={{textAlign:"center",padding:20,color:"#9A8060",fontSize:11}}>Carregando...</div>}
-      {arquivos&&<div style={{fontSize:10,color:"#9A8060",marginBottom:6}}>{arquivos.length} arquivo(s) na pasta</div>}
-      {arquivos&&filtrados.length===0&&<div style={{textAlign:"center",padding:14,color:"#9A8060",fontSize:11}}>Nenhum arquivo encontrado</div>}
-      {filtrados.map(arq=>(
-        <div key={arq.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
-          <div style={{width:3,height:28,background:GOLD,borderRadius:2,flexShrink:0}}/>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:12,fontWeight:600,color:"#5C4A2A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{extrairNome(arq.name)}</div>
-            <div style={{fontSize:9,color:"#9A8060",marginTop:1}}>{fmtData(arq.modifiedTime)}</div>
-          </div>
-          <div style={{display:"flex",gap:6,flexShrink:0}}>
-            <div onClick={()=>carregar(arq)} style={{padding:"4px 10px",background:carregando===arq.id?GOLD_PALE:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>{carregando===arq.id?"...":"Abrir"}</div>
-            <a href={"https://drive.google.com/file/d/"+arq.id+"/view"} target="_blank" rel="noopener noreferrer" style={{padding:"4px 10px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:10,color:"#9A8060",textDecoration:"none"}}>Drive ↗</a>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
@@ -2776,7 +2539,7 @@ const ACHADOS_MAP = {gengivite:"Gengivite",carie_ativa:"Cárie ativa",suspeita_c
 const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FFB74D",perda_ossea:"#7986CB",retracao:"#F06292",desgaste:"#4DB6AC",erosao:"#81C784",fratura:"#FF8A65",ausente:"#90A4AE"};
 
 // v3.0
-function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoRel,onCarregarDrive}) {
+function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoRel}) {
   const _driveData = React.useMemo(()=>({
     id: Date.now(),
     data: new Date().toISOString(),
@@ -2838,7 +2601,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
   );
 
   return (
-    <div className="relatorio-outer" style={{maxWidth:680,margin:"0 auto",padding:"4px 16px 40px"}}>
+    <div style={{maxWidth:680,margin:"0 auto",padding:"4px 16px 40px"}}>
       <div style={{marginBottom:8,display:"flex",justifyContent:"flex-end"}}>
         {!isPreview&&<div className="no-print" style={{display:"flex",gap:10,alignItems:"center"}}>
           {onSalvar&&<div onClick={onSalvar} style={{
@@ -2857,43 +2620,36 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             🖨️ Imprimir / Salvar PDF
           </div>
         </div>}
-        {!isPreview&&<DriveSync relatorio={_driveData} onCarregar={onCarregarDrive}/>}
+        {!isPreview&&<DriveSync relatorio={_driveData}/>}
       </div>
-      <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
+      <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden"}}>
 
         {/* Cabeçalho */}
-        <div className="rel-header" style={{position:"relative",overflow:"hidden",padding:"22px 28px 18px",borderBottom:"2px solid "+GOLD}}>
-          <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none"}} viewBox="0 0 680 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-            <polygon points="0,0 480,0 680,80 200,80" fill="#5B2D6E" opacity="0.06"/>
-            <line x1="0" y1="0" x2="200" y2="80" stroke="#5B2D6E" strokeWidth="2.5" opacity="0.30"/>
-            <line x1="480" y1="0" x2="680" y2="80" stroke="#5B2D6E" strokeWidth="2.5" opacity="0.30"/>
-            <polygon points="80,0 560,0 680,48 200,48" fill="#B8962E" opacity="0.05"/>
-            <line x1="80" y1="0" x2="200" y2="48" stroke="#B8962E" strokeWidth="1.8" opacity="0.25"/>
-            <line x1="560" y1="0" x2="680" y2="48" stroke="#B8962E" strokeWidth="1.8" opacity="0.25"/>
-          </svg>
-          <div style={{position:"relative",zIndex:1,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{display:"flex",alignItems:"center",gap:14}}>
-              <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="20" cy="20" r="14" stroke={GOLD} strokeWidth="1.3" fill="none"/>
-                {[0,45,90,135,180,225,270,315].map((a,i)=>{const rad=a*Math.PI/180;const x=20+14*Math.cos(rad);const y=20+14*Math.sin(rad);return(<rect key={i} x={x-2.5} y={y-2.5} width="5" height="5" rx="0.8" fill={GOLD_DARK} transform={"rotate("+a+" "+x+" "+y+")"}/>);})}
-              </svg>
-              <div>
-                <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:400,color:"#5B2D6E",letterSpacing:5,textTransform:"uppercase",lineHeight:1}}>Íntegra</div>
-                <div style={{fontSize:8,letterSpacing:2.5,color:"#7B4D8E",textTransform:"uppercase",marginTop:3}}>Clínica Odontológica <span style={{color:"#9A8060",marginLeft:4}}>· Desde 1996</span></div>
-              </div>
+        <div style={{background:"linear-gradient(135deg,#1C0E06 0%,#2C1810 100%)",padding:"20px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"3px solid "+GOLD}}>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:44,height:44,borderRadius:"50%",border:"1.5px solid "+GOLD,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{fontFamily:"Georgia",fontSize:22,fontStyle:"italic",color:GOLD}}>i</span>
             </div>
+            <div>
+              <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:700,color:"#fff",letterSpacing:4,textTransform:"uppercase",lineHeight:1}}>Íntegra</div>
+              <div style={{fontSize:7,letterSpacing:3,color:GOLD_LIGHT,textTransform:"uppercase",marginTop:3}}>Clínica Odontológica · Desde 1996</div>
+            </div>
+          </div>
+          <div style={{textAlign:"right",borderLeft:"1px solid rgba(184,150,46,0.3)",paddingLeft:20}}>
+            <div style={{fontSize:8,color:GOLD_LIGHT,letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>Prontuário de Atendimento</div>
+            <div style={{fontSize:13,color:"#fff",fontWeight:600}}>{dataFmt(dataConsulta)}</div>
           </div>
         </div>
 
-        <div className="rel-content" style={{padding:"22px 24px",flex:1}}>
+        <div style={{padding:"22px 24px"}}>
 
           {/* Dados do Paciente */}
           {temDados && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-              <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Dados do Paciente</span>
+              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Dados do Paciente</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:6}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:8}}>
               {[
                 ["Paciente",nome||"—"],
                 ["CPF",cpf||"—"],
@@ -2902,16 +2658,16 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 ["Responsável clínico",responsavel||"—"],
                 ["Data da consulta",dataFmt(dataConsulta)],
               ].map(([l,v])=>(
-                <div key={l} style={{padding:"7px 10px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
-                  <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:3}}>{l}</div>
-                  <div style={{fontSize:13,color:"#5C4A2A",fontWeight:500}}>{v}</div>
+                <div key={l} style={{padding:"9px 12px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
+                  <div style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:3}}>{l}</div>
+                  <div style={{fontSize:12,color:"#1C1410",fontWeight:500}}>{v}</div>
                 </div>
               ))}
             </div>
             {isMinor && respNome && (
               <div style={{padding:"9px 12px",background:"rgba(91,45,142,0.05)",border:"1px solid rgba(91,45,142,0.2)",borderRadius:3,marginBottom:8}}>
-                <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:3}}>Responsável Legal</div>
-                <div style={{fontSize:13,color:"#5C4A2A"}}>{respNome} {respCpf?"· CPF: "+respCpf:""}</div>
+                <div style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:3}}>Responsável Legal</div>
+                <div style={{fontSize:12,color:"#1C1410"}}>{respNome} {respCpf?"· CPF: "+respCpf:""}</div>
               </div>
             )}
           </>}
@@ -2919,25 +2675,25 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Avaliação Clínica */}
           {temAval && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Avaliação Clínica</span>
+              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Avaliação Clínica</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             {resumoAch.length>0 && <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
               {resumoAch.map(a=>(
                 <div key={a.id} style={{display:"flex",alignItems:"stretch",border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                  <div style={{width:3,background:PURPLE,flexShrink:0}}/>
-                  <div style={{flex:1,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{width:3,background:GOLD,flexShrink:0}}/>
+                  <div style={{flex:1,padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
-                      <span style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{a.lb}</span>
-                      {(p2.obsAchados||{})[a.id]&&<div style={{fontSize:11,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{(p2.obsAchados||{})[a.id]}</div>}
+                      <span style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{a.lb}</span>
+                      {(p2.obsAchados||{})[a.id]&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{(p2.obsAchados||{})[a.id]}</div>}
                     </div>
-                    <div style={{fontSize:11,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"50%"}}>{descreverRegiao(a.dentes,true)}</div>
+                    <div style={{fontSize:10,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"50%"}}>{descreverRegiao(a.dentes,true)}</div>
                   </div>
                 </div>
               ))}
             </div>}
-            {obsTexto && <div style={{padding:"12px 14px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3,fontSize:13,color:"#5C4A2A",lineHeight:1.7}}>
-              <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:6}}>Informações Clínicas</div>
+            {obsTexto && <div style={{padding:"12px 14px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3,fontSize:12,color:"#1C1410",lineHeight:1.7}}>
+              <div style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:6}}>Informações Clínicas</div>
               {obsTexto}
             </div>}
           </>}
@@ -2945,7 +2701,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Plano de Tratamento */}
           {temPlano && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Plano de Tratamento</span>
+              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Plano de Tratamento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:0}}>
@@ -2966,15 +2722,17 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   :(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":"Arcada inferior");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
                   <div>
-                    <div style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{proc.nome}</div>
-                    <div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
-                    {it.obs&&<div style={{fontSize:11,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
+                    <div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{proc.nome}</div>
+                    <div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
+                    {it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
                     {(it.subtopicos||[]).length>0&&<div style={{marginTop:4,paddingLeft:8,borderLeft:"2px solid "+BORDER}}>
-                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:11,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
+                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:10,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
                     </div>}
-
+                  {it.proposta&&<div style={{marginTop:3,display:"flex",alignItems:"center",gap:4}}>
+                    <span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"1px 6px",borderRadius:8,border:"1px solid "+GOLD_LIGHT}}>✓ Proposta individual</span>
+                  </div>}
                   </div>
-                  <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               }),
               ...p4Custom.map(it => {
@@ -2987,14 +2745,14 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 const desc = it.modo==="livre" ? "" : it.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—"):(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":it.regiao==="inf"?"Arcada inferior":"—");
                 return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
                   <div>
-                    <div style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{it.nome}</div>
-                    <div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
-                    {it.obs&&<div style={{fontSize:11,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
+                    <div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{it.nome}</div>
+                    <div style={{fontSize:10,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
+                    {it.obs&&<div style={{fontSize:10,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
                     {(it.subtopicos||[]).length>0&&<div style={{marginTop:4,paddingLeft:8,borderLeft:"2px solid "+BORDER}}>
-                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:11,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
+                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:10,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
                     </div>}
                   </div>
-                  <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
                 </div>)
               })].filter(Boolean)}
             </div>
@@ -3007,7 +2765,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             return(
               <div style={{marginTop:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                  <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Propostas Individuais</span>
+                  <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Propostas Individuais</span>
                   <div style={{flex:1,height:1,background:BORDER}}/>
                 </div>
                 {itensSep.map((it,idx)=>{
@@ -3032,22 +2790,21 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       const propBp = parseInt(prop.bp||"6");
                       const propBj = prop.bj||"sem_juros";
                       const propBi = parseInt(prop.bi||"3");
-                      const bBaseR=prop.boletoComDesconto?vf2:vb2;
                       const boletoLs = prop.fc&&prop.fc.includes("boleto")&&(prop.bm||"avista")==="parcelado"
                         ? Array.from({length:propBp},(_,i)=>{
                             const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi;
                             const sj=n<=nl,pc=propBj==="combinado"?Math.max(0,n-nl):sj?0:n;
-                            const t=sj?bBaseR:bBaseR*(1+0.012*pc);
+                            const t=sj?vf2:vf2*(1+0.012*pc);
                             return{n,p:t/n,sj,t};
                           })
                         : [];
                       return(
                         <div key={idx} style={{marginBottom:10,border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                           <div style={{padding:"8px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                            <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>{proc.nome}</span>
+                            <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>{proc.nome}</span>
                             <div style={{textAlign:"right"}}>
-                              <span style={{fontSize:14,fontWeight:700,color:GOLD_DARK}}>{fmt2(vf2)}</span>
-                              {dp2>0&&<span style={{fontSize:11,color:"#9A8060",marginLeft:6}}>({dp2}% desc. sobre {fmt2(vb2)})</span>}
+                              <span style={{fontSize:12,fontWeight:700,color:GOLD_DARK}}>{fmt2(vf2)}</span>
+                              {dp2>0&&<span style={{fontSize:10,color:"#9A8060",marginLeft:6}}>({dp2}% desc. sobre {fmt2(vb2)})</span>}
                             </div>
                           </div>
                           {/* À vista / PIX */}
@@ -3059,11 +2816,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                           {/* Cartão */}
                           {tCfilt.length>0&&(
                             <div style={{borderBottom:boletoLs.length?"1px solid "+BORDER:"none"}}>
-                              <div style={{padding:"6px 14px 4px",fontSize:11,fontWeight:700,color:"#5C4A2A",letterSpacing:0.5}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x sem juros</span>}</div>
+                              <div style={{padding:"6px 14px 4px",fontSize:10,fontWeight:700,color:"#1C1410",letterSpacing:0.5}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x sem juros</span>}</div>
                               {(()=>{
                                 const meio=Math.ceil(tCfilt.length/2);
                                 const col1=tCfilt.slice(0,meio),col2=tCfilt.slice(meio);
-                                const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(vf2):fmt2(p)}</span><span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span></div>);};
+                                const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(vf2):fmt2(p)}</span><span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span></div>);};
                                 return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((r,i)=>rr(r,i,i===col1.length-1))}</div><div>{col2.map((r,i)=>rr(r,i,i===col2.length-1))}</div></div>);
                               })()}
                             </div>
@@ -3071,16 +2828,16 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                           {/* Boleto */}
                           {boletoLs.length>0&&(
                             <div>
-                              <div style={{padding:"6px 14px 4px",fontSize:11,fontWeight:700,color:"#5C4A2A"}}>Boleto parcelado</div>
+                              <div style={{padding:"6px 14px 4px",fontSize:10,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</div>
                               {(()=>{
                                 const meio=Math.ceil(boletoLs.length/2);
                                 const col1=boletoLs.slice(0,meio),col2=boletoLs.slice(meio);
-                                const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span><span style={{fontSize:10,color:l.sj?GOLD_DARK:"#9A8060"}}>{l.sj?"s/j":"tot "+fmt2(l.t)}</span></div>);
+                                const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span><span style={{fontSize:9,color:l.sj?GOLD_DARK:"#9A8060"}}>{l.sj?"s/j":"tot "+fmt2(l.t)}</span></div>);
                                 return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((l,i)=>rb(l,i,i===col1.length-1))}</div><div>{col2.map((l,i)=>rb(l,i,i===col2.length-1))}</div></div>);
                               })()}
                             </div>
                           )}
-                          {prop.obs&&<div style={{padding:"5px 14px 8px",fontSize:11,color:"#9A8060",fontStyle:"italic"}}>{prop.obs}</div>}
+                          {prop.obs&&<div style={{padding:"5px 14px 8px",fontSize:10,color:"#9A8060",fontStyle:"italic"}}>{prop.obs}</div>}
                         </div>
                       );
                     })()
@@ -3104,9 +2861,9 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             const nomes = {pix:"PIX", dinheiro:"Dinheiro", debito:"Cartão de débito", boleto:"Boleto"};
 
             const LabelAlternativa = ({num, titulo}) => (
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                {duasAlternativas&&<div style={{width:22,height:22,borderRadius:"50%",background:PURPLE,color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{num}</div>}
-                <span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",letterSpacing:1,textTransform:"uppercase"}}>{titulo}</span>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                {duasAlternativas&&<div style={{width:22,height:22,borderRadius:"50%",background:"#2C1810",color:GOLD,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{num}</div>}
+                <span style={{fontSize:10,fontWeight:700,color:"#5C4A2A",letterSpacing:1,textTransform:"uppercase"}}>{titulo}</span>
                 <div style={{flex:1,height:1,background:BORDER}}/>
               </div>
             );
@@ -3120,13 +2877,13 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 <div className="no-print" style={{display:"flex",alignItems:"center",gap:8,marginTop:16,marginBottom:8,padding:"8px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3}}>
                   <span style={{fontSize:11,color:"#5C4A2A",flex:1}}>Apresentação da proposta:</span>
                   {[["soma","Soma tudo"],["separado","Separado por procedimento"]].map(([k,l])=>(
-                    <div key={k} onClick={()=>onSetModoRel&&onSetModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
+                    <div key={k} onClick={()=>onSetModoRel&&onSetModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:10,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
                   ))}
                 </div>
               ) : null;
             })()}
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Proposta de Investimento</span>
+              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
 
@@ -3141,18 +2898,18 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                         {dp>0?(
                           <>
-                            <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vB)}</span>
+                            <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vB)}</span>
                             <span style={{fontSize:11,color:"#9A8060"}}>→</span>
-                            <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                            <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
                             <span style={{fontSize:11,color:"#9A8060"}}>({dp}% de desconto)</span>
                           </>
                         ):(
-                          <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                          <span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vF)}</span>
                         )}
                       </div>
-                      {lb&&<span style={{fontSize:13,fontWeight:600,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
+                      {lb&&<span style={{fontSize:12,fontWeight:600,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
                     </div>
-                    {fc.includes("debito")&&<div style={{fontSize:10,color:"#9A8060",marginTop:3}}>Taxa 1,99% PagBank no débito</div>}
+                    {fc.includes("debito")&&<div style={{fontSize:9,color:"#9A8060",marginTop:3}}>Taxa 1,99% PagBank no débito</div>}
                   </div>
                 </div>
               );
@@ -3167,13 +2924,13 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   {/* Entrada */}
                   {entrada && entradaValor2>0 && (
                     <div style={{padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,marginBottom:8}}>
-                      <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:3}}>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
                         <span style={{color:GOLD_DARK,fontWeight:600}}>Entrada</span>
                         <span style={{color:GOLD_DARK,fontWeight:700}}>{fmt2(entradaValor2)}{entradaTipo==="pct"?" ("+entradaVal+"%)":""}</span>
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
                         <span style={{color:"#9A8060"}}>{saldoTipo==="entrega"?"Saldo na entrega":"Saldo a parcelar"}</span>
-                        <span style={{color:"#5C4A2A",fontWeight:600}}>{fmt2(saldo2)}</span>
+                        <span style={{color:"#1C1410",fontWeight:600}}>{fmt2(saldo2)}</span>
                       </div>
                     </div>
                   )}
@@ -3183,13 +2940,13 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                     {fc.includes("credito")&&<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                       <div style={{borderLeft:"3px solid "+GOLD}}>
                         <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",gap:8,background:"#fff"}}>
-                          <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>Cartão de crédito</span>
-                          {nic>0&&<span style={{fontSize:10,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 6px",borderRadius:8}}>até {nic}x sem juros</span>}
+                          <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Cartão de crédito</span>
+                          {nic>0&&<span style={{fontSize:9,color:GOLD_DARK,background:GOLD_PALE,padding:"2px 6px",borderRadius:8}}>até {nic}x sem juros</span>}
                         </div>
                         {(()=>{
                           const meio=Math.ceil(tCFiltrado.length/2);
                           const col1=tCFiltrado.slice(0,meio), col2=tCFiltrado.slice(meio);
-                          const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;return(<div key={r.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>{ct&&<span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}</div>);};
+                          const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=nic,p=sj?creditoBaseRel/r.n:r.parcela,t=sj?creditoBaseRel:r.total;return(<div key={r.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(creditoBaseRel):fmt2(p)}</span>{ct&&<span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}</div>);};
                           return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((r,i)=>rr(r,i,i===col1.length-1))}</div><div>{col2.map((r,i)=>rr(r,i,i===col2.length-1))}</div></div>);
                         })()}
       
@@ -3208,12 +2965,12 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       return(<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                         <div style={{borderLeft:"3px solid "+GOLD}}>
                           <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,background:"#fff"}}>
-                            <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>Boleto parcelado</span>
+                            <span style={{fontSize:12,fontWeight:700,color:"#1C1410"}}>Boleto parcelado</span>
                           </div>
                           {(()=>{
                             const meio=Math.ceil(ls.length/2);
                             const col1=ls.slice(0,meio),col2=ls.slice(meio);
-                            const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span>{bt&&<span style={{fontSize:10,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/j":"tot "+fmt2(l.t)}</span>}</div>);
+                            const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span>{bt&&<span style={{fontSize:9,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/j":"tot "+fmt2(l.t)}</span>}</div>);
                             return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((l,i)=>rb(l,i,i===col1.length-1))}</div><div>{col2.map((l,i)=>rb(l,i,i===col2.length-1))}</div></div>);
                           })()}
                         </div>
@@ -3225,18 +2982,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             })()}
           </>);})()}
 
-        </div>
           {/* Rodapé */}
-          <div className="rel-footer" style={{borderTop:"2px solid "+GOLD,marginTop:"auto",padding:"10px 24px 14px",display:"flex",alignItems:"center",gap:14,justifyContent:"center"}}>
-            <div style={{flexShrink:0}}>
-              <svg width="44" height="44" viewBox="0 0 41 41" xmlns="http://www.w3.org/2000/svg" style={{border:"2px solid "+GOLD_PALE,borderRadius:3,padding:2,background:"#fff"}}><rect x="0" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="25" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="26" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="27" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="28" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="29" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="30" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="27" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="30" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="31" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="32" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="33" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="34" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="35" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="36" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="28" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="37" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="37" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="38" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="40" y="38" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="25" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="31" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="34" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="39" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="26" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="29" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="32" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="33" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="35" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="36" y="40" width="1" height="1" fill="#5C4A2A"/><rect x="39" y="40" width="1" height="1" fill="#5C4A2A"/></svg>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:GOLD_DARK,fontWeight:600,letterSpacing:1.5,marginBottom:2}}>Íntegra Clínica Odontológica</div>
-              <div style={{fontSize:9,color:"#9A8060"}}>www.odontologiaintegra.com.br · WhatsApp (48) 98404-2890 · (48) 3234-1002</div>
-              <div style={{fontSize:9,color:"#9A8060",marginTop:1}}>Rua Lauro Linhares, 1849, Sala 204 — Trindade, Florianópolis/SC</div>
-            </div>
+          <div style={{borderTop:"1px solid "+BORDER,marginTop:22,paddingTop:14,fontSize:10,color:"#9A8060",fontStyle:"italic",textAlign:"center"}}>
+            Íntegra Clínica Odontológica · WhatsApp (48) 98404-2890 · Rua Lauro Linhares, 1849, Sala 204 — Trindade, Florianópolis/SC
           </div>
+        </div>
       </div>
     </div>
   );
@@ -3455,11 +3205,8 @@ async function gdriveLogin() {
         if(r.access_token){ _gdriveToken=r.access_token; resolve(r.access_token); }
         else reject(new Error("Login cancelado"));
       },
-      error_callback: (err)=>{
-        reject(new Error(err.type||"Erro OAuth"));
-      },
     });
-    tc.requestAccessToken({prompt:"select_account"});
+    tc.requestAccessToken({prompt:""});
   });
 }
 
@@ -3482,13 +3229,10 @@ async function gdriveGetFolder() {
 }
 
 async function gdriveListarArquivos(folderId, paciente) {
-  const nomeNorm = (paciente||"").replace(/[^a-z0-9]/gi,"_").toLowerCase();
-  const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27integra_%27";
+  const q = "name+contains+%27integra_"+encodeURIComponent((paciente||"").replace(/[^a-z0-9]/gi,"_").slice(0,20))+"%27+and+%27"+folderId+"%27+in+parents+and+trashed%3Dfalse";
   const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name)",{headers:{Authorization:"Bearer "+_gdriveToken}});
   const d = await res.json();
-  const all = d.files||[];
-  if(!nomeNorm) return all;
-  return all.filter(f=>f.name.toLowerCase().includes(nomeNorm.slice(0,15)));
+  return d.files||[];
 }
 
 async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
@@ -3524,68 +3268,15 @@ async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
   return {salvo:true};
 }
 
-async function gdriveListarTodos() {
-  if(!_gdriveToken) throw new Error("Nao autenticado");
-  const folderId = await gdriveGetFolder();
-  let all = [], pageToken = "";
-  do {
-    const url = "https://www.googleapis.com/drive/v3/files?q=%27"+folderId+"%27+in+parents+and+trashed%3Dfalse&fields=files(id,name,modifiedTime,size),nextPageToken&orderBy=name&pageSize=100"+(pageToken?"&pageToken="+pageToken:"");
-    const res = await fetch(url, {headers:{Authorization:"Bearer "+_gdriveToken}});
-    const d = await res.json();
-    if(d.files) all = all.concat(d.files);
-    pageToken = d.nextPageToken || "";
-  } while(pageToken);
-  return all.sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
-}
-
-async function gdriveCarregarArquivo(fileId) {
-  if(!_gdriveToken) throw new Error("Nao autenticado");
-  const res = await fetch("https://www.googleapis.com/drive/v3/files/"+fileId+"?alt=media", {headers:{Authorization:"Bearer "+_gdriveToken}});
-  return await res.json();
-}
-
-function DrivePastaModal({onClose, onCarregar}) {
-  const [arquivos, setArquivos] = React.useState(null);
-  const [erro, setErro] = React.useState(null);
-  const [carregando, setCarregando] = React.useState(null);
-  const [filtro, setFiltro] = React.useState("");
-  React.useEffect(()=>{ gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); },[]);
-  const extrairNome = (fn) => { const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," "); return m.charAt(0).toUpperCase()+m.slice(1); };
-  const fmtData = (iso) => { if(!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
-  const carregar = async (arq) => { setCarregando(arq.id); try { const dados = await gdriveCarregarArquivo(arq.id); onCarregar(dados); onClose(); } catch(e) { setErro("Erro: "+e.message); setCarregando(null); } };
-  const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase())) : [];
-  return (
-    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div style={{background:"#fff",borderRadius:8,maxWidth:520,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
-        <div style={{padding:"18px 22px 14px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div>
-            <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK}}>Pasta Google Drive</div>
-            <div style={{fontSize:10,color:"#9A8060",marginTop:2}}>Íntegra Clínica — Atendimentos{arquivos?" - "+arquivos.length+" arquivo(s)":""}</div>
-          </div>
-          <div onClick={onClose} style={{cursor:"pointer",fontSize:18,color:"#9A8060",padding:"4px 8px"}}>X</div>
-        </div>
-        <div style={{padding:"10px 22px 8px"}}><input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{width:"100%",padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:4,fontSize:12,outline:"none",boxSizing:"border-box"}}/></div>
-        <div style={{flex:1,overflow:"auto",padding:"0 22px 16px"}}>
-          {erro&&<div style={{fontSize:11,color:"#C62828",padding:10}}>{erro}</div>}
-          {!arquivos&&!erro&&<div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:12}}>Carregando arquivos...</div>}
-          {arquivos&&filtrados.length===0&&<div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:12}}>Nenhum arquivo encontrado</div>}
-          {filtrados.map(arq=>(<div key={arq.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid "+BORDER}}><div style={{width:3,height:32,background:GOLD,borderRadius:2,flexShrink:0}}/><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:"#5C4A2A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{extrairNome(arq.name)}</div><div style={{fontSize:9,color:"#9A8060",marginTop:2}}>{fmtData(arq.modifiedTime)}</div></div><div style={{display:"flex",gap:6,flexShrink:0}}><div onClick={()=>carregar(arq)} style={{padding:"5px 10px",background:carregando===arq.id?GOLD_PALE:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>{carregando===arq.id?"...":"Abrir"}</div><a href={"https://drive.google.com/file/d/"+arq.id+"/view"} target="_blank" rel="noopener noreferrer" style={{padding:"5px 10px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:10,color:"#9A8060",textDecoration:"none"}}>Drive</a></div></div>))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DriveSync({relatorio, onCarregar}) {
+function DriveSync({relatorio}) {
   const [logado, setLogado] = React.useState(!!_gdriveToken);
   const [salvando, setSalvando] = React.useState(false);
   const [msgDrive, setMsgDrive] = React.useState(null);
   const [modalDrive, setModalDrive] = React.useState(null); // {onSobrepor, onDuplicar}
-  const [showPasta, setShowPasta] = React.useState(false);
 
   const login = async () => {
     // Se estiver em URL de preview, redirecionar para URL principal
-    if(!window.location.hostname.includes("integra-clinica") &&
+    if(window.location.hostname !== "integra-clinica-three.vercel.app" &&
        window.location.hostname !== "localhost") {
       const redirect = GDRIVE_ORIGIN + window.location.pathname;
       window.location.href = redirect;
@@ -3668,18 +3359,10 @@ function DriveSync({relatorio, onCarregar}) {
           }}>
             {salvando?"⏳ Salvando...":"☁ Salvar no Drive"}
           </div>
-          <div onClick={()=>setShowPasta(true)} style={{
-            display:"flex",alignItems:"center",gap:6,padding:"7px 14px",
-            background:"#fff",border:"1px solid "+GOLD,
-            borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK,
-          }}>
-            📁 Ver pasta
-          </div>
-          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;setLogado(false);setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
+          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;setLogado(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
         </div>
       )}
       {msgDrive&&<div style={{fontSize:10,marginTop:5,color:msgDrive.tipo==="ok"?"#1e7e34":"#C62828"}}>{msgDrive.texto}</div>}
-      {showPasta&&<DrivePastaModal onClose={()=>setShowPasta(false)} onCarregar={onCarregar}/>}
     </div>
   );
 }
@@ -3839,124 +3522,6 @@ function savePersisted(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
 }
 
-// ─── AUTO-SYNC DRIVE ──────────────────────────────
-let _lastSyncHash = "";
-let _driveFileId = null;
-let _driveFileName = null;
-
-function driveDataHash(p1,p2,p3,p4) {
-  return JSON.stringify({p1:p1.nome+p1.cpf+p1.telefone+p1.dataNasc+p1.dataConsulta+p1.responsavel,p2k:Object.keys(p2.achadosDente||{}).length,p2o:(p2.obsTexto||"").length,p3v:p3.vb,p4a:((p4?.itens||[]).filter(i=>i.ativo).length)});
-}
-
-function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
-  const [status, setStatus] = React.useState("idle");
-  const [lastSaved, setLastSaved] = React.useState(null);
-  const [autoOn, setAutoOn] = React.useState(false);
-  const logado = !!_gdriveToken;
-
-  const temDados = p1.nome && p1.nome !== "João da Silva" && p1.nome.trim().length > 2;
-
-  const salvarNoDrive = React.useCallback(async (forcar=false) => {
-    if(!_gdriveToken || !temDados) return;
-    const hash = driveDataHash(p1,p2,p3,p4State);
-    if(!forcar && hash === _lastSyncHash) return;
-    setStatus("saving");
-    try {
-      const folderId = await gdriveGetFolder();
-      const nomeBase = "integra_"+(p1.nome||"p").replace(/[^a-z0-9]/gi,"_");
-      const atendimento = {
-        id: _driveFileId ? undefined : Date.now(),
-        data: new Date().toISOString(),
-        paciente: p1.nome||"Sem nome",
-        cpf: p1.cpf||"",
-        telefone: p1.telefone||"",
-        dataNasc: p1.dataNasc||"",
-        responsavel: p1.responsavel||"",
-        dataConsulta: p1.dataConsulta||new Date().toISOString().slice(0,10),
-        valorTotal: parseFloat(p3.vb)||0,
-        _p1:p1, _p2:p2, _p3:p3, _p4:p4State,
-      };
-      const json = JSON.stringify(atendimento,null,2);
-      if(!_driveFileId) {
-        const nomeNorm = (p1.nome||"").replace(/[^a-z0-9]/gi,"_").toLowerCase();
-        const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27integra_%27";
-        const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name)",{headers:{Authorization:"Bearer "+_gdriveToken}});
-        const d = await res.json();
-        const existente = (d.files||[]).find(f=>f.name.toLowerCase().includes(nomeNorm.slice(0,15)));
-        if(existente) { _driveFileId=existente.id; _driveFileName=existente.name; }
-      }
-      if(_driveFileId) {
-        const form = new FormData();
-        form.append("metadata",new Blob([JSON.stringify({name:_driveFileName})],{type:"application/json"}));
-        form.append("file",new Blob([json],{type:"application/json"}));
-        await fetch("https://www.googleapis.com/upload/drive/v3/files/"+_driveFileId+"?uploadType=multipart",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
-      } else {
-        const nome = nomeBase+"_"+Date.now()+".json";
-        _driveFileName = nome;
-        const metadata = {name:nome,mimeType:"application/json",parents:[folderId]};
-        const form = new FormData();
-        form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
-        form.append("file",new Blob([json],{type:"application/json"}));
-        const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
-        const created = await r.json();
-        _driveFileId = created.id;
-      }
-      _lastSyncHash = hash;
-      setLastSaved(new Date());
-      setStatus("saved");
-    } catch(e) {
-      console.error("AutoSync erro:",e);
-      setStatus("error");
-    }
-  },[p1,p2,p3,p4State,temDados]);
-
-  const sincronizar = React.useCallback(async () => {
-    if(!_gdriveToken || !_driveFileId) return;
-    setStatus("loading");
-    try {
-      const dados = await gdriveCarregarArquivo(_driveFileId);
-      if(dados._p1) setP1(dados._p1);
-      if(dados._p2) setP2(dados._p2);
-      if(dados._p3) setP3(prev=>({...prev,...dados._p3}));
-      if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
-      _lastSyncHash = driveDataHash(dados._p1||p1,dados._p2||p2,dados._p3||p3,dados._p4||p4State);
-      setStatus("saved");
-    } catch(e) {
-      console.error("Sync erro:",e);
-      setStatus("error");
-    }
-  },[p1,p2,p3,p4State,setP1,setP2,setP3,setP4State]);
-
-  React.useEffect(()=>{
-    if(!autoOn || !logado || !temDados) return;
-    const iv = setInterval(()=>salvarNoDrive(), 30000);
-    return ()=>clearInterval(iv);
-  },[autoOn,logado,temDados,salvarNoDrive]);
-
-  if(!logado) return null;
-
-  const statusIcon = status==="saving"?"⏳":status==="saved"?"✅":status==="error"?"⚠️":status==="loading"?"🔄":"⚪";
-  const statusText = status==="saving"?"Salvando...":status==="saved"?"Sincronizado":status==="error"?"Erro ao salvar":status==="loading"?"Carregando...":"";
-  const timeFmt = lastSaved ? lastSaved.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
-
-  return (
-    <div className="no-print" style={{position:"fixed",top:60,right:16,zIndex:180,display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.95)",border:"1px solid "+BORDER,borderRadius:20,padding:"4px 12px",boxShadow:"0 2px 8px rgba(0,0,0,0.1)",fontSize:10}}>
-      <span>{statusIcon}</span>
-      {statusText&&<span style={{color:status==="error"?"#C62828":"#5C4A2A"}}>{statusText}</span>}
-      {timeFmt&&status==="saved"&&<span style={{color:"#9A8060"}}>{timeFmt}</span>}
-      <div onClick={()=>{setAutoOn(!autoOn);if(!autoOn)salvarNoDrive(true);}} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:autoOn?GOLD_PALE:"#fff",border:"1px solid "+(autoOn?GOLD:BORDER),color:autoOn?GOLD_DARK:"#9A8060",fontWeight:600,fontSize:9}}>
-        {autoOn?"Auto ✓":"Auto"}
-      </div>
-      <div onClick={()=>salvarNoDrive(true)} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+BORDER,color:"#9A8060",fontSize:9}}>
-        Salvar
-      </div>
-      {_driveFileId&&<div onClick={sincronizar} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+BORDER,color:"#9A8060",fontSize:9}}>
-        🔄
-      </div>}
-    </div>
-  );
-}
-
 function App() {
   const [pag, setPag] = useState("p1");
   const [showConfigs, setShowConfigs] = useState(false);
@@ -4041,7 +3606,6 @@ function App() {
   return (
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
       {pag!=="rel"&&<Header/>}
-      <DriveAutoSync p1={p1} p2={p2} p3={p3} p4State={p4State} setP1={setP1} setP2={setP2} setP3={setP3} setP4State={setP4State}/>
 
       <CalculadoraFlutuante/>
       {/* Botão Preview flutuante */}
@@ -4075,13 +3639,7 @@ function App() {
         </div>
       )}
 
-      {pag==="p1"&&<P1 data={p1} setData={setP1} onNovoPaciente={()=>{
-  setP1(p1Initial);
-  _setP2Raw({...p2Initial, achados: getAchadosInicial()});
-  setP3(prev=>({...p3Initial, ds:prev.ds, ci:prev.ci, quemPaga:prev.quemPaga, plano:prev.plano}));
-  setP4State(prev=>({...p4Initial, procsBase:prev.procsBase, customProcs:(prev.customProcs||[]).map(c=>({...c,ativo:false,dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}))}));
-  _driveFileId=null; _driveFileName=null; _lastSyncHash="";
-}}/>}
+      {pag==="p1"&&<P1 data={p1} setData={setP1}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State}/>}
       {pag==="p3"&&<P3
@@ -4106,7 +3664,6 @@ function App() {
         p3QuemPaga={p3.quemPaga||"comprador"} setP3QuemPaga={v=>sp3("quemPaga",v)}
         boletoComDesconto={p3.boletoComDesconto||false} setBoletoComDesconto={v=>sp3("boletoComDesconto",v)}
         p4State={p4State}
-        modoRel={p3.modoRel||"soma"} setModoRel={v=>sp3("modoRel",v)}
       />}
       {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSetModoRel={v=>sp3("modoRel",v)} onSalvar={()=>{
   const dup = verificarDuplicata(p1);
@@ -4117,18 +3674,12 @@ function App() {
     salvarRelatorio(p1,p2,p3,p4State,false);
   }
   setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
-}} salvoOk={relatorioSalvo} onCarregarDrive={(r)=>{
-  if(r._p1) setP1(r._p1);
-  if(r._p2) setP2(r._p2);
-  if(r._p3) setP3({...p3Initial,...r._p3});
-  if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
-  setPag("p1");
-}}/>}
+}} salvoOk={relatorioSalvo}/>}
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
         if(r._p2) setP2(r._p2);
         if(r._p3) setP3({...p3Initial,...r._p3});
-        if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
+        if(r._p4) setP4State(r._p4);
         setPag("p1");
       }}/>}
       {/* Botão desfazer flutuante por aba */}
