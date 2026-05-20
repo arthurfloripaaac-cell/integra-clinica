@@ -1289,6 +1289,109 @@ function excluirRelatorio(id) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lista)); } catch(e){}
 }
 
+
+// ─── DRIVE ARQUIVO — pasta de atendimentos na nuvem ──
+function DriveArquivo() {
+  const [arquivos, setArquivos] = React.useState([]);
+  const [carregando, setCarregando] = React.useState(false);
+  const [expandidoDrive, setExpandidoDrive] = React.useState(null);
+  const [msgDriveArq, setMsgDriveArq] = React.useState(null);
+
+  const carregar = async () => {
+    if(!_gdriveToken) return;
+    setCarregando(true);
+    try {
+      const lista = await gdriveListar();
+      setArquivos(lista);
+    } catch(e) {
+      setMsgDriveArq({tipo:"erro", texto:"Erro: "+e.message});
+    }
+    setCarregando(false);
+  };
+
+  React.useEffect(()=>{ carregar(); }, []);
+
+  const excluirDrive = async (fileId, nome) => {
+    if(!window.confirm("Excluir '"+nome+"' do Drive?")) return;
+    try {
+      await fetch("https://www.googleapis.com/drive/v3/files/"+fileId,{
+        method:"DELETE",
+        headers:{Authorization:"Bearer "+_gdriveToken}
+      });
+      setArquivos(prev=>prev.filter(f=>f.id!==fileId));
+      setMsgDriveArq({tipo:"ok", texto:"✓ Excluído do Drive"});
+      setTimeout(()=>setMsgDriveArq(null),3000);
+    } catch(e) {
+      setMsgDriveArq({tipo:"erro", texto:"Erro ao excluir: "+e.message});
+    }
+  };
+
+  const abrirDrive = async (fileId) => {
+    try {
+      const res = await fetch("https://www.googleapis.com/drive/v3/files/"+fileId+"?alt=media",{
+        headers:{Authorization:"Bearer "+_gdriveToken}
+      });
+      const dados = await res.json();
+      // Carregar no sistema
+      if(dados._p1) {
+        window.dispatchEvent(new CustomEvent("integra-carregar", {detail: dados}));
+        setMsgDriveArq({tipo:"ok", texto:"✓ Atendimento carregado"});
+        setTimeout(()=>setMsgDriveArq(null),3000);
+      } else {
+        setMsgDriveArq({tipo:"erro", texto:"Arquivo sem dados de paciente"});
+      }
+    } catch(e) {
+      setMsgDriveArq({tipo:"erro", texto:"Erro ao abrir: "+e.message});
+    }
+  };
+
+  return (
+    <div style={{marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>☁ Pasta Drive Nuvem</div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {msgDriveArq&&<span style={{fontSize:10,color:msgDriveArq.tipo==="ok"?GOLD_DARK:"#C62828"}}>{msgDriveArq.texto}</span>}
+          <div onClick={carregar} style={{fontSize:10,color:GOLD_DARK,cursor:"pointer",padding:"3px 8px",border:"1px solid "+GOLD,borderRadius:20}}>↻ Atualizar</div>
+          <div onClick={()=>{_gdriveToken=null;window.location.reload();}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
+        </div>
+      </div>
+
+      {carregando&&<div style={{padding:16,textAlign:"center",fontSize:12,color:"#9A8060"}}>Carregando...</div>}
+
+      {!carregando&&arquivos.length===0&&(
+        <div style={{padding:"14px 16px",background:"#fff",border:"1px solid "+BORDER,borderRadius:4,fontSize:12,color:"#9A8060",textAlign:"center"}}>
+          Nenhum atendimento salvo na nuvem ainda.
+        </div>
+      )}
+
+      {arquivos.map(f=>(
+        <div key={f.id} style={{background:"#fff",border:"1px solid "+(expandidoDrive===f.id?GOLD:BORDER),borderRadius:4,overflow:"hidden",marginBottom:6}}>
+          <div onClick={()=>setExpandidoDrive(expandidoDrive===f.id?null:f.id)} style={{display:"flex",alignItems:"center",padding:"12px 16px",cursor:"pointer",borderLeft:"4px solid "+(expandidoDrive===f.id?GOLD:BORDER)}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{f.name.replace(/^integra_/,"").replace(/_\d+\.json$/,"").replace(/_/g," ")}</div>
+              <div style={{fontSize:10,color:"#9A8060",marginTop:2}}>{new Date(f.modifiedTime).toLocaleDateString("pt-BR")} — Drive</div>
+            </div>
+            <div style={{color:GOLD_DARK,fontSize:12}}>{expandidoDrive===f.id?"▲":"▼"}</div>
+          </div>
+          {expandidoDrive===f.id&&(
+            <div style={{padding:"10px 16px 14px",borderTop:"1px solid "+BORDER,background:CREAM}}>
+              <div style={{display:"flex",gap:8}}>
+                <div onClick={()=>abrirDrive(f.id)} style={{fontSize:11,color:GOLD_DARK,cursor:"pointer",padding:"5px 12px",border:"1px solid "+GOLD,borderRadius:2,fontWeight:600}}>
+                  ✎ Abrir para edição
+                </div>
+                <div onClick={()=>excluirDrive(f.id,f.name)} style={{fontSize:11,color:"#9A8060",cursor:"pointer",padding:"5px 12px",border:"1px solid #ddd",borderRadius:2,fontWeight:600}}>
+                  🗑 Excluir
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
 function Arquivo({onCarregar}) {
   const [lista, setLista] = useState([]);
   const [busca, setBusca] = useState("");
@@ -1488,7 +1591,30 @@ function Arquivo({onCarregar}) {
         </div>
       </Card>
 
-      {/* Lista */}
+      {/* Pasta Drive Nuvem */}
+      {_gdriveToken && (
+        <DriveArquivo/>
+      )}
+      {!_gdriveToken && (
+        <div style={{marginBottom:14,padding:"12px 16px",background:"#fff",border:"1px solid "+BORDER,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:4}}>Pasta Drive Nuvem</div>
+            <div style={{fontSize:11,color:"#9A8060"}}>Conecte ao Google Drive para acessar atendimentos na nuvem</div>
+          </div>
+          <div onClick={async()=>{
+            try {
+              await gdriveEnsureScript();
+              await gdriveLogin();
+              window.location.reload();
+            } catch(e){ alert("Erro: "+e.message); }
+          }} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",background:"#fff",border:"1px solid #dadce0",borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:"#3c4043",flexShrink:0}}>
+            <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Conectar Drive
+          </div>
+        </div>
+      )}
+
+      {/* Lista local */}
       {filtrados.length === 0 ? (
         <Card><div style={{textAlign:"center",padding:20,color:"#9A8060",fontSize:12}}>Nenhum resultado para os filtros aplicados.</div></Card>
       ) : (
@@ -3675,6 +3801,19 @@ function App() {
   }
   setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
 }} salvoOk={relatorioSalvo}/>}
+      React.useEffect(()=>{
+    const handler = (e) => {
+      const r = e.detail;
+      if(r._p1) { setP1(r._p1); }
+      if(r._p2) setP2(r._p2);
+      if(r._p3) setP3(r._p3);
+      if(r._p4) setP4State(r._p4);
+      setPag("p1");
+    };
+    window.addEventListener("integra-carregar", handler);
+    return ()=>window.removeEventListener("integra-carregar", handler);
+  }, []);
+
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
         if(r._p2) setP2(r._p2);
