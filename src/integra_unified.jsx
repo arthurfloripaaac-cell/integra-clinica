@@ -2238,6 +2238,96 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
           </div>
         </div>
       )}
+
+      {/* Seção Google Drive */}
+      <Card style={{marginTop:16}}>
+        <SectionTitle>Google Drive</SectionTitle>
+        <ArquivoDriveSection onCarregar={onCarregar}/>
+      </Card>
+
+    </div>
+  );
+}
+
+function ArquivoDriveSection({onCarregar}) {
+  const [logado, setLogado] = React.useState(!!_gdriveToken);
+  const [arquivos, setArquivos] = React.useState(null);
+  const [erro, setErro] = React.useState(null);
+  const [carregando, setCarregando] = React.useState(null);
+  const [filtro, setFiltro] = React.useState("");
+
+  const login = async () => {
+    if(window.location.hostname !== "integra-clinica-three.vercel.app" && window.location.hostname !== "localhost") {
+      window.location.href = GDRIVE_ORIGIN + window.location.pathname;
+      return;
+    }
+    setErro(null);
+    try {
+      await gdriveEnsureScript();
+      await gdriveLogin();
+      setLogado(true);
+    } catch(e) { setErro(e.message); }
+  };
+
+  const listar = async () => {
+    try { setArquivos(await gdriveListarTodos()); } catch(e) { setErro(e.message); }
+  };
+
+  React.useEffect(()=>{ if(logado) listar(); },[logado]);
+
+  const extrairNome = (fn) => {
+    const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," ");
+    return m.charAt(0).toUpperCase()+m.slice(1);
+  };
+
+  const fmtData = (iso) => {
+    if(!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  };
+
+  const carregar = async (arq) => {
+    setCarregando(arq.id);
+    try { const dados = await gdriveCarregarArquivo(arq.id); if(onCarregar) onCarregar(dados); } catch(e) { setErro("Erro: "+e.message); }
+    setCarregando(null);
+  };
+
+  const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase())) : [];
+
+  if(!logado) return (
+    <div style={{textAlign:"center",padding:20}}>
+      <div onClick={login} style={{display:"inline-flex",alignItems:"center",gap:8,padding:"10px 18px",background:"#fff",border:"1px solid #dadce0",borderRadius:4,cursor:"pointer",fontSize:12,fontWeight:600,color:"#3c4043",boxShadow:"0 1px 3px rgba(0,0,0,0.12)"}}>
+        <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Conectar ao Google Drive
+      </div>
+      {erro&&<div style={{fontSize:11,color:"#C62828",marginTop:8}}>{erro}</div>}
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
+        <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"7px 10px",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,outline:"none"}}/>
+        <div onClick={listar} style={{padding:"7px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:10,color:"#9A8060"}}>↻</div>
+        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;setLogado(false);setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Sair</div>
+      </div>
+      {erro&&<div style={{fontSize:11,color:"#C62828",marginBottom:8}}>{erro}</div>}
+      {!arquivos&&<div style={{textAlign:"center",padding:20,color:"#9A8060",fontSize:11}}>Carregando...</div>}
+      {arquivos&&<div style={{fontSize:10,color:"#9A8060",marginBottom:6}}>{arquivos.length} arquivo(s) na pasta</div>}
+      {arquivos&&filtrados.length===0&&<div style={{textAlign:"center",padding:14,color:"#9A8060",fontSize:11}}>Nenhum arquivo encontrado</div>}
+      {filtrados.map(arq=>(
+        <div key={arq.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
+          <div style={{width:3,height:28,background:GOLD,borderRadius:2,flexShrink:0}}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:12,fontWeight:600,color:"#5C4A2A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{extrairNome(arq.name)}</div>
+            <div style={{fontSize:9,color:"#9A8060",marginTop:1}}>{fmtData(arq.modifiedTime)}</div>
+          </div>
+          <div style={{display:"flex",gap:6,flexShrink:0}}>
+            <div onClick={()=>carregar(arq)} style={{padding:"4px 10px",background:carregando===arq.id?GOLD_PALE:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>{carregando===arq.id?"...":"Abrir"}</div>
+            <a href={"https://drive.google.com/file/d/"+arq.id+"/view"} target="_blank" rel="noopener noreferrer" style={{padding:"4px 10px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:10,color:"#9A8060",textDecoration:"none"}}>Drive ↗</a>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -2676,7 +2766,7 @@ const ACHADOS_MAP = {gengivite:"Gengivite",carie_ativa:"Cárie ativa",suspeita_c
 const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FFB74D",perda_ossea:"#7986CB",retracao:"#F06292",desgaste:"#4DB6AC",erosao:"#81C784",fratura:"#FF8A65",ausente:"#90A4AE"};
 
 // v3.0
-function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoRel}) {
+function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoRel,onCarregarDrive}) {
   const _driveData = React.useMemo(()=>({
     id: Date.now(),
     data: new Date().toISOString(),
@@ -2757,7 +2847,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             🖨️ Imprimir / Salvar PDF
           </div>
         </div>}
-        {!isPreview&&<DriveSync relatorio={_driveData}/>}
+        {!isPreview&&<DriveSync relatorio={_driveData} onCarregar={onCarregarDrive}/>}
       </div>
       <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
 
@@ -3355,8 +3445,11 @@ async function gdriveLogin() {
         if(r.access_token){ _gdriveToken=r.access_token; resolve(r.access_token); }
         else reject(new Error("Login cancelado"));
       },
+      error_callback: (err)=>{
+        reject(new Error(err.type||"Erro OAuth"));
+      },
     });
-    tc.requestAccessToken({prompt:""});
+    tc.requestAccessToken({prompt:"consent"});
   });
 }
 
@@ -3418,11 +3511,64 @@ async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
   return {salvo:true};
 }
 
-function DriveSync({relatorio}) {
+async function gdriveListarTodos() {
+  if(!_gdriveToken) throw new Error("Nao autenticado");
+  const folderId = await gdriveGetFolder();
+  let all = [], pageToken = "";
+  do {
+    const url = "https://www.googleapis.com/drive/v3/files?q=%27"+folderId+"%27+in+parents+and+trashed%3Dfalse&fields=files(id,name,modifiedTime,size),nextPageToken&orderBy=name&pageSize=100"+(pageToken?"&pageToken="+pageToken:"");
+    const res = await fetch(url, {headers:{Authorization:"Bearer "+_gdriveToken}});
+    const d = await res.json();
+    if(d.files) all = all.concat(d.files);
+    pageToken = d.nextPageToken || "";
+  } while(pageToken);
+  return all.sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+}
+
+async function gdriveCarregarArquivo(fileId) {
+  if(!_gdriveToken) throw new Error("Nao autenticado");
+  const res = await fetch("https://www.googleapis.com/drive/v3/files/"+fileId+"?alt=media", {headers:{Authorization:"Bearer "+_gdriveToken}});
+  return await res.json();
+}
+
+function DrivePastaModal({onClose, onCarregar}) {
+  const [arquivos, setArquivos] = React.useState(null);
+  const [erro, setErro] = React.useState(null);
+  const [carregando, setCarregando] = React.useState(null);
+  const [filtro, setFiltro] = React.useState("");
+  React.useEffect(()=>{ gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); },[]);
+  const extrairNome = (fn) => { const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," "); return m.charAt(0).toUpperCase()+m.slice(1); };
+  const fmtData = (iso) => { if(!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
+  const carregar = async (arq) => { setCarregando(arq.id); try { const dados = await gdriveCarregarArquivo(arq.id); onCarregar(dados); onClose(); } catch(e) { setErro("Erro: "+e.message); setCarregando(null); } };
+  const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase())) : [];
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#fff",borderRadius:8,maxWidth:520,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
+        <div style={{padding:"18px 22px 14px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK}}>Pasta Google Drive</div>
+            <div style={{fontSize:10,color:"#9A8060",marginTop:2}}>Íntegra Clínica — Atendimentos{arquivos?" - "+arquivos.length+" arquivo(s)":""}</div>
+          </div>
+          <div onClick={onClose} style={{cursor:"pointer",fontSize:18,color:"#9A8060",padding:"4px 8px"}}>X</div>
+        </div>
+        <div style={{padding:"10px 22px 8px"}}><input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{width:"100%",padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:4,fontSize:12,outline:"none",boxSizing:"border-box"}}/></div>
+        <div style={{flex:1,overflow:"auto",padding:"0 22px 16px"}}>
+          {erro&&<div style={{fontSize:11,color:"#C62828",padding:10}}>{erro}</div>}
+          {!arquivos&&!erro&&<div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:12}}>Carregando arquivos...</div>}
+          {arquivos&&filtrados.length===0&&<div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:12}}>Nenhum arquivo encontrado</div>}
+          {filtrados.map(arq=>(<div key={arq.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid "+BORDER}}><div style={{width:3,height:32,background:GOLD,borderRadius:2,flexShrink:0}}/><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:"#5C4A2A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{extrairNome(arq.name)}</div><div style={{fontSize:9,color:"#9A8060",marginTop:2}}>{fmtData(arq.modifiedTime)}</div></div><div style={{display:"flex",gap:6,flexShrink:0}}><div onClick={()=>carregar(arq)} style={{padding:"5px 10px",background:carregando===arq.id?GOLD_PALE:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>{carregando===arq.id?"...":"Abrir"}</div><a href={"https://drive.google.com/file/d/"+arq.id+"/view"} target="_blank" rel="noopener noreferrer" style={{padding:"5px 10px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:10,color:"#9A8060",textDecoration:"none"}}>Drive</a></div></div>))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DriveSync({relatorio, onCarregar}) {
   const [logado, setLogado] = React.useState(!!_gdriveToken);
   const [salvando, setSalvando] = React.useState(false);
   const [msgDrive, setMsgDrive] = React.useState(null);
   const [modalDrive, setModalDrive] = React.useState(null); // {onSobrepor, onDuplicar}
+  const [showPasta, setShowPasta] = React.useState(false);
 
   const login = async () => {
     // Se estiver em URL de preview, redirecionar para URL principal
@@ -3509,10 +3655,18 @@ function DriveSync({relatorio}) {
           }}>
             {salvando?"⏳ Salvando...":"☁ Salvar no Drive"}
           </div>
-          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;setLogado(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
+          <div onClick={()=>setShowPasta(true)} style={{
+            display:"flex",alignItems:"center",gap:6,padding:"7px 14px",
+            background:"#fff",border:"1px solid "+GOLD,
+            borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK,
+          }}>
+            📁 Ver pasta
+          </div>
+          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;setLogado(false);setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
         </div>
       )}
       {msgDrive&&<div style={{fontSize:10,marginTop:5,color:msgDrive.tipo==="ok"?"#1e7e34":"#C62828"}}>{msgDrive.texto}</div>}
+      {showPasta&&<DrivePastaModal onClose={()=>setShowPasta(false)} onCarregar={onCarregar}/>}
     </div>
   );
 }
@@ -3825,7 +3979,13 @@ function App() {
     salvarRelatorio(p1,p2,p3,p4State,false);
   }
   setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
-}} salvoOk={relatorioSalvo}/>}
+}} salvoOk={relatorioSalvo} onCarregarDrive={(r)=>{
+  if(r._p1) setP1(r._p1);
+  if(r._p2) setP2(r._p2);
+  if(r._p3) setP3({...p3Initial,...r._p3});
+  if(r._p4) setP4State(r._p4);
+  setPag("p1");
+}}/>}
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
         if(r._p2) setP2(r._p2);
