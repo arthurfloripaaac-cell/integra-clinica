@@ -1694,6 +1694,13 @@ function Arquivo({onCarregar}) {
           ))}
         </div>
       )}
+
+      {/* Seção Google Drive */}
+      <Card style={{marginTop:16}}>
+        <SectionTitle>Google Drive</SectionTitle>
+        <ArquivoDriveSection onCarregar={onCarregar}/>
+      </Card>
+
     </div>
   );
 }
@@ -2238,12 +2245,6 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
           </div>
         </div>
       )}
-
-      {/* Seção Google Drive */}
-      <Card style={{marginTop:16}}>
-        <SectionTitle>Google Drive</SectionTitle>
-        <ArquivoDriveSection onCarregar={onCarregar}/>
-      </Card>
 
     </div>
   );
