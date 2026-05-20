@@ -1291,7 +1291,7 @@ function excluirRelatorio(id) {
 
 
 // ─── DRIVE ARQUIVO — pasta de atendimentos na nuvem ──
-function DriveArquivo() {
+function DriveArquivo({onDesconectar}) {
   const [arquivos, setArquivos] = React.useState([]);
   const [carregando, setCarregando] = React.useState(false);
   const [expandidoDrive, setExpandidoDrive] = React.useState(null);
@@ -1352,7 +1352,7 @@ function DriveArquivo() {
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {msgDriveArq&&<span style={{fontSize:10,color:msgDriveArq.tipo==="ok"?GOLD_DARK:"#C62828"}}>{msgDriveArq.texto}</span>}
           <div onClick={carregar} style={{fontSize:10,color:GOLD_DARK,cursor:"pointer",padding:"3px 8px",border:"1px solid "+GOLD,borderRadius:20}}>↻ Atualizar</div>
-          <div onClick={()=>{_gdriveToken=null;window.location.reload();}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
+          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;onDesconectar&&onDesconectar();}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
         </div>
       </div>
 
@@ -1392,7 +1392,7 @@ function DriveArquivo() {
 }
 
 
-function Arquivo({onCarregar}) {
+function Arquivo({onCarregar, driveLogado=false, setDriveLogado}) {
   const [lista, setLista] = useState([]);
   const [busca, setBusca] = useState("");
   const [filtroProcedimento, setFiltroProcedimento] = useState("");
@@ -1592,10 +1592,10 @@ function Arquivo({onCarregar}) {
       </Card>
 
       {/* Pasta Drive Nuvem */}
-      {_gdriveToken && (
-        <DriveArquivo/>
+      {driveLogado && (
+        <DriveArquivo onDesconectar={()=>setDriveLogado&&setDriveLogado(false)}/>
       )}
-      {!_gdriveToken && (
+      {!driveLogado && (
         <div style={{marginBottom:14,padding:"12px 16px",background:"#fff",border:"1px solid "+BORDER,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
             <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:4}}>Pasta Drive Nuvem</div>
@@ -1605,7 +1605,7 @@ function Arquivo({onCarregar}) {
             try {
               await gdriveEnsureScript();
               await gdriveLogin();
-              window.location.reload();
+              setDriveLogado&&setDriveLogado(true);
             } catch(e){ alert("Erro: "+e.message); }
           }} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",background:"#fff",border:"1px solid #dadce0",borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:"#3c4043",flexShrink:0}}>
             <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
@@ -3413,6 +3413,8 @@ function DriveSync({relatorio}) {
       await gdriveEnsureScript();
       await gdriveLogin();
       setLogado(true);
+      // Notificar outros componentes via evento
+      window.dispatchEvent(new CustomEvent("integra-drive-login", {detail:{logado:true}}));
       setMsgDrive({tipo:"ok",texto:"Conectado ao Drive"});
       setTimeout(()=>setMsgDrive(null),3000);
     } catch(e) {
@@ -3651,6 +3653,13 @@ function savePersisted(key, val) {
 function App() {
   const [pag, setPag] = useState("p1");
   const [showConfigs, setShowConfigs] = useState(false);
+  const [driveLogado, setDriveLogado] = React.useState(!!_gdriveToken);
+
+  React.useEffect(()=>{
+    const driveHandler = (e) => setDriveLogado(e.detail.logado);
+    window.addEventListener("integra-drive-login", driveHandler);
+    return ()=>window.removeEventListener("integra-drive-login", driveHandler);
+  }, []);
 
   React.useEffect(()=>{
     const handler = (e) => {
@@ -3815,7 +3824,7 @@ function App() {
   setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
 }} salvoOk={relatorioSalvo}/>}
 
-      {pag==="arq"&&<Arquivo onCarregar={(r)=>{
+      {pag==="arq"&&<Arquivo driveLogado={driveLogado} setDriveLogado={setDriveLogado} onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
         if(r._p2) setP2(r._p2);
         if(r._p3) setP3({...p3Initial,...r._p3});
