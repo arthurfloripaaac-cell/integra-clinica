@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v7.9 - barra drive maior + sync visual + simplificar
+// v8.0 - whatsapp fix reopen + assinatura visivel
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -310,6 +310,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
   const [adicionandoMembro, setAdicionandoMembro] = React.useState(false);
   const [showEnviarForm, setShowEnviarForm] = React.useState(false);
   const [linkCopiado, setLinkCopiado] = React.useState(false);
+  const [formLinkId, setFormLinkId] = React.useState("");
 
   // Carregar equipe persistente
   useEffect(()=>{
@@ -375,7 +376,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
             }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#fff",border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK}}>
               + Novo
             </div>
-            <div onClick={()=>setShowEnviarForm(!showEnviarForm)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
+            <div onClick={()=>{if(!showEnviarForm){setFormLinkId("f"+Date.now().toString(36));}setShowEnviarForm(!showEnviarForm);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
               📱 WhatsApp
             </div>
           </div>}
@@ -386,8 +387,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
             <div style={{fontSize:12,fontWeight:700,color:"#2E7D32",marginBottom:8}}>Enviar formulário via WhatsApp</div>
             <div style={{fontSize:11,color:"#5C4A2A",marginBottom:10,lineHeight:1.5}}>O paciente preenche os dados pelo celular e eles aparecem automaticamente aqui.</div>
             {(()=>{
-              const fid = "f"+Date.now().toString(36);
-              const link = (typeof window!=="undefined"?window.location.origin:"")+"/f/"+fid;
+              const link = (typeof window!=="undefined"?window.location.origin:"")+"/f/"+formLinkId;
               const msg = "Olá! Segue o link para preencher seu cadastro na Íntegra Clínica Odontológica:\n"+link;
               const waLink = "https://wa.me/?text="+encodeURIComponent(msg);
               return(
@@ -438,6 +438,14 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
               <Field label="Nome do responsável"><input style={inp} value={respNome} onChange={e=>set("respNome",e.target.value)} spellCheck={false} placeholder="Nome completo"/></Field>
             </div>
             <Field label="CPF do responsável"><input style={inp} value={respCpf} onChange={e=>set("respCpf",formatCpf(e.target.value))} placeholder="000.000.000-00"/></Field>
+          </div>
+        )}
+        {/* Assinatura digital do paciente */}
+        {data.assinatura&&(
+          <div style={{marginTop:12,marginBottom:8,padding:"10px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:4}}>
+            <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Assinatura Digital</div>
+            <img src={data.assinatura} alt="Assinatura" style={{maxWidth:280,height:"auto",border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/>
+            <div style={{fontSize:9,color:"#9A8060",marginTop:4}}>Assinatura coletada via formulário digital</div>
           </div>
         )}
         <div style={{borderTop:"1px solid "+BORDER, marginTop:4, paddingTop:16}}>
@@ -1910,7 +1918,8 @@ const p1Initial = {
   respNome:"",
   respCpf:"",
   dataConsulta:"",
-  responsavel:"Dr. Arthur A. Cheade"
+  responsavel:"Dr. Arthur A. Cheade",
+  assinatura:"",
 };
 const ACHADOS_DEFAULT = [
   {id:"gengivite",      label:"Gengivite",          cor:"#E57373"},
@@ -4740,7 +4749,7 @@ function App() {
   setP4State(prev=>({...p4Initial, procsBase:prev.procsBase, customProcs:(prev.customProcs||[]).map(c=>({...c,ativo:false,dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}))}));
   _driveFileId=null; _driveFileName=null; _lastSyncHash="";
 }} onImportarFormulario={(f)=>{
-  setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf}));
+  setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||""}));
 }}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State}/>}
@@ -4817,7 +4826,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.9</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.0</div>
     </div>
   );
 }
