@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v7.8 - formulario WhatsApp + assinatura digital
+// v7.9 - barra drive maior + sync visual + simplificar
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -4230,21 +4230,21 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
   const timeFmt = lastSaved ? lastSaved.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
 
   return (<>
-    <div className="no-print" style={{position:"fixed",top:60,right:16,zIndex:180,display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.95)",border:"1px solid "+BORDER,borderRadius:20,padding:"4px 12px",boxShadow:"0 2px 8px rgba(0,0,0,0.1)",fontSize:10}}>
-      <span>{statusIcon}</span>
-      {statusText&&<span style={{color:status==="error"?"#C62828":"#5C4A2A"}}>{statusText}</span>}
-      {timeFmt&&status==="saved"&&<span style={{color:"#9A8060"}}>{timeFmt}</span>}
-      <div onClick={()=>{setAutoOn(!autoOn);if(!autoOn)salvarNoDrive(true);}} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:autoOn?GOLD_PALE:"#fff",border:"1px solid "+(autoOn?GOLD:BORDER),color:autoOn?GOLD_DARK:"#9A8060",fontWeight:600,fontSize:9}}>
-        {autoOn?"Auto ✓":"Auto"}
+    <div className="no-print" style={{position:"fixed",top:60,right:12,zIndex:180,display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.97)",border:"1.5px solid "+(status==="saved"?"#4CAF50":status==="error"?"#E57373":GOLD),borderRadius:12,padding:"8px 14px",boxShadow:"0 3px 12px rgba(0,0,0,0.12)",fontSize:11}}>
+      <span style={{fontSize:14}}>{statusIcon}</span>
+      <div style={{display:"flex",flexDirection:"column",gap:1}}>
+        {statusText&&<span style={{color:status==="error"?"#C62828":status==="saved"?"#2E7D32":"#5C4A2A",fontWeight:600,fontSize:11}}>{statusText}</span>}
+        {timeFmt&&status==="saved"&&<span style={{color:"#9A8060",fontSize:9}}>às {timeFmt}</span>}
       </div>
-      <div onClick={()=>salvarNoDrive(true)} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+BORDER,color:"#9A8060",fontSize:9}}>
+      <div style={{width:1,height:24,background:BORDER,margin:"0 2px"}}/>
+      <div onClick={()=>{setAutoOn(!autoOn);if(!autoOn)salvarNoDrive(true);}} style={{padding:"5px 12px",borderRadius:8,cursor:"pointer",background:autoOn?"#E8F5E9":"#fff",border:"1.5px solid "+(autoOn?"#4CAF50":BORDER),color:autoOn?"#2E7D32":"#9A8060",fontWeight:700,fontSize:10}}>
+        {autoOn?"☁ Auto ✓":"☁ Auto"}
+      </div>
+      {!autoOn&&<div onClick={()=>salvarNoDrive(true)} style={{padding:"5px 12px",borderRadius:8,cursor:"pointer",background:"#fff",border:"1.5px solid "+GOLD,color:GOLD_DARK,fontWeight:600,fontSize:10}}>
         Salvar
-      </div>
-      {_driveFileId&&<div onClick={sincronizar} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+BORDER,color:"#9A8060",fontSize:9}}>
-        🔄
       </div>}
-      <div onClick={()=>setShowPastaGlobal(true)} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+GOLD,color:GOLD_DARK,fontWeight:600,fontSize:9}}>
-        ☁
+      <div onClick={()=>setShowPastaGlobal(true)} style={{padding:"5px 12px",borderRadius:8,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,color:GOLD_DARK,fontWeight:700,fontSize:10}}>
+        ☁ Nuvem
       </div>
     </div>
     {showPastaGlobal&&<DrivePastaModal onClose={()=>setShowPastaGlobal(false)} onCarregar={(dados)=>{carregarDoDrive(dados);setShowPastaGlobal(false);}}/>}
@@ -4656,8 +4656,9 @@ function App() {
               Drive
             </div>
           )}
-          <div onClick={()=>setShowFbModal(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:fb.fbConectado?"#E8F5E9":"#fff",border:"1px solid "+(fb.fbConectado?"#4CAF50":BORDER),borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:fb.fbConectado?"#2E7D32":GOLD_DARK}}>
-            {fb.fbConectado?"🔄 Sync":"📡 Sync"}
+          <div onClick={()=>setShowFbModal(true)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:fb.fbConectado?"#E8F5E9":"#fff",border:"1.5px solid "+(fb.fbConectado?"#4CAF50":BORDER),borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:fb.fbConectado?"#2E7D32":GOLD_DARK}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:fb.fbConectado?"#4CAF50":"#ccc",boxShadow:fb.fbConectado?"0 0 6px #4CAF50":"none",flexShrink:0}}/>
+            {fb.fbConectado?("📡 "+fb.fbSessao):"📡 Sync"}
           </div>
         </div>
       )}
@@ -4816,7 +4817,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.8</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.9</div>
     </div>
   );
 }
