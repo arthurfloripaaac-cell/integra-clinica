@@ -58,7 +58,7 @@ function listaDentes(arr) {
 
 // ─── PALETA ───────────────────────────────────────
 const GOLD = "#B8962E", GOLD_DARK = "#7A6020", GOLD_LIGHT = "#D4B96A";
-const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D8E";
+const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D6E";
 
 const fmt = v => "R$ " + (v||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
 
@@ -182,8 +182,22 @@ function P1({data, setData}) {
 
   const set = (k,v) => setData(p=>({...p,[k]:v}));
 
+  const novoAtendimento = () => {
+    if(window.confirm("Iniciar novo atendimento? Os dados atuais serão apagados.")) {
+      setData({
+        nome:"", cpf:"", telefone:"", dataNasc:"", idade:"", isMinor:false,
+        respNome:"", respCpf:"",
+        dataConsulta: new Date().toISOString().split("T")[0],
+        responsavel: equipe[0]?.nome || "Dr. Arthur A. Cheade"
+      });
+    }
+  };
+
   return (
     <div style={{maxWidth:640, margin:"0 auto", padding:"20px 16px 40px"}}>
+      <div style={{display:"flex", justifyContent:"flex-end", marginBottom:10}}>
+        <div onClick={novoAtendimento} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 18px",background:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:12,fontWeight:700,color:GOLD_DARK}}>+ Novo Paciente</div>
+      </div>
       <Card>
         <SectionTitle>Dados do Paciente</SectionTitle>
         <div style={{marginBottom:12}}>
@@ -3381,7 +3395,16 @@ async function gdriveListarArquivos(folderId, paciente) {
   const d = await res.json();
   return d.files||[];
 }
-
+async function gdriveListar() {
+  if(!_gdriveToken) return [];
+  const folderId = await gdriveGetFolder();
+  const res = await fetch(
+    "https://www.googleapis.com/drive/v3/files?q=%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27integra_%27&fields=files(id,name,modifiedTime)&orderBy=modifiedTime+desc",
+    {headers:{Authorization:"Bearer "+_gdriveToken}}
+  );
+  const d = await res.json();
+  return d.files||[];
+}
 async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
   if(!_gdriveToken) throw new Error("Não autenticado");
   const folderId = await gdriveGetFolder();
