@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v7.3 - drive unificado corrigido + pasta excluir em todos os locais
+// v7.4 - revoke token + force account chooser + pasta excluir em todos os locais
 
 // CSS de impressão global
 if(typeof document !== "undefined" && !document.getElementById("integra-print-css")) {
@@ -3514,7 +3514,12 @@ async function gdriveLogin() {
         reject(new Error(err.type||"Erro OAuth"));
       },
     });
-    tc.requestAccessToken({prompt:"consent",login_hint:""});
+    // Revogar token anterior para forçar tela de seleção de conta
+    if(_gdriveToken) {
+      try { window.google.accounts.oauth2.revoke(_gdriveToken); } catch(e){}
+      _gdriveToken = null;
+    }
+    tc.requestAccessToken({prompt:"consent"});
   });
 }
 
@@ -4294,7 +4299,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.3</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.4</div>
     </div>
   );
 }
