@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.1 - fix p2 load sanitization
+// v8.2 - fix null guards achadosDente
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -545,7 +545,7 @@ function Dente({numero, achadoAtivo, achadosDente, onClick, achados}) {
 }
 
 function P2({data, setData}) {
-  const {achadosDente, achadoAtivo, segAtivo, arcadaAtiva, obsTexto, obsCorrigido} = data;
+  const {achadosDente={}, achadoAtivo=null, segAtivo=null, arcadaAtiva=null, obsTexto="", obsCorrigido=""} = data;
   const ACHADOS = data.achados || ACHADOS_DEFAULT;
   const [editandoAchados, setEditandoAchados] = useState(false);
   const [novoAchado, setNovoAchado] = useState({label:"", cor:"#4CAF50"});
@@ -582,7 +582,7 @@ function P2({data, setData}) {
     finally{setCorrigindo(false);}
   };
 
-  const resumo = ACHADOS.map(a=>({...a,dentes:Object.entries(achadosDente).filter(([,v])=>v[a.id]).map(([d])=>parseInt(d)).sort((x,y)=>x-y)})).filter(a=>a.dentes.length>0);
+  const resumo = ACHADOS.map(a=>({...a,dentes:Object.entries(achadosDente).filter(([,v])=>v&&v[a.id]).map(([d])=>parseInt(d)).sort((x,y)=>x-y)})).filter(a=>a.dentes.length>0);
   const aObj = ACHADOS.find(a=>a.id===achadoAtivo);
 
   return (
@@ -617,7 +617,7 @@ function P2({data, setData}) {
           )}
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
             {ACHADOS.map(a=>{
-              const ativo=achadoAtivo===a.id,qtd=Object.values(achadosDente).filter(v=>v[a.id]).length;
+              const ativo=achadoAtivo===a.id,qtd=Object.values(achadosDente).filter(v=>v&&v[a.id]).length;
               return(<div key={a.id} style={{position:"relative",display:"flex",alignItems:"center"}}>
                 {editandoAchados&&<div onClick={()=>{set("achados",ACHADOS.filter(x=>x.id!==a.id));}} style={{position:"absolute",top:-4,right:-4,width:14,height:14,borderRadius:"50%",background:"#E57373",color:"#fff",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",zIndex:10,lineHeight:1}}>✕</div>}
                 <div onClick={()=>set("achadoAtivo",ativo?null:a.id)} style={{padding:"5px 12px",borderRadius:20,fontSize:11,cursor:"pointer",border:"2px solid "+(ativo?a.cor:qtd>0?a.cor+"88":BORDER),background:ativo?a.cor:qtd>0?a.cor+"11":"#fff",color:ativo?"#fff":qtd>0?a.cor:"#5C4A2A",fontWeight:ativo||qtd>0?700:400,display:"flex",alignItems:"center",gap:5}}>
@@ -3058,7 +3058,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
   const achadosList = p2.achados || ACHADOS_DEFAULT;
   const resumoAch = achadosList.map(a => ({
     id: a.id, lb: a.label, cor: a.cor,
-    dentes: Object.entries(achadosDente).filter(([,v])=>v[a.id]).map(([d])=>parseInt(d)).sort((a,b)=>a-b)
+    dentes: Object.entries(achadosDente).filter(([,v])=>v&&v[a.id]).map(([d])=>parseInt(d)).sort((a,b)=>a-b)
   })).filter(a=>a.dentes.length>0);
 
   const fmt2 = v => "R$ "+(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -4833,7 +4833,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.1</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.2</div>
     </div>
   );
 }
