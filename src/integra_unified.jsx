@@ -99,9 +99,11 @@ const fmt = v => "R$ " + (v||0).toLocaleString("pt-BR", {minimumFractionDigits:2
 function maskTelefone(v) {
   let d = String(v||"").replace(/\D/g,"");
   if(d.length===0) return "";
-  if(d.length<=3) return "("+d;
-  if(d.length<=7) return "("+d.slice(0,3)+") "+d.slice(3);
-  return "("+d.slice(0,3)+") "+d.slice(3,8)+"-"+d.slice(8,12);
+  if(d.length<=2) return "("+d;
+  if(d.length<=6) return "("+d.slice(0,2)+") "+d.slice(2);
+  if(d.length<=10) return "("+d.slice(0,2)+") "+d.slice(2,7)+"-"+d.slice(7);
+  if(d.length===11) return "("+d.slice(0,2)+") "+d.slice(2,7)+"-"+d.slice(7,11);
+  return "+"+d.slice(0,d.length-11)+" ("+d.slice(-11,-9)+") "+d.slice(-9,-5)+"-"+d.slice(-5);
 }
 
 
@@ -3940,13 +3942,22 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
     return ()=>clearInterval(iv);
   },[autoOn,logado,temDados,salvarNoDrive]);
 
+  const [showPastaGlobal, setShowPastaGlobal] = React.useState(false);
+
+  const carregarDoDrive = React.useCallback((dados) => {
+    if(dados._p1) setP1(dados._p1);
+    if(dados._p2) setP2(dados._p2);
+    if(dados._p3) setP3(prev=>({...prev,...dados._p3}));
+    if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
+  },[setP1,setP2,setP3,setP4State]);
+
   if(!logado) return null;
 
   const statusIcon = status==="saving"?"⏳":status==="saved"?"✅":status==="error"?"⚠️":status==="loading"?"🔄":"⚪";
   const statusText = status==="saving"?"Salvando...":status==="saved"?"Sincronizado":status==="error"?"Erro ao salvar":status==="loading"?"Carregando...":"";
   const timeFmt = lastSaved ? lastSaved.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
 
-  return (
+  return (<>
     <div className="no-print" style={{position:"fixed",top:60,right:16,zIndex:180,display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.95)",border:"1px solid "+BORDER,borderRadius:20,padding:"4px 12px",boxShadow:"0 2px 8px rgba(0,0,0,0.1)",fontSize:10}}>
       <span>{statusIcon}</span>
       {statusText&&<span style={{color:status==="error"?"#C62828":"#5C4A2A"}}>{statusText}</span>}
@@ -3960,8 +3971,12 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
       {_driveFileId&&<div onClick={sincronizar} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+BORDER,color:"#9A8060",fontSize:9}}>
         🔄
       </div>}
+      <div onClick={()=>setShowPastaGlobal(true)} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+GOLD,color:GOLD_DARK,fontWeight:600,fontSize:9}}>
+        📁
+      </div>
     </div>
-  );
+    {showPastaGlobal&&<DrivePastaModal onClose={()=>setShowPastaGlobal(false)} onCarregar={(dados)=>{carregarDoDrive(dados);setShowPastaGlobal(false);}}/>}
+  </>);
 }
 
 function App() {
