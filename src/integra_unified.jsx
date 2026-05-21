@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v7.6 - Firebase sync fix arrays
+// v7.7 - renomear menus salvar/nuvem
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -3026,7 +3026,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             background:salvoOk?"#7A6020":"#fff",border:"1px solid "+(salvoOk?GOLD_DARK:BORDER),
             color:salvoOk?"#fff":GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:12,fontWeight:600,
           }}>
-            {salvoOk?"✓ Salvo!":"📁 Salvar no Arquivo"}
+            {salvoOk?"✓ Salvo!":"💾 Salvar local"}
           </div>}
           <div onClick={()=>window.print()} style={{
             display:"flex",alignItems:"center",gap:8,padding:"10px 20px",
@@ -3911,7 +3911,7 @@ function DriveSync({relatorio, onCarregar}) {
             background:"#fff",border:"1px solid "+GOLD,
             borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK,
           }}>
-            📁 Ver pasta
+            ☁ Arquivo em nuvem
           </div>
           <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
         </div>
@@ -4201,7 +4201,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
         🔄
       </div>}
       <div onClick={()=>setShowPastaGlobal(true)} style={{padding:"2px 8px",borderRadius:10,cursor:"pointer",background:"#fff",border:"1px solid "+GOLD,color:GOLD_DARK,fontWeight:600,fontSize:9}}>
-        📁
+        ☁
       </div>
     </div>
     {showPastaGlobal&&<DrivePastaModal onClose={()=>setShowPastaGlobal(false)} onCarregar={(dados)=>{carregarDoDrive(dados);setShowPastaGlobal(false);}}/>}
@@ -4308,7 +4308,7 @@ function App() {
             else { salvarRelatorio(p1,p2,p3,p4State,false); }
             setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
           }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:relatorioSalvo?"#7A6020":"#fff",border:"1px solid "+(relatorioSalvo?GOLD_DARK:BORDER),color:relatorioSalvo?"#fff":GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
-            {relatorioSalvo?"✓ Salvo":"📁 Salvar"}
+            {relatorioSalvo?"✓ Salvo":"💾 Local"}
           </div>
           <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>window.print(),300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"linear-gradient(135deg,#2C1810,#1A0F08)",color:"#fff",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
             🖨️ Imprimir
@@ -4477,7 +4477,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.6</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.7</div>
     </div>
   );
 }
