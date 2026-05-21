@@ -8,10 +8,13 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
   _s.textContent = `
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      body { margin: 0 !important; background: white !important; }
+      body { margin: 0 !important; background: white !important; font-size: calc(1em + 1px) !important; }
       .no-print { display: none !important; }
       #root > div { padding-bottom: 0 !important; }
       @page { margin: 0.5cm; size: A4 portrait; }
+      [style*="border"] { border-color: transparent !important; }
+      [style*="border-bottom: 2px solid"] { border-bottom-color: #B8962E !important; }
+      [style*="border-top: 2px solid"] { border-top-color: #B8962E !important; }
     }
   `;
   document.head.appendChild(_s);
@@ -58,7 +61,8 @@ function listaDentes(arr) {
 
 // ─── PALETA ───────────────────────────────────────
 const GOLD = "#B8962E", GOLD_DARK = "#7A6020", GOLD_LIGHT = "#D4B96A";
-const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D8E";
+const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D6E";
+const PURPLE_LIGHT = "#7B4D8E", PURPLE_BORDER = "#D4C0DE";
 
 const fmt = v => "R$ " + (v||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
 
@@ -2771,20 +2775,28 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
       </div>
       <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden"}}>
 
-        {/* Cabeçalho */}
-        <div style={{background:"linear-gradient(135deg,#1C0E06 0%,#2C1810 100%)",padding:"20px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"3px solid "+GOLD}}>
-          <div style={{display:"flex",alignItems:"center",gap:14}}>
-            <div style={{width:44,height:44,borderRadius:"50%",border:"1.5px solid "+GOLD,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-              <span style={{fontFamily:"Georgia",fontSize:22,fontStyle:"italic",color:GOLD}}>i</span>
+        {/* Cabeçalho com faixas diagonais */}
+        <div style={{position:"relative",overflow:"hidden",padding:"18px 28px",background:"#fff",borderBottom:"1.5px solid "+GOLD}}>
+          <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none"}} viewBox="0 0 680 80" preserveAspectRatio="none">
+            <polygon points="0,0 200,0 160,80 0,80" fill={PURPLE} opacity="0.08"/>
+            <polygon points="160,0 340,0 300,80 120,80" fill={GOLD} opacity="0.08"/>
+          </svg>
+          <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:14}}>
+              <svg width="44" height="44" viewBox="0 0 44 44" style={{flexShrink:0}}>
+                <circle cx="22" cy="22" r="16" fill={GOLD_PALE} stroke={GOLD} strokeWidth="1.2"/>
+                {[0,45,90,135,180,225,270,315].map(a=>{const rad=a*Math.PI/180;const x=22+16*Math.cos(rad);const y=22+16*Math.sin(rad);return <rect key={a} x={x-2.5} y={y-2.5} width="5" height="5" fill={GOLD_DARK} transform={`rotate(${a},${x},${y})`}/>;})}
+                <text x="22" y="28" textAnchor="middle" fontFamily="Georgia" fontSize="20" fontStyle="italic" fill={GOLD_DARK} fontWeight="700">i</text>
+              </svg>
+              <div>
+                <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:700,color:PURPLE,letterSpacing:4,textTransform:"uppercase",lineHeight:1}}>Íntegra</div>
+                <div style={{fontSize:7,letterSpacing:3,color:GOLD_DARK,textTransform:"uppercase",marginTop:3}}>Clínica Odontológica · Desde 1996.</div>
+              </div>
             </div>
-            <div>
-              <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:700,color:"#fff",letterSpacing:4,textTransform:"uppercase",lineHeight:1}}>Íntegra</div>
-              <div style={{fontSize:7,letterSpacing:3,color:GOLD_LIGHT,textTransform:"uppercase",marginTop:3}}>Clínica Odontológica · Desde 1996</div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:8,color:GOLD_DARK,letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>Prontuário de Atendimento</div>
+              <div style={{fontSize:13,color:PURPLE,fontWeight:600}}>{dataFmt(dataConsulta)}</div>
             </div>
-          </div>
-          <div style={{textAlign:"right",borderLeft:"1px solid rgba(184,150,46,0.3)",paddingLeft:20}}>
-            <div style={{fontSize:8,color:GOLD_LIGHT,letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>Prontuário de Atendimento</div>
-            <div style={{fontSize:13,color:"#fff",fontWeight:600}}>{dataFmt(dataConsulta)}</div>
           </div>
         </div>
 
@@ -2793,7 +2805,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Dados do Paciente */}
           {temDados && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Dados do Paciente</span>
+              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Dados do Paciente</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:8}}>
@@ -2822,13 +2834,13 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Avaliação Clínica */}
           {temAval && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Avaliação Clínica</span>
+              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Avaliação Clínica</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             {resumoAch.length>0 && <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
               {resumoAch.map(a=>(
                 <div key={a.id} style={{display:"flex",alignItems:"stretch",border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                  <div style={{width:3,background:GOLD,flexShrink:0}}/>
+                  <div style={{width:3,background:PURPLE,flexShrink:0}}/>
                   <div style={{flex:1,padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
                       <span style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{a.lb}</span>
@@ -2848,7 +2860,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Plano de Tratamento */}
           {temPlano && <>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Plano de Tratamento</span>
+              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Plano de Tratamento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:0}}>
@@ -2912,7 +2924,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             return(
               <div style={{marginTop:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                  <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Propostas Individuais</span>
+                  <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Propostas Individuais</span>
                   <div style={{flex:1,height:1,background:BORDER}}/>
                 </div>
                 {itensSep.map((it,idx)=>{
@@ -3030,7 +3042,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               ) : null;
             })()}
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
-              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Proposta de Investimento</span>
+              <span style={{fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
 
@@ -3130,8 +3142,44 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           </>);})()}
 
           {/* Rodapé */}
-          <div style={{borderTop:"1px solid "+BORDER,marginTop:22,paddingTop:14,fontSize:10,color:"#9A8060",fontStyle:"italic",textAlign:"center"}}>
-            Íntegra Clínica Odontológica · WhatsApp (48) 98404-2890 · Rua Lauro Linhares, 1849, Sala 204 — Trindade, Florianópolis/SC
+          <div style={{borderTop:"2px solid "+GOLD,marginTop:22,paddingTop:14,display:"flex",alignItems:"center",justifyContent:"center",gap:12}}>
+            <svg width="44" height="44" viewBox="0 0 44 44" style={{flexShrink:0}}>
+              <rect width="44" height="44" rx="3" fill={GOLD_PALE} stroke={GOLD} strokeWidth="0.5"/>
+              <g fill={GOLD_DARK}>
+                <rect x="4" y="4" width="14" height="14" rx="2" fill="none" stroke={GOLD_DARK} strokeWidth="2"/>
+                <rect x="7" y="7" width="8" height="8" rx="1" fill={GOLD_DARK}/>
+                <rect x="26" y="4" width="14" height="14" rx="2" fill="none" stroke={GOLD_DARK} strokeWidth="2"/>
+                <rect x="29" y="7" width="8" height="8" rx="1" fill={GOLD_DARK}/>
+                <rect x="4" y="26" width="14" height="14" rx="2" fill="none" stroke={GOLD_DARK} strokeWidth="2"/>
+                <rect x="7" y="29" width="8" height="8" rx="1" fill={GOLD_DARK}/>
+                <rect x="20" y="4" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="20" y="9" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="20" y="14" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="4" y="20" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="9" y="20" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="14" y="20" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="20" y="20" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="26" y="20" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="32" y="20" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="38" y="20" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="20" y="26" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="26" y="26" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="32" y="26" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="20" y="32" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="26" y="32" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="38" y="26" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="32" y="32" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="38" y="32" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="20" y="38" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="26" y="38" width="3" height="3" fill={GOLD_DARK}/>
+                <rect x="38" y="38" width="3" height="3" fill={GOLD_DARK}/>
+              </g>
+            </svg>
+            <div style={{textAlign:"center",fontSize:10,color:"#9A8060",lineHeight:1.6}}>
+              <div style={{fontWeight:600,color:GOLD_DARK,fontSize:11}}>Íntegra Clínica Odontológica</div>
+              <div>www.odontologiaintegra.com.br · WhatsApp (48) 98404-2890 · (48) 3234-1002</div>
+              <div>Rua Lauro Linhares, 1849, Sala 204 — Trindade, Florianópolis/SC</div>
+            </div>
           </div>
         </div>
       </div>
