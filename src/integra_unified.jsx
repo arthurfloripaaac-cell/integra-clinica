@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.0 - whatsapp fix reopen + assinatura visivel
+// v8.1 - fix p2 load sanitization
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -36,6 +36,19 @@ if(typeof document !== "undefined") {
   document.head.appendChild(s1);
 }
 
+function sanitizeP2(p2r) {
+  if(!p2r) return {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{}};
+  if(!p2r.achadosDente) p2r.achadosDente={};
+  if(!p2r.obsAchados) p2r.obsAchados={};
+  if(!p2r.achados) p2r.achados=null;
+  if(!p2r.obsTexto) p2r.obsTexto="";
+  if(!p2r.obsCorrigido) p2r.obsCorrigido="";
+  if(p2r.achadoAtivo===undefined) p2r.achadoAtivo=null;
+  if(p2r.segAtivo===undefined) p2r.segAtivo=null;
+  if(p2r.arcadaAtiva===undefined) p2r.arcadaAtiva=null;
+  return p2r;
+}
+
 function fbSanitizeKey(str) {
   return (str||"sessao").replace(/[.#$\[\]\/]/g,"_").toLowerCase().slice(0,60);
 }
@@ -66,13 +79,7 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
       _skipNextRef.current = true;
       try {
         if(data._p1) setP1(data._p1);
-        if(data._p2) {
-          const p2r = data._p2;
-          if(!p2r.achadosDente) p2r.achadosDente = {};
-          if(!p2r.obsAchados) p2r.obsAchados = {};
-          if(!p2r.achados && !p2r.achados) p2r.achados = null;
-          setP2(p2r);
-        }
+        if(data._p2) setP2(sanitizeP2(data._p2));
         if(data._p3) {
           const p3r = data._p3;
           if(!p3r.fc) p3r.fc = [];
@@ -4206,7 +4213,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
     try {
       const dados = await gdriveCarregarArquivo(_driveFileId);
       if(dados._p1) setP1(dados._p1);
-      if(dados._p2) setP2(dados._p2);
+      if(dados._p2) setP2(sanitizeP2(dados._p2));
       if(dados._p3) setP3(prev=>({...prev,...dados._p3}));
       if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
       _lastSyncHash = driveDataHash(dados._p1||p1,dados._p2||p2,dados._p3||p3,dados._p4||p4State);
@@ -4227,7 +4234,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
 
   const carregarDoDrive = React.useCallback((dados) => {
     if(dados._p1) setP1(dados._p1);
-    if(dados._p2) setP2(dados._p2);
+    if(dados._p2) setP2(sanitizeP2(dados._p2));
     if(dados._p3) setP3(prev=>({...prev,...dados._p3}));
     if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
   },[setP1,setP2,setP3,setP4State]);
@@ -4788,14 +4795,14 @@ function App() {
   setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
 }} salvoOk={relatorioSalvo} onCarregarDrive={(r)=>{
   if(r._p1) setP1(r._p1);
-  if(r._p2) setP2(r._p2);
+  if(r._p2) setP2(sanitizeP2(r._p2));
   if(r._p3) setP3({...p3Initial,...r._p3});
   if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
   setPag("p1");
 }}/>}
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
-        if(r._p2) setP2(r._p2);
+        if(r._p2) setP2(sanitizeP2(r._p2));
         if(r._p3) setP3({...p3Initial,...r._p3});
         if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
         setPag("p1");
@@ -4826,7 +4833,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.0</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.1</div>
     </div>
   );
 }
