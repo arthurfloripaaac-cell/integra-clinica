@@ -1,5 +1,116 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v7.4 - revoke token + force account chooser + pasta excluir em todos os locais
+// v7.5 - Firebase Realtime Sync
+
+// ─── FIREBASE REALTIME DATABASE ────────────────────
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBc2krr7dpI11IR7z2VTTPc_Hi0ItGWiG4",
+  authDomain: "integra-clinica-9301d.firebaseapp.com",
+  databaseURL: "https://integra-clinica-9301d-default-rtdb.firebaseio.com",
+  projectId: "integra-clinica-9301d",
+  storageBucket: "integra-clinica-9301d.firebasestorage.app",
+};
+
+let _fbDb = null;
+let _fbReady = false;
+const _fbReadyCallbacks = [];
+
+function onFirebaseReady(fn) { if(_fbReady) fn(); else _fbReadyCallbacks.push(fn); }
+
+if(typeof document !== "undefined") {
+  const s1 = document.createElement("script");
+  s1.src = "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js";
+  s1.onload = () => {
+    const s2 = document.createElement("script");
+    s2.src = "https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js";
+    s2.onload = () => {
+      try {
+        const app = window.firebase.initializeApp(FIREBASE_CONFIG);
+        _fbDb = window.firebase.database();
+        _fbReady = true;
+        _fbReadyCallbacks.forEach(fn=>fn());
+        _fbReadyCallbacks.length = 0;
+      } catch(e) { console.error("Firebase init error:", e); }
+    };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s1);
+}
+
+function fbSanitizeKey(str) {
+  return (str||"sessao").replace(/[.#$\[\]\/]/g,"_").toLowerCase().slice(0,60);
+}
+
+function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, setP4State) {
+  const [fbStatus, setFbStatus] = React.useState("off");
+  const [fbSessao, setFbSessao] = React.useState(sessionId||"");
+  const [fbConectado, setFbConectado] = React.useState(false);
+  const [fbUltimoSync, setFbUltimoSync] = React.useState(null);
+  const _skipNextRef = React.useRef(false);
+  const _listenerRef = React.useRef(null);
+  const _lastWriteRef = React.useRef("");
+
+  const conectar = React.useCallback((sessao) => {
+    if(!_fbDb || !sessao) return;
+    const key = fbSanitizeKey(sessao);
+    setFbSessao(sessao);
+    setFbStatus("connecting");
+
+    if(_listenerRef.current) { _listenerRef.current(); _listenerRef.current = null; }
+
+    const ref = _fbDb.ref("sessoes/"+key);
+    const unsub = ref.on("value", (snap) => {
+      const data = snap.val();
+      if(!data) { setFbConectado(true); setFbStatus("connected"); return; }
+      const hash = JSON.stringify(data._ts||"");
+      if(hash === _lastWriteRef.current) return;
+      _skipNextRef.current = true;
+      if(data._p1) setP1(data._p1);
+      if(data._p2) setP2(typeof data._p2 === "function" ? data._p2 : data._p2);
+      if(data._p3) setP3(prev=>({...prev,...data._p3}));
+      if(data._p4) {
+        const p4r = data._p4;
+        if(!p4r.procsBase) p4r.procsBase = null;
+        setP4State(p4r);
+      }
+      setFbUltimoSync(new Date());
+      setFbConectado(true);
+      setFbStatus("connected");
+      setTimeout(()=>{ _skipNextRef.current = false; }, 500);
+    });
+    _listenerRef.current = () => ref.off("value", unsub);
+    setFbConectado(true);
+    setFbStatus("connected");
+  },[setP1,setP2,setP3,setP4State]);
+
+  const salvar = React.useCallback(() => {
+    if(!_fbDb || !fbSessao || _skipNextRef.current) return;
+    const key = fbSanitizeKey(fbSessao);
+    const ts = Date.now().toString();
+    _lastWriteRef.current = JSON.stringify(ts);
+    _fbDb.ref("sessoes/"+key).set({
+      _ts: ts,
+      _lastUpdate: new Date().toISOString(),
+      _paciente: p1.nome||"",
+      _p1: p1, _p2: p2, _p3: p3, _p4: p4State,
+    }).catch(e=>console.error("Firebase write error:",e));
+  },[fbSessao,p1,p2,p3,p4State]);
+
+  const desconectar = React.useCallback(() => {
+    if(_listenerRef.current) { _listenerRef.current(); _listenerRef.current = null; }
+    setFbConectado(false);
+    setFbStatus("off");
+    setFbSessao("");
+  },[]);
+
+  React.useEffect(()=>{
+    if(!fbConectado || !fbSessao || _skipNextRef.current) return;
+    const t = setTimeout(()=>salvar(), 2000);
+    return ()=>clearTimeout(t);
+  },[p1,p2,p3,p4State,fbConectado,fbSessao,salvar]);
+
+  return { fbStatus, fbSessao, fbConectado, fbUltimoSync, conectar, desconectar, salvar, setFbSessao };
+}
+
 
 // CSS de impressão global
 if(typeof document !== "undefined" && !document.getElementById("integra-print-css")) {
@@ -4157,6 +4268,10 @@ function App() {
 
   const previewProps = {p1, p2, p3, p4State};
 
+  // Firebase Realtime Sync
+  const fb = useFirebaseSync("", p1, p2, p3, p4State, setP1, _setP2Raw, setP3, setP4State);
+  const [showFbModal, setShowFbModal] = useState(false);
+
   return (
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
       {pag!=="rel"&&<Header/>}
@@ -4182,6 +4297,47 @@ function App() {
               Drive
             </div>
           )}
+          <div onClick={()=>setShowFbModal(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:fb.fbConectado?"#E8F5E9":"#fff",border:"1px solid "+(fb.fbConectado?"#4CAF50":BORDER),borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:fb.fbConectado?"#2E7D32":GOLD_DARK}}>
+            {fb.fbConectado?"🔄 Sync":"📡 Sync"}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Firebase Sync */}
+      {showFbModal&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setShowFbModal(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:8,padding:24,maxWidth:400,width:"90%",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
+            <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK,marginBottom:4}}>Sincronização em Tempo Real</div>
+            <div style={{fontSize:11,color:"#9A8060",marginBottom:16,lineHeight:1.5}}>
+              Conecte dois computadores na mesma sessão para sincronizar dados automaticamente. Tudo que for digitado em um aparece no outro em tempo real.
+            </div>
+            {fb.fbConectado?(
+              <div>
+                <div style={{padding:12,background:"#E8F5E9",border:"1px solid #4CAF50",borderRadius:4,marginBottom:12}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#2E7D32",marginBottom:4}}>✓ Conectado</div>
+                  <div style={{fontSize:11,color:"#5C4A2A"}}>Sessão: <strong>{fb.fbSessao}</strong></div>
+                  {fb.fbUltimoSync&&<div style={{fontSize:10,color:"#9A8060",marginTop:4}}>Último sync: {fb.fbUltimoSync.toLocaleTimeString("pt-BR")}</div>}
+                </div>
+                <div style={{fontSize:10,color:"#9A8060",marginBottom:12,lineHeight:1.5}}>
+                  No outro computador, abra o sistema e conecte com o mesmo nome de sessão: <strong>{fb.fbSessao}</strong>
+                </div>
+                <div onClick={()=>{fb.desconectar();setShowFbModal(false);}} style={{padding:"10px",background:"#fff",border:"1px solid #E57373",borderRadius:4,cursor:"pointer",fontSize:12,color:"#C62828",textAlign:"center",fontWeight:600}}>
+                  Desconectar
+                </div>
+              </div>
+            ):(
+              <div>
+                <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Nome da sessão</div>
+                <input value={fb.fbSessao} onChange={e=>fb.setFbSessao(e.target.value.replace(/[^a-zA-Z0-9_-]/g,""))} placeholder="ex: consultorio-1" style={{width:"100%",padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:3,fontSize:14,fontWeight:600,color:GOLD_DARK,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
+                <div style={{fontSize:10,color:"#9A8060",marginBottom:16,lineHeight:1.5}}>
+                  Use o mesmo nome nos dois computadores. Ex: <strong>consultorio-1</strong> ou o nome do paciente.
+                </div>
+                <div onClick={()=>{if(!fb.fbSessao.trim()){alert("Digite um nome para a sessão");return;}onFirebaseReady(()=>fb.conectar(fb.fbSessao));setShowFbModal(false);}} style={{padding:"11px",background:GOLD_DARK,color:"#fff",borderRadius:4,cursor:"pointer",fontSize:12,fontWeight:700,textAlign:"center"}}>
+                  Conectar
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -4299,7 +4455,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.4</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.5</div>
     </div>
   );
 }
