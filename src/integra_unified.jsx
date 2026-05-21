@@ -96,6 +96,14 @@ const GOLD = "#B8962E", GOLD_DARK = "#7A6020", GOLD_LIGHT = "#D4B96A";
 const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D6E", PURPLE_LIGHT = "#7B4D8E", PURPLE_BORDER = "#D4C0DE";
 
 const fmt = v => "R$ " + (v||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+function maskTelefone(v) {
+  let d = String(v||"").replace(/\D/g,"");
+  if(d.length===0) return "";
+  if(d.length<=3) return "("+d;
+  if(d.length<=7) return "("+d.slice(0,3)+") "+d.slice(3);
+  return "("+d.slice(0,3)+") "+d.slice(3,8)+"-"+d.slice(8,12);
+}
+
 
 // ─── COMPONENTES COMUNS ───────────────────────────
 function Header() {
@@ -235,7 +243,7 @@ function P1({data, setData, onNovoPaciente}) {
         </div>
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12}}>
           <Field label="CPF"><input style={inp} value={cpf} onChange={e=>set("cpf",formatCpf(e.target.value))} placeholder="000.000.000-00"/></Field>
-          <Field label="Telefone / WhatsApp"><input style={inp} value={telefone} onChange={e=>set("telefone",e.target.value)} placeholder="(48) 99999-9999"/></Field>
+          <Field label="Telefone / WhatsApp"><input style={inp} value={maskTelefone(telefone)} onChange={e=>set("telefone",e.target.value.replace(/\D/g,""))} placeholder="(048) 99999-9999"/></Field>
         </div>
         <div style={{marginBottom:12}}>
           <Field label="Data de nascimento"><input style={inp} type="date" value={dataNasc} onChange={e=>set("dataNasc",e.target.value)}/></Field>
@@ -806,7 +814,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:4}}>
             <span style={{fontSize:11,color:"#5C4A2A",flex:1,fontWeight:600}}>Modo de apresentação:</span>
             <div style={{display:"flex",gap:6}}>
-              {[["soma","Soma tudo"],["separado","Separado"]].map(([k,l])=>(
+              {[["soma","Soma tudo"],["separado","Separado"],["ambos","Ambos"]].map(([k,l])=>(
                 <div key={k} onClick={()=>setModoRel&&setModoRel(k)} style={{padding:"6px 12px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
               ))}
             </div>
@@ -814,7 +822,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
         )}
 
         {/* Propostas individuais — modo separado */}
-        {temSep&&modoRel==="separado"&&(
+        {temSep&&(modoRel==="separado"||modoRel==="ambos")&&(
           <div style={{marginBottom:12}}>
             <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:10}}>Propostas Individuais</div>
             {itensSepP3.map((it,idx)=>{
@@ -828,7 +836,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               const propCi=parseInt(prop.ci||"0");
               const propCp=prop.cp?parseInt(prop.cp):null;
               const tCp=(prop.fc&&prop.fc.includes("credito"))
-                ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vf2,n,propPlano,propQuem);return{n,...r};})
+                ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vb2,n,propPlano,propQuem);return{n,...r};})
                 :[];
               const tCpf=propCp?tCp.filter(r=>r.n===1||r.n<=propCp):tCp;
               const propBp=parseInt(prop.bp||"6");
@@ -844,8 +852,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                   <div style={{padding:"10px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span style={{fontSize:13,fontWeight:700,color:"#1C1410"}}>{proc.nome}</span>
                     <div>
-                      <span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt(vf2)}</span>
-                      {dp2>0&&<span style={{fontSize:11,color:"#9A8060",marginLeft:6}}>({dp2}% desc.)</span>}
+                      {dp2>0?(<><span style={{fontSize:12,color:"#9A8060",textDecoration:"line-through"}}>{fmt(vb2)}</span><span style={{fontSize:10,color:"#9A8060",margin:"0 4px"}}>{dp2}%</span></>):null}<span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt(vf2)}</span>
                     </div>
                   </div>
                   {/* À vista */}
@@ -858,7 +865,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                   {tCpf.length>0&&(
                     <div style={{borderBottom:bLs.length?"1px solid "+BORDER:"none"}}>
                       <div style={{padding:"7px 14px 4px",fontSize:11,fontWeight:700,color:"#1C1410"}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x sem juros</span>}</div>
-                      {(()=>{const m=Math.ceil(tCpf.length/2),c1=tCpf.slice(0,m),c2=tCpf.slice(m);const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt(vf2):fmt(p)}</span><span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt(t)}</span></div>);};return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{c1.map((r,i)=>rr(r,i,i===c1.length-1))}</div><div>{c2.map((r,i)=>rr(r,i,i===c2.length-1))}</div></div>);})()}
+                      {(()=>{const m=Math.ceil(tCpf.length/2),c1=tCpf.slice(0,m),c2=tCpf.slice(m);const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt(vb2):fmt(p)}</span><span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt(t)}</span></div>);};return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{c1.map((r,i)=>rr(r,i,i===c1.length-1))}</div><div>{c2.map((r,i)=>rr(r,i,i===c2.length-1))}</div></div>);})()}
                     </div>
                   )}
                   {/* Boleto */}
@@ -875,7 +882,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
           </div>
         )}
 
-      {modoRel==="soma"&&<div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",marginTop:4}}>
+      {(modoRel==="soma"||modoRel==="ambos")&&<div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",marginTop:4}}>
         <div style={{padding:"16px 22px",borderBottom:"2px solid "+GOLD,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <svg width="30" height="30" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -997,7 +1004,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
   return(
     <div style={{maxWidth:620,margin:"0 auto",padding:"20px 16px 40px"}}>
       <div style={{display:"flex",gap:8,marginBottom:20}}>
-        {[["calc","⚙️ Calculadora"],["proposta","📄 Proposta"]].map(([t,l])=>(
+        {[["calc","⚙️ Calculadora"]].map(([t,l])=>(
           <div key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:20,fontSize:11,cursor:"pointer",background:tab===t?GOLD:"#fff",color:tab===t?"#fff":GOLD_DARK,border:"1.5px solid "+(tab===t?GOLD_DARK:BORDER),fontWeight:tab===t?700:400}}>{l}</div>
         ))}
       </div>
@@ -1281,12 +1288,12 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <SectionTitle style={{margin:0}}>Propostas Individuais ({itensSepCalc.length})</SectionTitle>
                 <div style={{display:"flex",gap:4}}>
-                  {[["soma","Soma tudo"],["separado","Separado"]].map(([k,l])=>(
+                  {[["soma","Soma tudo"],["separado","Separado"],["ambos","Ambos"]].map(([k,l])=>(
                     <div key={k} onClick={()=>setModoRel&&setModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:10,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
                   ))}
                 </div>
               </div>
-              {modoRel==="separado"?(
+              {(modoRel==="separado"||modoRel==="ambos")?(
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {itensSepCalc.map((it,idx)=>{
                     const proc=(p4State?.procsBase||[]).find(p=>p.id===it.id)||{nome:it.nome||it.id};
@@ -1299,7 +1306,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                     const propCi=parseInt(prop.ci||"0");
                     const propCp=prop.cp?parseInt(prop.cp):null;
                     const tCp2=(prop.fc&&prop.fc.includes("credito"))
-                      ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vf2,n,propPlano,propQuem);return{n,...r};})
+                      ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vb2,n,propPlano,propQuem);return{n,...r};})
                       :[];
                     const tCpf2=propCp?tCp2.filter(r=>r.n===1||r.n<=propCp):tCp2;
                     const propBp=parseInt(prop.bp||"6");
@@ -1318,7 +1325,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                             <div style={{fontSize:10,color:"#9A8060",marginTop:1}}>{formasList}</div>
                           </div>
                           <div style={{textAlign:"right"}}>
-                            <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt(vf2)}</div>
+                            <div style={{display:"flex",alignItems:"center",gap:4}}>{dp2>0&&<><span style={{fontSize:11,color:"#9A8060",textDecoration:"line-through"}}>{fmt(vb2)}</span><span style={{fontSize:9,color:"#9A8060"}}>{dp2}%</span></>}<span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt(vf2)}</span></div>
                             {dp2>0&&<div style={{fontSize:9,color:"#9A8060"}}>{dp2}% desc.</div>}
                           </div>
                         </div>
@@ -1326,7 +1333,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                         {tCpf2.length>0&&(
                           <div style={{borderBottom:bLs2.length?"1px solid "+BORDER:"none"}}>
                             <div style={{padding:"6px 14px 3px",fontSize:10,fontWeight:700,color:"#1C1410"}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x s/j</span>}</div>
-                            {(()=>{const m=Math.ceil(tCpf2.length/2),c1=tCpf2.slice(0,m),c2=tCpf2.slice(m);const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"3px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"À vista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt(vf2):fmt(p)}</span><span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt(t)}</span></div>);};return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{c1.map((r,i)=>rr(r,i,i===c1.length-1))}</div><div>{c2.map((r,i)=>rr(r,i,i===c2.length-1))}</div></div>);})()}
+                            {(()=>{const m=Math.ceil(tCpf2.length/2),c1=tCpf2.slice(0,m),c2=tCpf2.slice(m);const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"3px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:10,fontWeight:700,color:"#1C1410",minWidth:28}}>{r.n===1?"À vista":r.n+"x"}</span><span style={{fontSize:10,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt(vb2):fmt(p)}</span><span style={{fontSize:9,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt(t)}</span></div>);};return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{c1.map((r,i)=>rr(r,i,i===c1.length-1))}</div><div>{c2.map((r,i)=>rr(r,i,i===c2.length-1))}</div></div>);})()}
                           </div>
                         )}
                         {/* Boleto resumo */}
@@ -1352,7 +1359,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
         })()}
 
       </>}
-      {tab==="proposta"&&renderProposta()}
+
     </div>
   );
 }
@@ -3003,7 +3010,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Propostas individuais por procedimento */}
           {(()=>{
             const itensSep = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
-            if(!itensSep.length || (p3.modoRel||"soma")==="soma") return null;
+            if(!itensSep.length) return null; if((p3.modoRel||"soma")!=="separado"&&(p3.modoRel||"soma")!=="ambos") return null;
             return(
               <div style={{marginTop:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
@@ -3025,7 +3032,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       const propCi = parseInt(prop.ci||"0");
                       const propCp = prop.cp ? parseInt(prop.cp) : null;
                       const tCprop = (prop.fc&&prop.fc.includes("credito"))
-                        ? [1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vf2,n,propPlano,propQuem);return{n,...r};})
+                        ? [1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vb2,n,propPlano,propQuem);return{n,...r};})
                         : [];
                       const tCfilt = propCp ? tCprop.filter(r=>r.n===1||r.n<=propCp) : tCprop;
                       // Boleto
@@ -3063,7 +3070,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                               {(()=>{
                                 const meio=Math.ceil(tCfilt.length/2);
                                 const col1=tCfilt.slice(0,meio),col2=tCfilt.slice(meio);
-                                const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(vf2):fmt2(p)}</span><span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span></div>);};
+                                const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(vb2):fmt2(p)}</span><span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span></div>);};
                                 return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((r,i)=>rr(r,i,i===col1.length-1))}</div><div>{col2.map((r,i)=>rr(r,i,i===col2.length-1))}</div></div>);
                               })()}
                             </div>
@@ -3119,7 +3126,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               return temPropostaSep ? (
                 <div className="no-print" style={{display:"flex",alignItems:"center",gap:8,marginTop:16,marginBottom:8,padding:"8px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3}}>
                   <span style={{fontSize:11,color:"#5C4A2A",flex:1}}>Apresentação da proposta:</span>
-                  {[["soma","Soma tudo"],["separado","Separado por procedimento"]].map(([k,l])=>(
+                  {[["soma","Soma tudo"],["separado","Separado"],["ambos","Ambos"]].map(([k,l])=>(
                     <div key={k} onClick={()=>onSetModoRel&&onSetModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
                   ))}
                 </div>
