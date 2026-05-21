@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v7.5 - Firebase Realtime Sync
+// v7.6 - Firebase sync fix arrays
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -64,14 +64,31 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
       const hash = JSON.stringify(data._ts||"");
       if(hash === _lastWriteRef.current) return;
       _skipNextRef.current = true;
-      if(data._p1) setP1(data._p1);
-      if(data._p2) setP2(typeof data._p2 === "function" ? data._p2 : data._p2);
-      if(data._p3) setP3(prev=>({...prev,...data._p3}));
-      if(data._p4) {
-        const p4r = data._p4;
-        if(!p4r.procsBase) p4r.procsBase = null;
-        setP4State(p4r);
-      }
+      try {
+        if(data._p1) setP1(data._p1);
+        if(data._p2) {
+          const p2r = data._p2;
+          if(!p2r.achadosDente) p2r.achadosDente = {};
+          if(!p2r.obsAchados) p2r.obsAchados = {};
+          if(!p2r.achados && !p2r.achados) p2r.achados = null;
+          setP2(p2r);
+        }
+        if(data._p3) {
+          const p3r = data._p3;
+          if(!p3r.fc) p3r.fc = [];
+          if(!Array.isArray(p3r.fc)) p3r.fc = Object.values(p3r.fc);
+          setP3(prev=>({...prev,...p3r}));
+        }
+        if(data._p4) {
+          const p4r = data._p4;
+          if(!p4r.procsBase) p4r.procsBase = null;
+          if(!p4r.customProcs) p4r.customProcs = [];
+          if(!Array.isArray(p4r.customProcs)) p4r.customProcs = Object.values(p4r.customProcs);
+          if(p4r.itens && !Array.isArray(p4r.itens)) p4r.itens = Object.values(p4r.itens);
+          if(p4r.itens) p4r.itens = p4r.itens.map(it=>({...it,dentes:it.dentes||[],subtopicos:it.subtopicos||[],subtipos:it.subtipos||{},valoresDente:it.valoresDente||{}}));
+          setP4State(p4r);
+        }
+      } catch(e) { console.error("Firebase sync parse error:", e); }
       setFbUltimoSync(new Date());
       setFbConectado(true);
       setFbStatus("connected");
@@ -87,12 +104,17 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
     const key = fbSanitizeKey(fbSessao);
     const ts = Date.now().toString();
     _lastWriteRef.current = JSON.stringify(ts);
-    _fbDb.ref("sessoes/"+key).set({
+    // Firebase remove arrays vazios e undefined — usar JSON parse/stringify para limpar
+    const clean = JSON.parse(JSON.stringify({
       _ts: ts,
       _lastUpdate: new Date().toISOString(),
       _paciente: p1.nome||"",
-      _p1: p1, _p2: p2, _p3: p3, _p4: p4State,
-    }).catch(e=>console.error("Firebase write error:",e));
+      _p1: p1,
+      _p2: {...p2, achadosDente:p2.achadosDente||{}, obsAchados:p2.obsAchados||{}},
+      _p3: {...p3, fc:p3.fc||[]},
+      _p4: p4State ? {...p4State, customProcs:p4State.customProcs||[], itens:(p4State.itens||[]).map(it=>({...it,dentes:it.dentes||[],subtopicos:it.subtopicos||[],subtipos:it.subtipos||{},valoresDente:it.valoresDente||{}}))} : null,
+    }));
+    _fbDb.ref("sessoes/"+key).set(clean).catch(e=>console.error("Firebase write error:",e));
   },[fbSessao,p1,p2,p3,p4State]);
 
   const desconectar = React.useCallback(() => {
@@ -4455,7 +4477,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.5</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.6</div>
     </div>
   );
 }
