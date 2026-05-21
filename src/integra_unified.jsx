@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v7.1 - barra global + force account chooser
+// v7.2 - drive unificado + pasta excluir + favorito
 
 // CSS de impressão global
 if(typeof document !== "undefined" && !document.getElementById("integra-print-css")) {
@@ -1992,8 +1992,16 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                   {proc.nome}
                 </div>
                 {item.ativo && (
-                  <div onClick={e=>{e.stopPropagation();onChange({...item,_showMiniOrc:!item._showMiniOrc});}} style={{fontSize:9,color:item.proposta?GOLD_DARK:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+(item.proposta?GOLD:BORDER),borderRadius:20,marginLeft:8,whiteSpace:"nowrap"}}>
-                    {item.proposta?"✓ Proposta própria":"+ Proposta individual"}
+                  <div style={{display:"flex",alignItems:"center",gap:4}}>
+                    {editavel&&!item._permanente&&(
+                      <div onClick={e=>{e.stopPropagation();onChange({...item,_permanente:true});}} style={{fontSize:9,color:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+BORDER,borderRadius:20,whiteSpace:"nowrap"}} title="Salvar como favorito">⭐</div>
+                    )}
+                    {editavel&&item._permanente&&(
+                      <div style={{fontSize:9,color:GOLD_DARK,padding:"2px 8px",border:"1px solid "+GOLD,borderRadius:20,whiteSpace:"nowrap",background:GOLD_PALE}}>⭐ Salvo</div>
+                    )}
+                    <div onClick={e=>{e.stopPropagation();onChange({...item,_showMiniOrc:!item._showMiniOrc});}} style={{fontSize:9,color:item.proposta?GOLD_DARK:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+(item.proposta?GOLD:BORDER),borderRadius:20,whiteSpace:"nowrap"}}>
+                      {item.proposta?"✓ Proposta própria":"+ Proposta individual"}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2269,7 +2277,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
 }
 
 function ArquivoDriveSection({onCarregar}) {
-  const [logado, setLogado] = React.useState(!!_gdriveToken);
+  const logado = useDriveLogado();
   const [arquivos, setArquivos] = React.useState(null);
   const [erro, setErro] = React.useState(null);
   const [carregando, setCarregando] = React.useState(null);
@@ -2284,7 +2292,7 @@ function ArquivoDriveSection({onCarregar}) {
     try {
       await gdriveEnsureScript();
       await gdriveLogin();
-      setLogado(true);
+      notifyDriveLogin();
     } catch(e) { setErro(e.message); }
   };
 
@@ -2328,7 +2336,7 @@ function ArquivoDriveSection({onCarregar}) {
       <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
         <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"7px 10px",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,outline:"none"}}/>
         <div onClick={listar} style={{padding:"7px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:10,color:"#9A8060"}}>↻</div>
-        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;setLogado(false);setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Sair</div>
+        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Sair</div>
       </div>
       {erro&&<div style={{fontSize:11,color:"#C62828",marginBottom:8}}>{erro}</div>}
       {!arquivos&&<div style={{textAlign:"center",padding:20,color:"#9A8060",fontSize:11}}>Carregando...</div>}
@@ -3429,6 +3437,14 @@ const GDRIVE_FOLDER_NAME = "Íntegra Clínica — Atendimentos";
 
 let _gdriveToken = null;
 let _gdriveFolderId = null;
+const _driveListeners = new Set();
+function onDriveLogin(fn) { _driveListeners.add(fn); return ()=>_driveListeners.delete(fn); }
+function notifyDriveLogin() { _driveListeners.forEach(fn=>fn(!!_gdriveToken)); }
+function useDriveLogado() {
+  const logado = useDriveLogado();
+  React.useEffect(()=>{ const unsub = onDriveLogin(setLogado); return unsub; },[]);
+  return logado;
+}
 
 async function gdriveEnsureScript() {
   if(window.google && window.google.accounts) return;
@@ -3461,7 +3477,7 @@ async function gdriveLogin() {
       client_id: GDRIVE_CLIENT_ID,
       scope: GDRIVE_SCOPE,
       callback: (r)=>{
-        if(r.access_token){ _gdriveToken=r.access_token; resolve(r.access_token); }
+        if(r.access_token){ _gdriveToken=r.access_token; notifyDriveLogin(); resolve(r.access_token); }
         else reject(new Error("Login cancelado"));
       },
       error_callback: (err)=>{
@@ -3558,10 +3574,38 @@ function DrivePastaModal({onClose, onCarregar}) {
   const [erro, setErro] = React.useState(null);
   const [carregando, setCarregando] = React.useState(null);
   const [filtro, setFiltro] = React.useState("");
+  const [selecionados, setSelecionados] = React.useState(new Set());
+  const [excluindo, setExcluindo] = React.useState(false);
   React.useEffect(()=>{ gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); },[]);
   const extrairNome = (fn) => { const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," "); return m.charAt(0).toUpperCase()+m.slice(1); };
   const fmtData = (iso) => { if(!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
   const carregar = async (arq) => { setCarregando(arq.id); try { const dados = await gdriveCarregarArquivo(arq.id); onCarregar(dados); onClose(); } catch(e) { setErro("Erro: "+e.message); setCarregando(null); } };
+  const toggleSel = (id) => { setSelecionados(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; }); };
+  const selTodos = () => { if(selecionados.size===filtrados.length) setSelecionados(new Set()); else setSelecionados(new Set(filtrados.map(a=>a.id))); };
+  const excluirSelecionados = async () => {
+    if(!selecionados.size) return;
+    if(!window.confirm("Excluir "+selecionados.size+" arquivo(s) do Drive? Esta ação não pode ser desfeita.")) return;
+    setExcluindo(true); setErro(null);
+    try {
+      for(const id of selecionados) { await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}}); }
+      setSelecionados(new Set());
+      const novos = await gdriveListarTodos();
+      setArquivos(novos);
+    } catch(e) { setErro("Erro ao excluir: "+e.message); }
+    setExcluindo(false);
+  };
+  const excluirUnico = async (id) => {
+    if(!window.confirm("Excluir este arquivo do Drive?")) return;
+    setExcluindo(true); setErro(null);
+    try {
+      await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}});
+      const novos = await gdriveListarTodos();
+      setArquivos(novos);
+      selecionados.delete(id);
+      setSelecionados(new Set(selecionados));
+    } catch(e) { setErro("Erro: "+e.message); }
+    setExcluindo(false);
+  };
   const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase())) : [];
   return (
     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
@@ -3569,16 +3613,31 @@ function DrivePastaModal({onClose, onCarregar}) {
         <div style={{padding:"18px 22px 14px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
             <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK}}>Pasta Google Drive</div>
-            <div style={{fontSize:10,color:"#9A8060",marginTop:2}}>Íntegra Clínica — Atendimentos{arquivos?" - "+arquivos.length+" arquivo(s)":""}</div>
+            <div style={{fontSize:10,color:"#9A8060",marginTop:2}}>Íntegra Clínica — Atendimentos{arquivos?" — "+arquivos.length+" arquivo(s)":""}</div>
           </div>
           <div onClick={onClose} style={{cursor:"pointer",fontSize:18,color:"#9A8060",padding:"4px 8px"}}>X</div>
         </div>
-        <div style={{padding:"10px 22px 8px"}}><input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{width:"100%",padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:4,fontSize:12,outline:"none",boxSizing:"border-box"}}/></div>
+        <div style={{padding:"10px 22px 8px",display:"flex",gap:8,alignItems:"center"}}>
+          <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:4,fontSize:12,outline:"none",boxSizing:"border-box"}}/>
+          {filtrados.length>0&&<div onClick={selTodos} style={{padding:"6px 10px",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:9,color:selecionados.size===filtrados.length?GOLD_DARK:"#9A8060",fontWeight:600,whiteSpace:"nowrap"}}>{selecionados.size===filtrados.length?"Desmarcar":"Selecionar tudo"}</div>}
+        </div>
+        {selecionados.size>0&&<div style={{padding:"6px 22px",display:"flex",alignItems:"center",gap:8,background:"#FFF0F0",borderBottom:"1px solid #E57373"}}>
+          <span style={{fontSize:11,color:"#C62828",flex:1}}>{selecionados.size} selecionado(s)</span>
+          <div onClick={excluirSelecionados} style={{padding:"5px 12px",background:"#C62828",color:"#fff",borderRadius:3,cursor:excluindo?"default":"pointer",fontSize:10,fontWeight:600,opacity:excluindo?0.6:1}}>{excluindo?"Excluindo...":"🗑 Excluir selecionados"}</div>
+          <div onClick={()=>setSelecionados(new Set())} style={{padding:"5px 8px",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:10,color:"#9A8060"}}>✕</div>
+        </div>}
         <div style={{flex:1,overflow:"auto",padding:"0 22px 16px"}}>
           {erro&&<div style={{fontSize:11,color:"#C62828",padding:10}}>{erro}</div>}
           {!arquivos&&!erro&&<div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:12}}>Carregando arquivos...</div>}
           {arquivos&&filtrados.length===0&&<div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:12}}>Nenhum arquivo encontrado</div>}
-          {filtrados.map(arq=>(<div key={arq.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid "+BORDER}}><div style={{width:3,height:32,background:GOLD,borderRadius:2,flexShrink:0}}/><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:"#5C4A2A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{extrairNome(arq.name)}</div><div style={{fontSize:9,color:"#9A8060",marginTop:2}}>{fmtData(arq.modifiedTime)}</div></div><div style={{display:"flex",gap:6,flexShrink:0}}><div onClick={()=>carregar(arq)} style={{padding:"5px 10px",background:carregando===arq.id?GOLD_PALE:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>{carregando===arq.id?"...":"Abrir"}</div><a href={"https://drive.google.com/file/d/"+arq.id+"/view"} target="_blank" rel="noopener noreferrer" style={{padding:"5px 10px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:10,color:"#9A8060",textDecoration:"none"}}>Drive</a></div></div>))}
+          {filtrados.map(arq=>{const sel=selecionados.has(arq.id);return(<div key={arq.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid "+BORDER,background:sel?"#FFF8F0":"transparent"}}>
+            <div onClick={()=>toggleSel(arq.id)} style={{width:20,height:20,borderRadius:3,border:"2px solid "+(sel?GOLD_DARK:BORDER),background:sel?GOLD:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{sel&&<span style={{fontSize:10,color:"#fff",fontWeight:900}}>✓</span>}</div>
+            <div onClick={()=>carregar(arq)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#5C4A2A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{extrairNome(arq.name)}</div>
+              <div style={{fontSize:9,color:"#9A8060",marginTop:2}}>{fmtData(arq.modifiedTime)}</div>
+            </div>
+            <div onClick={()=>excluirUnico(arq.id)} style={{padding:"5px 10px",background:"#fff",border:"1px solid #E57373",borderRadius:3,cursor:"pointer",fontSize:10,color:"#C62828",flexShrink:0}}>🗑</div>
+          </div>);})}
         </div>
       </div>
     </div>
@@ -3586,7 +3645,7 @@ function DrivePastaModal({onClose, onCarregar}) {
 }
 
 function DriveSync({relatorio, onCarregar}) {
-  const [logado, setLogado] = React.useState(!!_gdriveToken);
+  const logado = useDriveLogado();
   const [salvando, setSalvando] = React.useState(false);
   const [msgDrive, setMsgDrive] = React.useState(null);
   const [modalDrive, setModalDrive] = React.useState(null); // {onSobrepor, onDuplicar}
@@ -3604,7 +3663,7 @@ function DriveSync({relatorio, onCarregar}) {
     try {
       await gdriveEnsureScript();
       await gdriveLogin();
-      setLogado(true);
+      notifyDriveLogin();
       setMsgDrive({tipo:"ok",texto:"Conectado ao Drive"});
       setTimeout(()=>setMsgDrive(null),3000);
     } catch(e) {
@@ -3686,7 +3745,7 @@ function DriveSync({relatorio, onCarregar}) {
           }}>
             📁 Ver pasta
           </div>
-          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;setLogado(false);setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
+          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
         </div>
       )}
       {msgDrive&&<div style={{fontSize:10,marginTop:5,color:msgDrive.tipo==="ok"?"#1e7e34":"#C62828"}}>{msgDrive.texto}</div>}
@@ -4204,7 +4263,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.1</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.2</div>
     </div>
   );
 }
