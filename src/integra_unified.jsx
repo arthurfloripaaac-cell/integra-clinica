@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v7.7 - renomear menus salvar/nuvem
+// v7.8 - formulario WhatsApp + assinatura digital
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -301,13 +301,15 @@ function formatCpf(v) {
   return d.replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2");
 }
 
-function P1({data, setData, onNovoPaciente}) {
+function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = data;
 
   const [equipe, setEquipe] = React.useState(EQUIPE);
   const [gerenciandoEquipe, setGerenciandoEquipe] = React.useState(false);
   const [novoMembro, setNovoMembro] = React.useState({nome:"", area:""});
   const [adicionandoMembro, setAdicionandoMembro] = React.useState(false);
+  const [showEnviarForm, setShowEnviarForm] = React.useState(false);
+  const [linkCopiado, setLinkCopiado] = React.useState(false);
 
   // Carregar equipe persistente
   useEffect(()=>{
@@ -365,14 +367,55 @@ function P1({data, setData, onNovoPaciente}) {
       <Card>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
           <SectionTitle style={{margin:0}}>Dados do Paciente</SectionTitle>
-          {onNovoPaciente&&<div onClick={()=>{
-            const temDados = data.nome && data.nome.trim().length>0;
-            if(temDados && !window.confirm("Iniciar novo paciente? Os dados atuais n\u00e3o salvos ser\u00e3o perdidos.")) return;
-            onNovoPaciente();
-          }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#fff",border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK}}>
-            + Novo Paciente
+          {onNovoPaciente&&<div style={{display:"flex",gap:6}}>
+            <div onClick={()=>{
+              const temDados = data.nome && data.nome.trim().length>0;
+              if(temDados && !window.confirm("Iniciar novo paciente? Os dados atuais n\u00e3o salvos ser\u00e3o perdidos.")) return;
+              onNovoPaciente();
+            }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#fff",border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK}}>
+              + Novo
+            </div>
+            <div onClick={()=>setShowEnviarForm(!showEnviarForm)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
+              📱 WhatsApp
+            </div>
           </div>}
         </div>
+        {/* Painel enviar formulário via WhatsApp */}
+        {showEnviarForm&&(
+          <div style={{marginBottom:14,padding:"14px 16px",background:"#E8F5E9",border:"1px solid #4CAF50",borderRadius:4}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#2E7D32",marginBottom:8}}>Enviar formulário via WhatsApp</div>
+            <div style={{fontSize:11,color:"#5C4A2A",marginBottom:10,lineHeight:1.5}}>O paciente preenche os dados pelo celular e eles aparecem automaticamente aqui.</div>
+            {(()=>{
+              const fid = "f"+Date.now().toString(36);
+              const link = (typeof window!=="undefined"?window.location.origin:"")+"/f/"+fid;
+              const msg = "Olá! Segue o link para preencher seu cadastro na Íntegra Clínica Odontológica:\n"+link;
+              const waLink = "https://wa.me/?text="+encodeURIComponent(msg);
+              return(
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <div style={{padding:"10px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,wordBreak:"break-all",color:GOLD_DARK,fontWeight:500}}>{link}</div>
+                  <div style={{display:"flex",gap:8}}>
+                    <div onClick={()=>{navigator.clipboard.writeText(link);setLinkCopiado(true);setTimeout(()=>setLinkCopiado(false),2000);}} style={{flex:1,padding:"10px",background:linkCopiado?"#4CAF50":"#fff",border:"1px solid "+(linkCopiado?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:linkCopiado?"#fff":"#5C4A2A",textAlign:"center"}}>
+                      {linkCopiado?"✓ Copiado!":"📋 Copiar link"}
+                    </div>
+                    <a href={waLink} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"10px",background:"#25D366",borderRadius:4,fontSize:11,fontWeight:700,color:"#fff",textAlign:"center",textDecoration:"none",display:"block"}}>
+                      Abrir WhatsApp
+                    </a>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+        {/* Formulários recebidos via WhatsApp */}
+        {onImportarFormulario&&(
+          <div style={{marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+              <span style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Formulários Recebidos</span>
+              <div style={{flex:1,height:1,background:BORDER}}/>
+            </div>
+            <FormulariosRecebidos onImportar={onImportarFormulario}/>
+          </div>
+        )}
         <div style={{marginBottom:12}}>
           <Field label="Nome completo"><input style={inp} spellCheck={false} value={nome} onChange={e=>set("nome",e.target.value)} placeholder="Nome completo"/></Field>
         </div>
@@ -4208,7 +4251,301 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
   </>);
 }
 
+// ─── FORMULÁRIO PÚBLICO DO PACIENTE (via WhatsApp) ─────────────
+function AssinaturaCanvas({value, onChange}) {
+  const canvasRef = React.useRef(null);
+  const [desenhando, setDesenhando] = React.useState(false);
+  const [temTraco, setTemTraco] = React.useState(!!value);
+
+  React.useEffect(()=>{
+    if(value && canvasRef.current) {
+      const img = new Image();
+      img.onload = ()=>{
+        const ctx = canvasRef.current.getContext("2d");
+        ctx.clearRect(0,0,canvasRef.current.width,canvasRef.current.height);
+        ctx.drawImage(img,0,0);
+      };
+      img.src = value;
+    }
+  },[]);
+
+  const getPos = (e) => {
+    const r = canvasRef.current.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {x:t.clientX-r.left, y:t.clientY-r.top};
+  };
+
+  const iniciar = (e) => {
+    e.preventDefault();
+    setDesenhando(true);
+    const ctx = canvasRef.current.getContext("2d");
+    const p = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x,p.y);
+  };
+
+  const mover = (e) => {
+    if(!desenhando) return;
+    e.preventDefault();
+    const ctx = canvasRef.current.getContext("2d");
+    const p = getPos(e);
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#1C1410";
+    ctx.lineTo(p.x,p.y);
+    ctx.stroke();
+    setTemTraco(true);
+  };
+
+  const parar = () => {
+    setDesenhando(false);
+    if(canvasRef.current && temTraco) {
+      onChange(canvasRef.current.toDataURL("image/png"));
+    }
+  };
+
+  const limpar = () => {
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.clearRect(0,0,canvasRef.current.width,canvasRef.current.height);
+    setTemTraco(false);
+    onChange("");
+  };
+
+  return (
+    <div>
+      <canvas ref={canvasRef} width={320} height={140}
+        onMouseDown={iniciar} onMouseMove={mover} onMouseUp={parar} onMouseLeave={parar}
+        onTouchStart={iniciar} onTouchMove={mover} onTouchEnd={parar}
+        style={{width:"100%",maxWidth:320,height:140,border:"2px solid "+BORDER,borderRadius:4,background:"#fff",touchAction:"none",cursor:"crosshair"}}
+      />
+      {temTraco&&<div onClick={limpar} style={{fontSize:10,color:"#E57373",cursor:"pointer",marginTop:6}}>✕ Limpar assinatura</div>}
+    </div>
+  );
+}
+
+function FormularioPaciente({formId}) {
+  const [nome, setNome] = React.useState("");
+  const [cpf, setCpf] = React.useState("");
+  const [telefone, setTelefone] = React.useState("");
+  const [dataNasc, setDataNasc] = React.useState("");
+  const [respNome, setRespNome] = React.useState("");
+  const [respCpf, setRespCpf] = React.useState("");
+  const [assinatura, setAssinatura] = React.useState("");
+  const [enviado, setEnviado] = React.useState(false);
+  const [enviando, setEnviando] = React.useState(false);
+  const [erro, setErro] = React.useState("");
+  const [idade, setIdade] = React.useState(null);
+  const [isMinor, setIsMinor] = React.useState(false);
+
+  React.useEffect(()=>{
+    if(!dataNasc) { setIdade(null); setIsMinor(false); return; }
+    const nasc = new Date(dataNasc), hoje = new Date();
+    let anos = hoje.getFullYear()-nasc.getFullYear();
+    const m = hoje.getMonth()-nasc.getMonth();
+    if(m<0||(m===0&&hoje.getDate()<nasc.getDate())) anos--;
+    if(anos>=0&&anos<130) { setIdade(anos); setIsMinor(anos<18); }
+  },[dataNasc]);
+
+  const enviar = async () => {
+    if(!nome.trim()) { setErro("Preencha seu nome completo"); return; }
+    if(!cpf.trim()) { setErro("Preencha seu CPF"); return; }
+    if(!telefone.trim()) { setErro("Preencha seu telefone"); return; }
+    if(!dataNasc) { setErro("Preencha sua data de nascimento"); return; }
+    if(isMinor && !respNome.trim()) { setErro("Preencha o nome do responsável legal"); return; }
+    if(!assinatura) { setErro("Assine no campo de assinatura"); return; }
+    setErro("");
+    setEnviando(true);
+    try {
+      await new Promise((res)=>{
+        onFirebaseReady(()=>{
+          _fbDb.ref("formularios/"+formId).set({
+            nome: nome.trim(),
+            cpf: cpf.trim(),
+            telefone: telefone.replace(/\D/g,""),
+            dataNasc,
+            idade: idade+" anos",
+            isMinor,
+            respNome: isMinor?respNome.trim():"",
+            respCpf: isMinor?respCpf.trim():"",
+            assinatura,
+            dataEnvio: new Date().toISOString(),
+            formId,
+            status: "pendente",
+          }).then(res).catch(e=>{setErro("Erro ao enviar: "+e.message);setEnviando(false);});
+        });
+      });
+      setEnviado(true);
+    } catch(e) { setErro("Erro: "+e.message); setEnviando(false); }
+  };
+
+  const inpF = {width:"100%",padding:"12px 14px",border:"1px solid "+BORDER,borderRadius:4,fontSize:15,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box"};
+
+  if(enviado) return (
+    <div style={{minHeight:"100vh",background:CREAM,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"#fff",borderRadius:8,padding:32,maxWidth:400,width:"100%",textAlign:"center",border:"1px solid "+GOLD,boxShadow:"0 4px 20px rgba(0,0,0,0.1)"}}>
+        <div style={{fontSize:48,marginBottom:16}}>✓</div>
+        <div style={{fontSize:18,fontWeight:700,color:GOLD_DARK,marginBottom:8}}>Dados enviados com sucesso!</div>
+        <div style={{fontSize:13,color:"#5C4A2A",lineHeight:1.6}}>Obrigado, {nome.split(" ")[0]}. Seus dados foram recebidos pela equipe da Íntegra Clínica Odontológica. Você pode fechar esta página.</div>
+        <div style={{marginTop:20,padding:"12px 16px",background:GOLD_PALE,borderRadius:4,fontSize:11,color:GOLD_DARK}}>Íntegra Clínica Odontológica · Desde 1996</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{minHeight:"100vh",background:CREAM,padding:"0 0 40px"}}>
+      {/* Header */}
+      <div style={{background:"linear-gradient(135deg,#2C1810 0%,#1A0F08 100%)",padding:"20px 24px",display:"flex",alignItems:"center",gap:12}}>
+        <svg width="32" height="42" viewBox="0 0 40 52" fill="none">
+          <ellipse cx="20" cy="26" rx="18" ry="24" stroke="#B8962E" strokeWidth="1.5"/>
+          <text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill="#B8962E">i</text>
+        </svg>
+        <div>
+          <div style={{fontFamily:"Georgia",fontSize:18,fontWeight:700,color:"#fff",letterSpacing:3,textTransform:"uppercase"}}>Íntegra</div>
+          <div style={{fontSize:7,letterSpacing:2.5,color:GOLD_LIGHT,textTransform:"uppercase"}}>Clínica Odontológica · Desde 1996</div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:420,margin:"0 auto",padding:"20px 16px"}}>
+        <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:8,padding:"24px 20px",boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+          <div style={{fontSize:15,fontWeight:700,color:GOLD_DARK,marginBottom:4}}>Cadastro do Paciente</div>
+          <div style={{fontSize:12,color:"#9A8060",marginBottom:20,lineHeight:1.5}}>Preencha seus dados pessoais para agilizar seu atendimento na clínica.</div>
+
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>Nome completo *</label>
+              <input style={inpF} value={nome} onChange={e=>setNome(e.target.value)} placeholder="Seu nome completo" spellCheck={false}/>
+            </div>
+            <div>
+              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>CPF *</label>
+              <input style={inpF} value={cpf} onChange={e=>setCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric"/>
+            </div>
+            <div>
+              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>Telefone / WhatsApp *</label>
+              <input style={inpF} value={maskTelefone(telefone)} onChange={e=>setTelefone(e.target.value.replace(/\D/g,""))} placeholder="(48) 99999-9999" inputMode="tel"/>
+            </div>
+            <div>
+              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>Data de nascimento *</label>
+              <input style={inpF} type="date" value={dataNasc} onChange={e=>setDataNasc(e.target.value)}/>
+            </div>
+            {idade!==null&&(
+              <div style={{fontSize:12,color:isMinor?PURPLE:GOLD_DARK,fontWeight:600,padding:"8px 12px",background:isMinor?"rgba(91,45,142,0.06)":GOLD_PALE,borderRadius:4,border:"1px solid "+(isMinor?"rgba(91,45,142,0.2)":GOLD_LIGHT)}}>
+                {isMinor?"⚠️ Menor de idade — preencha o responsável abaixo":idade+" anos"}
+              </div>
+            )}
+            {isMinor&&(
+              <div style={{padding:"14px 16px",background:"rgba(91,45,142,0.05)",border:"1px solid rgba(91,45,142,0.2)",borderRadius:4}}>
+                <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:10}}>Responsável Legal</div>
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  <div>
+                    <label style={{fontSize:10,color:PURPLE,fontWeight:600,display:"block",marginBottom:4}}>Nome do responsável *</label>
+                    <input style={inpF} value={respNome} onChange={e=>setRespNome(e.target.value)} placeholder="Nome completo do responsável" spellCheck={false}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:10,color:PURPLE,fontWeight:600,display:"block",marginBottom:4}}>CPF do responsável</label>
+                    <input style={inpF} value={respCpf} onChange={e=>setRespCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric"/>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Assinatura */}
+            <div>
+              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>Assinatura digital *</label>
+              <div style={{fontSize:11,color:"#9A8060",marginBottom:8}}>Desenhe sua assinatura com o dedo ou mouse no campo abaixo</div>
+              <AssinaturaCanvas value={assinatura} onChange={setAssinatura}/>
+            </div>
+
+            {/* Termo */}
+            <div style={{fontSize:10,color:"#9A8060",lineHeight:1.6,padding:"10px 12px",background:"#FAFAF8",borderRadius:4,border:"1px solid "+BORDER}}>
+              Ao enviar este formulário, declaro que as informações prestadas são verdadeiras e autorizo a Íntegra Clínica Odontológica a utilizar estes dados para fins de atendimento odontológico.
+            </div>
+
+            {erro&&<div style={{fontSize:12,color:"#C62828",padding:"8px 12px",background:"#FFF0F0",border:"1px solid #E57373",borderRadius:4}}>{erro}</div>}
+
+            <div onClick={enviando?null:enviar} style={{padding:"14px",background:enviando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:4,cursor:enviando?"default":"pointer",fontSize:14,fontWeight:700,textAlign:"center",letterSpacing:0.5}}>
+              {enviando?"Enviando...":"Enviar dados"}
+            </div>
+          </div>
+        </div>
+
+        <div style={{textAlign:"center",marginTop:16,fontSize:10,color:"#9A8060"}}>
+          Íntegra Clínica Odontológica · www.odontologiaintegra.com.br
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LISTA DE FORMULÁRIOS RECEBIDOS ─────────────────
+function FormulariosRecebidos({onImportar}) {
+  const [formularios, setFormularios] = React.useState(null);
+  const [erro, setErro] = React.useState(null);
+
+  React.useEffect(()=>{
+    onFirebaseReady(()=>{
+      _fbDb.ref("formularios").orderByChild("dataEnvio").on("value", (snap)=>{
+        const data = snap.val();
+        if(!data) { setFormularios([]); return; }
+        const list = Object.entries(data).map(([k,v])=>({...v,_key:k})).sort((a,b)=>(b.dataEnvio||"").localeCompare(a.dataEnvio||""));
+        setFormularios(list);
+      });
+    });
+    return ()=>{ if(_fbDb) _fbDb.ref("formularios").off(); };
+  },[]);
+
+  const importar = (f) => {
+    onImportar({
+      nome: f.nome||"",
+      cpf: f.cpf||"",
+      telefone: f.telefone||"",
+      dataNasc: f.dataNasc||"",
+      idade: f.idade||"",
+      isMinor: f.isMinor||false,
+      respNome: f.respNome||"",
+      respCpf: f.respCpf||"",
+      assinatura: f.assinatura||"",
+    });
+    _fbDb.ref("formularios/"+f._key+"/status").set("importado");
+  };
+
+  const excluir = (f) => {
+    if(!window.confirm("Excluir formulário de "+f.nome+"?")) return;
+    _fbDb.ref("formularios/"+f._key).remove();
+  };
+
+  const fmtData = (iso) => { if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
+
+  if(!formularios) return <div style={{fontSize:11,color:"#9A8060",padding:12}}>Carregando formulários...</div>;
+  if(!formularios.length) return <div style={{fontSize:11,color:"#9A8060",padding:12,textAlign:"center"}}>Nenhum formulário recebido ainda.</div>;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {formularios.map(f=>(
+        <div key={f._key} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",border:"1px solid "+(f.status==="importado"?BORDER:GOLD),borderRadius:4,background:f.status==="importado"?"#FAFAF8":"#FFF"}}>
+          <div style={{width:4,height:36,background:f.status==="importado"?"#9A8060":GOLD,borderRadius:2,flexShrink:0}}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:12,fontWeight:600,color:"#1C1410"}}>{f.nome}</div>
+            <div style={{fontSize:10,color:"#9A8060"}}>{f.cpf} · {fmtData(f.dataEnvio)}</div>
+          </div>
+          <div style={{display:"flex",gap:6,flexShrink:0}}>
+            {f.status!=="importado"&&<div onClick={()=>importar(f)} style={{padding:"5px 10px",background:GOLD,color:"#fff",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>Importar</div>}
+            {f.status==="importado"&&<span style={{fontSize:9,color:"#9A8060",padding:"5px 8px"}}>✓ Importado</span>}
+            <div onClick={()=>excluir(f)} style={{padding:"5px 8px",border:"1px solid #E57373",borderRadius:3,cursor:"pointer",fontSize:10,color:"#C62828"}}>🗑</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function App() {
+  // Detectar URL de formulário público /f/xxxxx
+  const urlPath = typeof window !== "undefined" ? window.location.pathname : "";
+  const formMatch = urlPath.match(/\/f\/([a-zA-Z0-9_-]+)/);
+  if(formMatch) {
+    return <FormularioPaciente formId={formMatch[1]}/>;
+  }
+
   const [pag, setPag] = useState("p1");
   const [showConfigs, setShowConfigs] = useState(false);
   const driveLogado = useDriveLogado();
@@ -4401,6 +4738,8 @@ function App() {
   setP3(prev=>({...p3Initial, ds:prev.ds, ci:prev.ci, quemPaga:prev.quemPaga, plano:prev.plano}));
   setP4State(prev=>({...p4Initial, procsBase:prev.procsBase, customProcs:(prev.customProcs||[]).map(c=>({...c,ativo:false,dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}))}));
   _driveFileId=null; _driveFileName=null; _lastSyncHash="";
+}} onImportarFormulario={(f)=>{
+  setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf}));
 }}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State}/>}
@@ -4477,7 +4816,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.7</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.8</div>
     </div>
   );
 }
