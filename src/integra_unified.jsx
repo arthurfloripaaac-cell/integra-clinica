@@ -241,7 +241,7 @@ function P1({data, setData, onNovoPaciente}) {
           </div>}
         </div>
         <div style={{marginBottom:12}}>
-          <Field label="Nome completo"><input style={inp} spellCheck={false} value={nome} onChange={e=>set("nome",e.target.value)} spellCheck={false} placeholder="Nome completo"/></Field>
+          <Field label="Nome completo"><input style={inp} spellCheck={false} value={nome} onChange={e=>set("nome",e.target.value)} placeholder="Nome completo"/></Field>
         </div>
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12}}>
           <Field label="CPF"><input style={inp} value={cpf} onChange={e=>set("cpf",formatCpf(e.target.value))} placeholder="000.000.000-00"/></Field>
@@ -292,7 +292,7 @@ function P1({data, setData, onNovoPaciente}) {
                 <div onClick={()=>setAdicionandoMembro(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"8px",border:"1.5px dashed "+BORDER,borderRadius:2,cursor:"pointer",color:GOLD_DARK,fontSize:11,fontWeight:600}}>+ Novo membro</div>
               ):(
                 <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                  <input style={{flex:1,padding:"7px 8px",border:"1px solid "+GOLD,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit"}} value={novoMembro.nome} onChange={e=>setNovoMembro(p=>({...p,nome:e.target.value}))} spellCheck={false} spellCheck={false} placeholder="Nome completo" autoFocus/>
+                  <input style={{flex:1,padding:"7px 8px",border:"1px solid "+GOLD,borderRadius:2,fontSize:12,outline:"none",fontFamily:"inherit"}} value={novoMembro.nome} onChange={e=>setNovoMembro(p=>({...p,nome:e.target.value}))} spellCheck={false} placeholder="Nome completo" autoFocus/>
                   <input style={{flex:1,padding:"7px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,outline:"none",fontFamily:"inherit"}} value={novoMembro.area} onChange={e=>setNovoMembro(p=>({...p,area:e.target.value}))} spellCheck={false} placeholder="Especialidade"/>
                   <div onClick={adicionarMembro} style={{padding:"7px 12px",background:GOLD,color:"#fff",borderRadius:2,fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0}}>+ Add</div>
                   <div onClick={()=>{setAdicionandoMembro(false);setNovoMembro({nome:"",area:""}); }} style={{padding:"7px 8px",border:"1px solid "+BORDER,borderRadius:2,fontSize:11,cursor:"pointer",color:"#9A8060",flexShrink:0}}>✕</div>
