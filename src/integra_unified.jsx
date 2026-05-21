@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v7.2 - drive unificado + pasta excluir + favorito
+// v7.3 - drive unificado corrigido + pasta excluir em todos os locais
 
 // CSS de impressão global
 if(typeof document !== "undefined" && !document.getElementById("integra-print-css")) {
@@ -2282,6 +2282,8 @@ function ArquivoDriveSection({onCarregar}) {
   const [erro, setErro] = React.useState(null);
   const [carregando, setCarregando] = React.useState(null);
   const [filtro, setFiltro] = React.useState("");
+  const [selecionados, setSelecionados] = React.useState(new Set());
+  const [excluindo, setExcluindo] = React.useState(false);
 
   const login = async () => {
     if(!window.location.hostname.includes("integra-clinica") && window.location.hostname !== "localhost") {
@@ -2292,8 +2294,10 @@ function ArquivoDriveSection({onCarregar}) {
     try {
       await gdriveEnsureScript();
       await gdriveLogin();
-      notifyDriveLogin();
-    } catch(e) { setErro(e.message); }
+    } catch(e) {
+      const msg = e&&e.message?e.message:"";
+      setErro(msg.includes("cancelado")||msg.includes("access_denied")?"Use: integratrindade@gmail.com, arthurarioli@hotmail.com ou arthurfloripa.aac@gmail.com":"Erro: "+msg);
+    }
   };
 
   const listar = async () => {
@@ -2319,6 +2323,29 @@ function ArquivoDriveSection({onCarregar}) {
     setCarregando(null);
   };
 
+  const toggleSel = (id) => { setSelecionados(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; }); };
+
+  const excluirSelecionados = async () => {
+    if(!selecionados.size) return;
+    if(!window.confirm("Excluir "+selecionados.size+" arquivo(s) do Drive?")) return;
+    setExcluindo(true);
+    try {
+      for(const id of selecionados) { await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}}); }
+      setSelecionados(new Set());
+      setArquivos(await gdriveListarTodos());
+    } catch(e) { setErro("Erro ao excluir: "+e.message); }
+    setExcluindo(false);
+  };
+
+  const excluirUnico = async (id) => {
+    if(!window.confirm("Excluir este arquivo do Drive?")) return;
+    try {
+      await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}});
+      setArquivos(await gdriveListarTodos());
+      selecionados.delete(id); setSelecionados(new Set(selecionados));
+    } catch(e) { setErro("Erro: "+e.message); }
+  };
+
   const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase())) : [];
 
   if(!logado) return (
@@ -2335,26 +2362,29 @@ function ArquivoDriveSection({onCarregar}) {
     <div>
       <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
         <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"7px 10px",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,outline:"none"}}/>
+        {filtrados.length>0&&<div onClick={()=>{if(selecionados.size===filtrados.length)setSelecionados(new Set());else setSelecionados(new Set(filtrados.map(a=>a.id)));}} style={{padding:"5px 8px",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:9,color:"#9A8060"}}>{selecionados.size===filtrados.length?"Desmarcar":"Sel. tudo"}</div>}
         <div onClick={listar} style={{padding:"7px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:10,color:"#9A8060"}}>↻</div>
         <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Sair</div>
       </div>
+      {selecionados.size>0&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,padding:"6px 10px",background:"#FFF0F0",border:"1px solid #E57373",borderRadius:3}}>
+        <span style={{fontSize:11,color:"#C62828",flex:1}}>{selecionados.size} selecionado(s)</span>
+        <div onClick={excluirSelecionados} style={{padding:"4px 10px",background:"#C62828",color:"#fff",borderRadius:3,cursor:excluindo?"default":"pointer",fontSize:10,fontWeight:600}}>{excluindo?"Excluindo...":"🗑 Excluir"}</div>
+        <div onClick={()=>setSelecionados(new Set())} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>✕</div>
+      </div>}
       {erro&&<div style={{fontSize:11,color:"#C62828",marginBottom:8}}>{erro}</div>}
       {!arquivos&&<div style={{textAlign:"center",padding:20,color:"#9A8060",fontSize:11}}>Carregando...</div>}
       {arquivos&&<div style={{fontSize:10,color:"#9A8060",marginBottom:6}}>{arquivos.length} arquivo(s) na pasta</div>}
       {arquivos&&filtrados.length===0&&<div style={{textAlign:"center",padding:14,color:"#9A8060",fontSize:11}}>Nenhum arquivo encontrado</div>}
-      {filtrados.map(arq=>(
-        <div key={arq.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
-          <div style={{width:3,height:28,background:GOLD,borderRadius:2,flexShrink:0}}/>
-          <div style={{flex:1,minWidth:0}}>
+      {filtrados.map(arq=>{const sel=selecionados.has(arq.id);return(
+        <div key={arq.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+BORDER,background:sel?"#FFF8F0":"transparent"}}>
+          <div onClick={()=>toggleSel(arq.id)} style={{width:18,height:18,borderRadius:3,border:"2px solid "+(sel?GOLD_DARK:BORDER),background:sel?GOLD:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{sel&&<span style={{fontSize:9,color:"#fff",fontWeight:900}}>✓</span>}</div>
+          <div onClick={()=>carregar(arq)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
             <div style={{fontSize:12,fontWeight:600,color:"#5C4A2A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{extrairNome(arq.name)}</div>
             <div style={{fontSize:9,color:"#9A8060",marginTop:1}}>{fmtData(arq.modifiedTime)}</div>
           </div>
-          <div style={{display:"flex",gap:6,flexShrink:0}}>
-            <div onClick={()=>carregar(arq)} style={{padding:"4px 10px",background:carregando===arq.id?GOLD_PALE:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>{carregando===arq.id?"...":"Abrir"}</div>
-            <a href={"https://drive.google.com/file/d/"+arq.id+"/view"} target="_blank" rel="noopener noreferrer" style={{padding:"4px 10px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:10,color:"#9A8060",textDecoration:"none"}}>Drive ↗</a>
-          </div>
+          <div onClick={()=>excluirUnico(arq.id)} style={{padding:"4px 8px",border:"1px solid #E57373",borderRadius:3,cursor:"pointer",fontSize:10,color:"#C62828",flexShrink:0}}>🗑</div>
         </div>
-      ))}
+      );})}
     </div>
   );
 }
@@ -4142,7 +4172,7 @@ function App() {
             🖨️ Imprimir
           </div>
           {!driveLogado&&(
-            <div onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();window.location.reload();}catch(e){alert(e.message.includes("cancelado")?"Use: integratrindade@gmail.com, arthurarioli@hotmail.com ou arthurfloripa.aac@gmail.com":"Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid #dadce0",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#3c4043"}}>
+            <div onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();}catch(e){alert(e.message.includes("cancelado")||e.message.includes("access_denied")?"Use: integratrindade@gmail.com, arthurarioli@hotmail.com ou arthurfloripa.aac@gmail.com":"Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid #dadce0",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#3c4043"}}>
               <svg width="12" height="12" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
               Drive
             </div>
@@ -4264,7 +4294,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.2</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v7.3</div>
     </div>
   );
 }
