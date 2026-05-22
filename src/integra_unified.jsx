@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.7 - sync flutuante + spellcheck force + drive fix
+// v8.8 - corretor IA + sync visual + drive save fix
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -2422,9 +2422,24 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                 boxSizing:"border-box",
               }}
             />
+            {(item.obs||"").trim().length>0&&(
+              <div style={{marginTop:6,display:"flex",alignItems:"center",gap:6}}>
+                <div onClick={async()=>{
+                  if(item._corrigindo) return;
+                  onChange({...item, _corrigindo:true});
+                  try {
+                    const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,system:"Corrija APENAS erros de ortografia e digitação. Não altere o texto, não reescreva. Retorne SOMENTE o texto corrigido.",messages:[{role:"user",content:item.obs}]})});
+                    const d = await res.json();
+                    const corrigido = d.content.map(i=>i.text||"").join("").trim();
+                    if(corrigido && corrigido !== item.obs) onChange({...item, obs:corrigido, _corrigindo:false});
+                    else onChange({...item, _corrigindo:false});
+                  } catch(e){onChange({...item, _corrigindo:false});}
+                }} style={{padding:"4px 10px",borderRadius:20,background:item._corrigindo?"#ccc":GOLD,color:"#fff",fontSize:10,fontWeight:600,cursor:item._corrigindo?"default":"pointer"}}>
+                  {item._corrigindo?"Corrigindo...":"✓ Corrigir ortografia"}
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Subtópicos / Etapas do procedimento */}
           <div style={{ marginTop: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>Etapas / Detalhes</div>
@@ -4682,7 +4697,7 @@ function App() {
           </div>
           {driveLogado?(
             <>
-              <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now(),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",_p1:p1,_p2:p2,_p3:p3,_p4:p4State};await gdriveSalvarAtendimento(rel);}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#e8f5e9",border:"1px solid #34A853",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#1e7e34"}}>
+              <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now(),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,_driveFileId?"sobrepor":false);if(res&&res.precisaConfirmar){const op=window.confirm("Arquivo já existe. OK=Sobrepor / Cancelar=Nova cópia");await gdriveSalvarAtendimento(rel,op);}}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#e8f5e9",border:"1px solid #34A853",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#1e7e34"}}>
                 ☁ Salvar no Drive
               </div>
               <div onClick={()=>setShowGlobalPasta(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
@@ -4708,12 +4723,13 @@ function App() {
           background:fb.fbConectado?"#E8F5E9":"#fff",
           border:"2px solid "+(fb.fbConectado?"#4CAF50":BORDER),
           borderRadius:24,padding:"8px 14px",
-          cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.2)",
+          cursor:"pointer",boxShadow:fb.fbConectado?"0 0 12px rgba(76,175,80,0.4)":"0 3px 12px rgba(0,0,0,0.2)",
           display:"flex",alignItems:"center",gap:6,fontSize:10,fontWeight:700,
           color:fb.fbConectado?"#2E7D32":"#9A8060",
+          animation:fb.fbConectado?"none":"none",
         }}>
-          <div style={{width:8,height:8,borderRadius:"50%",background:fb.fbConectado?"#4CAF50":"#ccc",boxShadow:fb.fbConectado?"0 0 6px #4CAF50":"none"}}/>
-          {fb.fbConectado?("📡 "+fb.fbSessao):"📡 Sync"}
+          <div style={{width:10,height:10,borderRadius:"50%",background:fb.fbConectado?"#4CAF50":"#ccc",boxShadow:fb.fbConectado?"0 0 8px #4CAF50":"none",border:fb.fbConectado?"2px solid #2E7D32":"2px solid #ddd"}}/>
+          {fb.fbConectado?("🔗 "+fb.fbSessao):"📡 Conectar"}
         </div>
       )}
 
@@ -4895,7 +4911,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.7</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.8</div>
     </div>
   );
 }
