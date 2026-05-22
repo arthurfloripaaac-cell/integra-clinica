@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.3 - 8 melhorias menu+whatsapp+sync+drive
+// v8.4 - barra global completa + whatsapp fix + pdf separado
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -383,13 +383,13 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
             }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#fff",border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK}}>
               + Novo
             </div>
-            <div onClick={()=>{if(!showEnviarForm){setFormLinkId("f"+Date.now().toString(36));}setShowEnviarForm(!showEnviarForm);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
+            <div onClick={()=>{setFormLinkId("f"+Date.now().toString(36));setShowEnviarForm(!showEnviarForm);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
               📱 WhatsApp
             </div>
           </div>}
         </div>
         {/* Painel enviar formulário via WhatsApp */}
-        {showEnviarForm&&formLinkId&&(
+        {showEnviarForm&&(
           <div style={{marginBottom:14,padding:"14px 16px",background:"#E8F5E9",border:"1px solid #4CAF50",borderRadius:4}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <div style={{fontSize:12,fontWeight:700,color:"#2E7D32"}}>Enviar formulário via WhatsApp</div>
@@ -4653,6 +4653,7 @@ function App() {
   // Firebase Realtime Sync
   const fb = useFirebaseSync("", p1, p2, p3, p4State, setP1, _setP2Raw, setP3, setP4State);
   const [showFbModal, setShowFbModal] = useState(false);
+  const [showGlobalPasta, setShowGlobalPasta] = useState(false);
 
   return (
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
@@ -4671,12 +4672,27 @@ function App() {
             {relatorioSalvo?"✓ Salvo":"💾 Local"}
           </div>
           <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>window.print(),300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"linear-gradient(135deg,#2C1810,#1A0F08)",color:"#fff",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
-            🖨️ Imprimir / PDF
+            🖨️ Imprimir
           </div>
-          {!driveLogado&&(
+          <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>{const w=window.open("","_blank");if(w){w.document.write(document.querySelector(".relatorio-container").outerHTML);w.document.close();w.print();}else{window.print();}},300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
+            📄 Salvar PDF
+          </div>
+          {driveLogado?(
+            <>
+              <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now(),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",_p1:p1,_p2:p2,_p3:p3,_p4:p4State};await gdriveSalvarAtendimento(rel);}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#e8f5e9",border:"1px solid #34A853",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#1e7e34"}}>
+                ☁ Salvar no Drive
+              </div>
+              <div onClick={()=>setShowGlobalPasta(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
+                ☁ Pacientes em nuvem
+              </div>
+              <div onClick={async()=>{_gdriveToken=null;_gdriveFolderId=null;try{await gdriveEnsureScript();await gdriveLogin();}catch(e){notifyDriveLogin();}}} style={{padding:"6px 10px",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,color:GOLD_DARK}}>
+                Trocar conta
+              </div>
+            </>
+          ):(
             <div onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();}catch(e){alert(e.message.includes("cancelado")||e.message.includes("access_denied")?"Use: integratrindade@gmail.com, arthurarioli@hotmail.com ou arthurfloripa.aac@gmail.com":"Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid #dadce0",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#3c4043"}}>
               <svg width="12" height="12" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-              Drive
+              Conectar Drive
             </div>
           )}
           <div onClick={()=>setShowFbModal(true)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:fb.fbConectado?"#E8F5E9":"#fff",border:"1.5px solid "+(fb.fbConectado?"#4CAF50":BORDER),borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:fb.fbConectado?"#2E7D32":GOLD_DARK}}>
@@ -4685,6 +4701,15 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Modal Pasta Drive Global */}
+      {showGlobalPasta&&<DrivePastaModal onClose={()=>setShowGlobalPasta(false)} onCarregar={(dados)=>{
+        if(dados._p1) setP1(dados._p1);
+        if(dados._p2) setP2(sanitizeP2(dados._p2));
+        if(dados._p3) setP3(prev=>({...prev,...dados._p3}));
+        if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=null; setP4State(p4r); }
+        setShowGlobalPasta(false);
+      }}/>}
 
       {/* Modal Firebase Sync */}
       {showFbModal&&(
@@ -4847,7 +4872,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.3</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.4</div>
     </div>
   );
 }
