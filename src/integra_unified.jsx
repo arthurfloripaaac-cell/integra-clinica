@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.4 - barra global completa + whatsapp fix + pdf separado
+// v8.5 - barra global visivel + sync cancelar + whatsapp fix + pdf separado
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -4660,9 +4660,9 @@ function App() {
       {pag!=="rel"&&<Header/>}
       <DriveAutoSync p1={p1} p2={p2} p3={p3} p4State={p4State} setP1={setP1} setP2={setP2} setP3={setP3} setP4State={setP4State}/>
 
-      {/* Barra de ações globais — visível em todas as abas exceto Relatório (que tem a própria) */}
+      {/* Barra de ações globais — fixa em todas as abas exceto Relatório */}
       {pag!=="rel"&&(
-        <div className="no-print" style={{maxWidth:680,margin:"0 auto",padding:"8px 16px 0",display:"flex",gap:8,alignItems:"center",justifyContent:"flex-end",flexWrap:"wrap"}}>
+        <div className="no-print" style={{maxWidth:680,margin:"0 auto",padding:"10px 16px",display:"flex",gap:6,alignItems:"center",justifyContent:"center",flexWrap:"wrap",background:"#fff",borderBottom:"1px solid "+BORDER}}>
           <div onClick={()=>{
             const dup = verificarDuplicata(p1);
             if(dup) { const opcao = window.confirm("Atendimento ja existe. OK=Sobrepor / Cancelar=Salvar copia"); salvarRelatorio(p1,p2,p3,p4State,opcao); }
@@ -4715,7 +4715,10 @@ function App() {
       {showFbModal&&(
         <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:600,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setShowFbModal(false)}>
           <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:8,padding:24,maxWidth:400,width:"90%",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
-            <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK,marginBottom:4}}>Sincronização em Tempo Real</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK}}>Sincronização em Tempo Real</div>
+              <div onClick={()=>setShowFbModal(false)} style={{cursor:"pointer",fontSize:18,color:"#9A8060",padding:"2px 8px",lineHeight:1}}>✕</div>
+            </div>
             <div style={{fontSize:11,color:"#9A8060",marginBottom:16,lineHeight:1.5}}>
               Conecte dois computadores na mesma sessão para sincronizar dados automaticamente. Tudo que for digitado em um aparece no outro em tempo real.
             </div>
@@ -4747,8 +4750,13 @@ function App() {
                 <div style={{fontSize:10,color:"#9A8060",marginBottom:16,lineHeight:1.5}}>
                   Use o mesmo nome nos dois computadores. Ex: <strong>consultorio-1</strong> ou o nome do paciente.
                 </div>
-                <div onClick={()=>{if(!fb.fbSessao.trim()){alert("Digite um nome para a sessão");return;}onFirebaseReady(()=>fb.conectar(fb.fbSessao));setShowFbModal(false);}} style={{padding:"11px",background:GOLD_DARK,color:"#fff",borderRadius:4,cursor:"pointer",fontSize:12,fontWeight:700,textAlign:"center"}}>
-                  Conectar
+                <div style={{display:"flex",gap:8}}>
+                  <div onClick={()=>{if(!fb.fbSessao.trim()){alert("Digite um nome para a sessão");return;}onFirebaseReady(()=>fb.conectar(fb.fbSessao));setShowFbModal(false);}} style={{flex:1,padding:"11px",background:GOLD_DARK,color:"#fff",borderRadius:4,cursor:"pointer",fontSize:12,fontWeight:700,textAlign:"center"}}>
+                    Conectar
+                  </div>
+                  <div onClick={()=>setShowFbModal(false)} style={{padding:"11px 16px",background:"#fff",border:"1px solid "+BORDER,borderRadius:4,cursor:"pointer",fontSize:12,color:"#9A8060",textAlign:"center"}}>
+                    Cancelar
+                  </div>
                 </div>
               </div>
             )}
@@ -4872,7 +4880,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.4</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.5</div>
     </div>
   );
 }
