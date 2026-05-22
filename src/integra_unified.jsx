@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.5 - barra global visivel + sync cancelar + whatsapp fix + pdf separado
+// v8.6 - star todos + whatsapp fix + obs corretor + whatsapp fix + pdf separado
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -317,7 +317,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
   const [adicionandoMembro, setAdicionandoMembro] = React.useState(false);
   const [showEnviarForm, setShowEnviarForm] = React.useState(false);
   const [linkCopiado, setLinkCopiado] = React.useState(false);
-  const [formLinkId, setFormLinkId] = React.useState("");
+  const [formLinkId, setFormLinkId] = React.useState("f"+Date.now().toString(36));
 
   // Carregar equipe persistente
   useEffect(()=>{
@@ -2191,10 +2191,10 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                 </div>
                 {item.ativo && (
                   <div style={{display:"flex",alignItems:"center",gap:4}}>
-                    {editavel&&!item._permanente&&(
-                      <div onClick={e=>{e.stopPropagation();onChange({...item,_permanente:true});}} style={{fontSize:9,color:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+BORDER,borderRadius:20,whiteSpace:"nowrap"}} title="Salvar como favorito">⭐</div>
+                    {!item._permanente&&(
+                      <div onClick={e=>{e.stopPropagation();onChange({...item,_permanente:true});}} style={{fontSize:9,color:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+BORDER,borderRadius:20,whiteSpace:"nowrap"}} title="Salvar como favorito">⭐ Favoritar</div>
                     )}
-                    {editavel&&item._permanente&&(
+                    {item._permanente&&(
                       <div style={{fontSize:9,color:GOLD_DARK,padding:"2px 8px",border:"1px solid "+GOLD,borderRadius:20,whiteSpace:"nowrap",background:GOLD_PALE}}>⭐ Salvo</div>
                     )}
                     <div onClick={e=>{e.stopPropagation();onChange({...item,_showMiniOrc:!item._showMiniOrc});}} style={{fontSize:9,color:item.proposta?GOLD_DARK:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+(item.proposta?GOLD:BORDER),borderRadius:20,whiteSpace:"nowrap"}}>
@@ -2403,9 +2403,10 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
               lang="pt-BR"
               autoCorrect="on"
               autoCapitalize="sentences"
+              data-gramm="true"
               value={item.obs || ""}
               onChange={e => onChange({ ...item, obs: e.target.value })}
-              placeholder="Anotações clínicas, materiais, observações..."
+              placeholder="Observações clínicas, materiais utilizados..."
               style={{
                 display:"block",
                 width:"100%",
@@ -4880,7 +4881,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.5</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.6</div>
     </div>
   );
 }
