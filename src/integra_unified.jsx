@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.2 - fix null guards achadosDente
+// v8.3 - 8 melhorias menu+whatsapp+sync+drive
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -389,9 +389,15 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
           </div>}
         </div>
         {/* Painel enviar formulário via WhatsApp */}
-        {showEnviarForm&&(
+        {showEnviarForm&&formLinkId&&(
           <div style={{marginBottom:14,padding:"14px 16px",background:"#E8F5E9",border:"1px solid #4CAF50",borderRadius:4}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#2E7D32",marginBottom:8}}>Enviar formulário via WhatsApp</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#2E7D32"}}>Enviar formulário via WhatsApp</div>
+              <div style={{display:"flex",gap:6}}>
+                <div onClick={()=>setFormLinkId("f"+Date.now().toString(36))} style={{fontSize:10,color:"#2E7D32",cursor:"pointer",padding:"3px 8px",border:"1px solid #4CAF50",borderRadius:20}}>+ Novo link</div>
+                <div onClick={()=>setShowEnviarForm(false)} style={{fontSize:10,color:"#9A8060",cursor:"pointer",padding:"3px 8px",border:"1px solid "+BORDER,borderRadius:20}}>✕</div>
+              </div>
+            </div>
             <div style={{fontSize:11,color:"#5C4A2A",marginBottom:10,lineHeight:1.5}}>O paciente preenche os dados pelo celular e eles aparecem automaticamente aqui.</div>
             {(()=>{
               const link = (typeof window!=="undefined"?window.location.origin:"")+"/f/"+formLinkId;
@@ -775,7 +781,7 @@ function P2({data, setData}) {
       {/* Informações Clínicas */}
       <Card>
         <SectionTitle>Informações Clínicas</SectionTitle>
-        <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={obsTexto} onChange={e=>set("obsTexto",e.target.value)} placeholder="Digite informações clínicas adicionais..." style={{width:"100%",padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:2,fontSize:13,color:"#1C1410",background:"#fff",fontFamily:"inherit",minHeight:90,resize:"vertical",lineHeight:1.6}}/>
+        <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={obsTexto} onChange={e=>set("obsTexto",e.target.value)} placeholder="Queixa principal do paciente, histórico clínico, sinais e sintomas..." style={{width:"100%",padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:2,fontSize:13,color:"#1C1410",background:"#fff",fontFamily:"inherit",minHeight:90,resize:"vertical",lineHeight:1.6}}/>
         {obsTexto.trim()&&(
           <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
             <div onClick={corrigir} style={{padding:"6px 14px",borderRadius:20,background:corrigindo?"#ccc":GOLD,color:"#fff",fontSize:11,fontWeight:700,cursor:corrigindo?"default":"pointer"}}>
@@ -3970,8 +3976,9 @@ function DriveSync({relatorio, onCarregar}) {
             background:"#fff",border:"1px solid "+GOLD,
             borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK,
           }}>
-            ☁ Arquivo em nuvem
+            ☁ Arquivo de pacientes em nuvem
           </div>
+          <div onClick={async()=>{_gdriveToken=null;_gdriveFolderId=null;try{await gdriveEnsureScript();await gdriveLogin();}catch(e){notifyDriveLogin();}}} style={{fontSize:10,color:GOLD_DARK,cursor:"pointer",padding:"4px 10px",border:"1px solid "+GOLD,borderRadius:20}}>Trocar conta</div>
           <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
         </div>
       )}
@@ -4260,7 +4267,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
         Salvar
       </div>}
       <div onClick={()=>setShowPastaGlobal(true)} style={{padding:"5px 12px",borderRadius:8,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,color:GOLD_DARK,fontWeight:700,fontSize:10}}>
-        ☁ Nuvem
+        ☁ Pacientes
       </div>
     </div>
     {showPastaGlobal&&<DrivePastaModal onClose={()=>setShowPastaGlobal(false)} onCarregar={(dados)=>{carregarDoDrive(dados);setShowPastaGlobal(false);}}/>}
@@ -4664,7 +4671,7 @@ function App() {
             {relatorioSalvo?"✓ Salvo":"💾 Local"}
           </div>
           <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>window.print(),300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"linear-gradient(135deg,#2C1810,#1A0F08)",color:"#fff",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
-            🖨️ Imprimir
+            🖨️ Imprimir / PDF
           </div>
           {!driveLogado&&(
             <div onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();}catch(e){alert(e.message.includes("cancelado")||e.message.includes("access_denied")?"Use: integratrindade@gmail.com, arthurarioli@hotmail.com ou arthurfloripa.aac@gmail.com":"Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid #dadce0",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#3c4043"}}>
@@ -4689,13 +4696,20 @@ function App() {
             </div>
             {fb.fbConectado?(
               <div>
-                <div style={{padding:12,background:"#E8F5E9",border:"1px solid #4CAF50",borderRadius:4,marginBottom:12}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#2E7D32",marginBottom:4}}>✓ Conectado</div>
-                  <div style={{fontSize:11,color:"#5C4A2A"}}>Sessão: <strong>{fb.fbSessao}</strong></div>
-                  {fb.fbUltimoSync&&<div style={{fontSize:10,color:"#9A8060",marginTop:4}}>Último sync: {fb.fbUltimoSync.toLocaleTimeString("pt-BR")}</div>}
+                <div style={{padding:16,background:"#E8F5E9",border:"1px solid #4CAF50",borderRadius:8,marginBottom:12,textAlign:"center"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:8}}>
+                    <div style={{width:12,height:12,borderRadius:"50%",background:"#4CAF50",boxShadow:"0 0 8px #4CAF50"}}/>
+                    <div style={{width:40,height:2,background:"#4CAF50",borderRadius:1}}/>
+                    <div style={{fontSize:20}}>🔗</div>
+                    <div style={{width:40,height:2,background:"#4CAF50",borderRadius:1}}/>
+                    <div style={{width:12,height:12,borderRadius:"50%",background:"#4CAF50",boxShadow:"0 0 8px #4CAF50"}}/>
+                  </div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#2E7D32"}}>Conexão ativa</div>
+                  <div style={{fontSize:16,fontWeight:700,color:"#1C1410",marginTop:4}}>{fb.fbSessao}</div>
+                  {fb.fbUltimoSync&&<div style={{fontSize:10,color:"#9A8060",marginTop:6}}>Último sync: {fb.fbUltimoSync.toLocaleTimeString("pt-BR")}</div>}
                 </div>
-                <div style={{fontSize:10,color:"#9A8060",marginBottom:12,lineHeight:1.5}}>
-                  No outro computador, abra o sistema e conecte com o mesmo nome de sessão: <strong>{fb.fbSessao}</strong>
+                <div style={{padding:"10px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:4,marginBottom:12,fontSize:11,color:GOLD_DARK,lineHeight:1.5,textAlign:"center"}}>
+                  No outro computador, conecte com: <strong>{fb.fbSessao}</strong>
                 </div>
                 <div onClick={()=>{fb.desconectar();setShowFbModal(false);}} style={{padding:"10px",background:"#fff",border:"1px solid #E57373",borderRadius:4,cursor:"pointer",fontSize:12,color:"#C62828",textAlign:"center",fontWeight:600}}>
                   Desconectar
@@ -4833,7 +4847,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.2</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.3</div>
     </div>
   );
 }
