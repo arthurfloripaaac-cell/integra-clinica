@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.6 - star todos + whatsapp fix + obs corretor + whatsapp fix + pdf separado
+// v8.7 - sync flutuante + spellcheck force + drive fix
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -2589,6 +2589,8 @@ function ArquivoDriveSection({onCarregar}) {
 }
 
 function P4({onTotalChange, p4State, setP4State}) {
+  // Force spellCheck on mount
+  React.useEffect(()=>{try{document.querySelectorAll("textarea").forEach(t=>{t.setAttribute("spellcheck","true");t.setAttribute("lang","pt-BR");});}catch(e){}},[]);
   const defaultItens = PROC_BASE.map(p => ({
     id: p.id, ativo: false,
     valor: String(p.valorPadrao).replace(".", ","),
@@ -3810,7 +3812,7 @@ function DrivePastaModal({onClose, onCarregar}) {
   const [filtro, setFiltro] = React.useState("");
   const [selecionados, setSelecionados] = React.useState(new Set());
   const [excluindo, setExcluindo] = React.useState(false);
-  React.useEffect(()=>{ gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); },[]);
+  React.useEffect(()=>{ _gdriveFolderId=null; gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); },[]);
   const extrairNome = (fn) => { const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," "); return m.charAt(0).toUpperCase()+m.slice(1); };
   const fmtData = (iso) => { if(!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
   const carregar = async (arq) => { setCarregando(arq.id); try { const dados = await gdriveCarregarArquivo(arq.id); onCarregar(dados); onClose(); } catch(e) { setErro("Erro: "+e.message); setCarregando(null); } };
@@ -4696,10 +4698,22 @@ function App() {
               Conectar Drive
             </div>
           )}
-          <div onClick={()=>setShowFbModal(true)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:fb.fbConectado?"#E8F5E9":"#fff",border:"1.5px solid "+(fb.fbConectado?"#4CAF50":BORDER),borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:fb.fbConectado?"#2E7D32":GOLD_DARK}}>
-            <div style={{width:8,height:8,borderRadius:"50%",background:fb.fbConectado?"#4CAF50":"#ccc",boxShadow:fb.fbConectado?"0 0 6px #4CAF50":"none",flexShrink:0}}/>
-            {fb.fbConectado?("📡 "+fb.fbSessao):"📡 Sync"}
-          </div>
+        </div>
+      )}
+
+      {/* Botão Sync flutuante */}
+      {pag!=="rel"&&(
+        <div className="no-print" onClick={()=>setShowFbModal(true)} style={{
+          position:"fixed",bottom:76,right:70,zIndex:200,
+          background:fb.fbConectado?"#E8F5E9":"#fff",
+          border:"2px solid "+(fb.fbConectado?"#4CAF50":BORDER),
+          borderRadius:24,padding:"8px 14px",
+          cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.2)",
+          display:"flex",alignItems:"center",gap:6,fontSize:10,fontWeight:700,
+          color:fb.fbConectado?"#2E7D32":"#9A8060",
+        }}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:fb.fbConectado?"#4CAF50":"#ccc",boxShadow:fb.fbConectado?"0 0 6px #4CAF50":"none"}}/>
+          {fb.fbConectado?("📡 "+fb.fbSessao):"📡 Sync"}
         </div>
       )}
 
@@ -4881,7 +4895,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.6</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.7</div>
     </div>
   );
 }
