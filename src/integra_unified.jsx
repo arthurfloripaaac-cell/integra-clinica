@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.8 - corretor IA + sync visual + drive save fix
+// v8.9 - welcome popup + whatsapp fix + UI melhorias
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -316,6 +316,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
   const [novoMembro, setNovoMembro] = React.useState({nome:"", area:""});
   const [adicionandoMembro, setAdicionandoMembro] = React.useState(false);
   const [showEnviarForm, setShowEnviarForm] = React.useState(false);
+  const [showFormRecebidos, setShowFormRecebidos] = React.useState(false);
   const [linkCopiado, setLinkCopiado] = React.useState(false);
   const [formLinkId, setFormLinkId] = React.useState("f"+Date.now().toString(36));
 
@@ -383,7 +384,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
             }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#fff",border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK}}>
               + Novo
             </div>
-            <div onClick={()=>{setFormLinkId("f"+Date.now().toString(36));setShowEnviarForm(!showEnviarForm);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
+            <div onClick={()=>{if(!showEnviarForm)setFormLinkId("f"+Date.now().toString(36));setShowEnviarForm(true);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
               📱 WhatsApp
             </div>
           </div>}
@@ -419,14 +420,19 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
             })()}
           </div>
         )}
-        {/* Formulários recebidos via WhatsApp */}
+        {/* Formulários recebidos via WhatsApp — collapsible */}
         {onImportarFormulario&&(
           <div style={{marginBottom:14}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-              <span style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Formulários Recebidos</span>
-              <div style={{flex:1,height:1,background:BORDER}}/>
+            <div onClick={()=>setShowFormRecebidos&&setShowFormRecebidos(!showFormRecebidos)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"8px 12px",background:showFormRecebidos?"#E8F5E9":"#fff",border:"1px solid "+(showFormRecebidos?"#4CAF50":BORDER),borderRadius:4}}>
+              <span style={{fontSize:14}}>📩</span>
+              <span style={{fontSize:11,fontWeight:700,color:showFormRecebidos?"#2E7D32":GOLD_DARK,flex:1}}>Formulários recebidos via WhatsApp</span>
+              <span style={{fontSize:12,color:"#9A8060"}}>{showFormRecebidos?"▲":"▼"}</span>
             </div>
-            <FormulariosRecebidos onImportar={onImportarFormulario}/>
+            {showFormRecebidos&&(
+              <div style={{marginTop:8,padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:4,background:"#fff"}}>
+                <FormulariosRecebidos onImportar={onImportarFormulario}/>
+              </div>
+            )}
           </div>
         )}
         <div style={{marginBottom:12}}>
@@ -4671,6 +4677,7 @@ function App() {
   // Firebase Realtime Sync
   const fb = useFirebaseSync("", p1, p2, p3, p4State, setP1, _setP2Raw, setP3, setP4State);
   const [showFbModal, setShowFbModal] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(()=>{try{return !localStorage.getItem("integra_welcomed");}catch(e){return true;}});
   const [showGlobalPasta, setShowGlobalPasta] = useState(false);
 
   return (
@@ -4680,27 +4687,27 @@ function App() {
 
       {/* Barra de ações globais — fixa em todas as abas exceto Relatório */}
       {pag!=="rel"&&(
-        <div className="no-print" style={{maxWidth:680,margin:"0 auto",padding:"10px 16px",display:"flex",gap:6,alignItems:"center",justifyContent:"center",flexWrap:"wrap",background:"#fff",borderBottom:"1px solid "+BORDER}}>
+        <div className="no-print" style={{position:"sticky",top:0,zIndex:150,maxWidth:"100%",padding:"8px 16px",display:"flex",gap:6,alignItems:"center",justifyContent:"center",flexWrap:"wrap",background:"rgba(255,255,255,0.97)",borderBottom:"1px solid "+BORDER,backdropFilter:"blur(8px)"}}>
           <div onClick={()=>{
             const dup = verificarDuplicata(p1);
             if(dup) { const opcao = window.confirm("Atendimento ja existe. OK=Sobrepor / Cancelar=Salvar copia"); salvarRelatorio(p1,p2,p3,p4State,opcao); }
             else { salvarRelatorio(p1,p2,p3,p4State,false); }
             setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
           }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:relatorioSalvo?"#7A6020":"#fff",border:"1px solid "+(relatorioSalvo?GOLD_DARK:BORDER),color:relatorioSalvo?"#fff":GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
-            {relatorioSalvo?"✓ Salvo":"💾 Local"}
+            {relatorioSalvo?"✓ Salvo":"💾 Salvar local"}
           </div>
           <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>window.print(),300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"linear-gradient(135deg,#2C1810,#1A0F08)",color:"#fff",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
             🖨️ Imprimir
           </div>
           <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>{const w=window.open("","_blank");if(w){w.document.write(document.querySelector(".relatorio-container").outerHTML);w.document.close();w.print();}else{window.print();}},300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
-            📄 Salvar PDF
+            📄 Exportar em PDF
           </div>
           {driveLogado?(
             <>
               <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now(),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,_driveFileId?"sobrepor":false);if(res&&res.precisaConfirmar){const op=window.confirm("Arquivo já existe. OK=Sobrepor / Cancelar=Nova cópia");await gdriveSalvarAtendimento(rel,op);}}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#e8f5e9",border:"1px solid #34A853",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#1e7e34"}}>
                 ☁ Salvar no Drive
               </div>
-              <div onClick={()=>setShowGlobalPasta(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
+              <div onClick={()=>setShowGlobalPasta(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"8px 16px",background:GOLD_DARK,border:"2px solid "+GOLD_DARK,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:700,color:"#fff",boxShadow:"0 2px 8px rgba(122,96,32,0.3)"}}>
                 ☁ Pacientes em nuvem
               </div>
               <div onClick={async()=>{_gdriveToken=null;_gdriveFolderId=null;try{await gdriveEnsureScript();await gdriveLogin();}catch(e){notifyDriveLogin();}}} style={{padding:"6px 10px",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,color:GOLD_DARK}}>
@@ -4901,6 +4908,27 @@ function App() {
         );
       })()}
 
+
+      {/* Popup de boas-vindas — conectar Drive */}
+      {showWelcome&&!driveLogado&&pag==="p1"&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{background:"#fff",borderRadius:12,padding:28,maxWidth:380,width:"90%",textAlign:"center",boxShadow:"0 8px 40px rgba(0,0,0,0.3)"}}>
+            <svg width="48" height="48" viewBox="0 0 40 52" fill="none" style={{margin:"0 auto 12px"}}>
+              <ellipse cx="20" cy="26" rx="18" ry="24" stroke={GOLD} strokeWidth="1.5"/>
+              <text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill={GOLD}>i</text>
+            </svg>
+            <div style={{fontFamily:"Georgia",fontSize:20,fontWeight:700,color:GOLD_DARK,letterSpacing:2,marginBottom:4}}>BEM-VINDO</div>
+            <div style={{fontSize:12,color:"#5C4A2A",lineHeight:1.6,marginBottom:20}}>Conecte sua conta Google para salvar seus atendimentos em nuvem com segurança. Seus dados ficam acessíveis de qualquer computador.</div>
+            <div onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();localStorage.setItem("integra_welcomed","1");setShowWelcome(false);}catch(e){alert(e.message.includes("cancelado")||e.message.includes("access_denied")?"Use uma conta autorizada":"Erro: "+e.message);}}} style={{padding:"14px",background:GOLD_DARK,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+              Conectar com Google
+            </div>
+            <div onClick={()=>{localStorage.setItem("integra_welcomed","1");setShowWelcome(false);}} style={{padding:"10px",color:"#9A8060",cursor:"pointer",fontSize:11}}>
+              Continuar sem conectar →
+            </div>
+          </div>
+        </div>
+      )}
       {showConfigs&&<Configs onClose={()=>setShowConfigs(false)}/>}
       <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:"#1A0F08",borderTop:"2px solid #2C1810",zIndex:100}}>
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p1"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p1"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p1")}>👤 Paciente</button>
@@ -4911,7 +4939,7 @@ function App() {
         <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
         <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.8</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.9</div>
     </div>
   );
 }
