@@ -67,10 +67,13 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
     const key = fbSanitizeKey(sessao);
     setFbSessao(sessao);
     setFbStatus("connecting");
+    try { localStorage.setItem("integra_fb_sessao", sessao); } catch(e){}
 
     if(_listenerRef.current) { _listenerRef.current(); _listenerRef.current = null; }
 
-    // Salvar dados locais primeiro no Firebase antes de ouvir
+    const ref = _fbDb.ref("sessoes/"+key);
+
+    // Primeiro: enviar dados locais para o Firebase para não perder nada
     const tsInicial = Date.now().toString();
     _lastWriteRef.current = JSON.stringify(tsInicial);
     const dadosLocais = JSON.parse(JSON.stringify({
@@ -83,9 +86,8 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
       _p4: p4State ? {...p4State, customProcs:p4State.customProcs||[], itens:(p4State.itens||[]).map(it=>({...it,dentes:it.dentes||[],subtopicos:it.subtopicos||[],subtipos:it.subtipos||{},valoresDente:it.valoresDente||{}}))} : null,
     }));
 
-    const ref = _fbDb.ref("sessoes/"+key);
-    // Enviar dados locais primeiro, depois começar a ouvir
     ref.set(dadosLocais).then(() => {
+      // Depois de enviar, começar a ouvir mudanças do outro computador
       const unsub = ref.on("value", (snap) => {
         const data = snap.val();
         if(!data) { setFbConectado(true); setFbStatus("connected"); return; }
@@ -121,7 +123,7 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
       setFbStatus("connected");
     }).catch(e => {
       console.error("Firebase initial write error:", e);
-      setFbStatus("error");
+      setFbStatus("off");
     });
   },[p1,p2,p3,p4State,setP1,setP2,setP3,setP4State]);
 
@@ -148,6 +150,7 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
     setFbConectado(false);
     setFbStatus("off");
     setFbSessao("");
+    try { localStorage.removeItem("integra_fb_sessao"); } catch(e){}
   },[]);
 
   React.useEffect(()=>{
@@ -3728,7 +3731,7 @@ function useDriveLogado() {
   return logado;
 }
 
-// Restaurar token salvo no localStorage
+// Restaurar token Google do localStorage ao carregar
 function gdriveRestaurarToken() {
   try {
     const token = localStorage.getItem("integra_gdrive_token");
@@ -3749,7 +3752,7 @@ function gdriveRestaurarToken() {
   return false;
 }
 
-// Timer para renovar token antes de expirar
+// Timer para renovar token silenciosamente a cada 45min
 let _gdriveRenovarTimer = null;
 function gdriveIniciarRenovacao() {
   if(_gdriveRenovarTimer) clearTimeout(_gdriveRenovarTimer);
@@ -3770,7 +3773,7 @@ function gdriveIniciarRenovacao() {
   }, 45 * 60 * 1000);
 }
 
-// Restaurar ao carregar o módulo
+// Executar restauração ao carregar o módulo
 gdriveRestaurarToken();
 
 async function gdriveEnsureScript() {
@@ -4650,7 +4653,8 @@ function FormulariosRecebidos({onImportar}) {
           </div>
           <div style={{display:"flex",gap:6,flexShrink:0}}>
             {f.status!=="importado"&&<div onClick={()=>importar(f)} style={{padding:"5px 10px",background:GOLD,color:"#fff",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>Importar</div>}
-            {f.status==="importado"&&<span style={{fontSize:9,color:"#9A8060",padding:"5px 8px"}}>✓ Importado</span>}
+            {f.status==="importado"&&<div onClick={()=>importar(f)} style={{padding:"5px 10px",background:"#E8F5E9",border:"1px solid #4CAF50",color:"#2E7D32",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>📂 Abrir</div>}
+            {f.status==="importado"&&<span style={{fontSize:9,color:"#9A8060"}}>✓</span>}
             <div onClick={()=>excluir(f)} style={{padding:"5px 8px",border:"1px solid #E57373",borderRadius:3,cursor:"pointer",fontSize:10,color:"#C62828"}}>🗑</div>
           </div>
         </div>
@@ -4751,8 +4755,20 @@ function App() {
   // Firebase Realtime Sync
   const fb = useFirebaseSync("", p1, p2, p3, p4State, setP1, _setP2Raw, setP3, setP4State);
   const [showFbModal, setShowFbModal] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(()=>{try{return !localStorage.getItem("integra_welcomed");}catch(e){return true;}});
+  const [showWelcome, setShowWelcome] = useState(true);
   const [showGlobalPasta, setShowGlobalPasta] = useState(false);
+
+  // Auto-conectar Firebase na sessão "1" ao iniciar
+  const _fbAutoConectadoRef = React.useRef(false);
+  React.useEffect(()=>{
+    if(_fbAutoConectadoRef.current || fb.fbConectado) return;
+    _fbAutoConectadoRef.current = true;
+    const sessaoSalva = (() => { try { return localStorage.getItem("integra_fb_sessao") || "1"; } catch(e){ return "1"; } })();
+    // Esperar Firebase ficar pronto e conectar
+    onFirebaseReady(()=>{
+      setTimeout(()=>fb.conectar(sessaoSalva), 500);
+    });
+  },[]);
 
   return (
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
@@ -4796,6 +4812,7 @@ function App() {
           )}
         </div>
       )}
+      {pag!=="rel"&&<div className="no-print" style={{height:48}}/>}
 
       {/* Botão Sync flutuante */}
       {pag!=="rel"&&(
@@ -4813,7 +4830,6 @@ function App() {
           {fb.fbConectado?("🔗 "+fb.fbSessao):"📡 Conectar"}
         </div>
       )}
-      {pag!=="rel"&&<div className="no-print" style={{height:44}}/>}
 
       {/* Modal Pasta Drive Global */}
       {showGlobalPasta&&<DrivePastaModal onClose={()=>setShowGlobalPasta(false)} onCarregar={(dados)=>{
@@ -4984,7 +5000,7 @@ function App() {
       })()}
 
 
-      {/* Popup de boas-vindas — conectar Drive */}
+      {/* Popup de boas-vindas — conectar Drive + status Firebase */}
       {showWelcome&&!driveLogado&&pag==="p1"&&(
         <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
           <div style={{background:"#fff",borderRadius:12,padding:28,maxWidth:380,width:"90%",textAlign:"center",boxShadow:"0 8px 40px rgba(0,0,0,0.3)"}}>
@@ -4992,14 +5008,21 @@ function App() {
               <ellipse cx="20" cy="26" rx="18" ry="24" stroke={GOLD} strokeWidth="1.5"/>
               <text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill={GOLD}>i</text>
             </svg>
-            <div style={{fontFamily:"Georgia",fontSize:20,fontWeight:700,color:GOLD_DARK,letterSpacing:2,marginBottom:4}}>BEM-VINDO</div>
-            <div style={{fontSize:12,color:"#5C4A2A",lineHeight:1.6,marginBottom:20}}>Conecte sua conta Google para salvar seus atendimentos em nuvem com segurança. Seus dados ficam acessíveis de qualquer computador.</div>
-            <div onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();localStorage.setItem("integra_welcomed","1");setShowWelcome(false);}catch(e){alert(e.message.includes("cancelado")||e.message.includes("access_denied")?"Use uma conta autorizada":"Erro: "+e.message);}}} style={{padding:"14px",background:GOLD_DARK,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            <div style={{fontFamily:"Georgia",fontSize:20,fontWeight:700,color:GOLD_DARK,letterSpacing:2,marginBottom:4}}>ÍNTEGRA</div>
+            <div style={{fontSize:12,color:"#5C4A2A",lineHeight:1.6,marginBottom:16}}>Conecte sua conta Google para salvar atendimentos em nuvem com segurança.</div>
+
+            {/* Status Firebase */}
+            <div style={{padding:"10px 14px",background:fb.fbConectado?"#E8F5E9":"#FFF8E1",border:"1px solid "+(fb.fbConectado?"#4CAF50":"#FFB74D"),borderRadius:6,marginBottom:16,display:"flex",alignItems:"center",gap:8,justifyContent:"center"}}>
+              <div style={{width:10,height:10,borderRadius:"50%",background:fb.fbConectado?"#4CAF50":"#FFB74D",boxShadow:fb.fbConectado?"0 0 6px #4CAF50":"none"}}/>
+              <span style={{fontSize:11,fontWeight:600,color:fb.fbConectado?"#2E7D32":"#E65100"}}>{fb.fbConectado?"Rede sincronizada: "+fb.fbSessao:"Conectando à rede..."}</span>
+            </div>
+
+            <div onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();setShowWelcome(false);}catch(e){alert(e.message.includes("cancelado")||e.message.includes("access_denied")?"Use uma conta autorizada: integratrindade@gmail.com, arthurarioli@hotmail.com ou arthurfloripa.aac@gmail.com":"Erro: "+e.message);}}} style={{padding:"14px",background:GOLD_DARK,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700,marginBottom:10,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
               <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
               Conectar com Google
             </div>
-            <div onClick={()=>{localStorage.setItem("integra_welcomed","1");setShowWelcome(false);}} style={{padding:"10px",color:"#9A8060",cursor:"pointer",fontSize:11}}>
-              Continuar sem conectar →
+            <div onClick={()=>setShowWelcome(false)} style={{padding:"10px",color:"#9A8060",cursor:"pointer",fontSize:11}}>
+              Pular por agora →
             </div>
           </div>
         </div>
