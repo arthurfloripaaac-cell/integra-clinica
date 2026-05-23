@@ -70,41 +70,60 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
 
     if(_listenerRef.current) { _listenerRef.current(); _listenerRef.current = null; }
 
+    // Salvar dados locais primeiro no Firebase antes de ouvir
+    const tsInicial = Date.now().toString();
+    _lastWriteRef.current = JSON.stringify(tsInicial);
+    const dadosLocais = JSON.parse(JSON.stringify({
+      _ts: tsInicial,
+      _lastUpdate: new Date().toISOString(),
+      _paciente: p1.nome||"",
+      _p1: p1,
+      _p2: {...p2, achadosDente:p2.achadosDente||{}, obsAchados:p2.obsAchados||{}},
+      _p3: {...p3, fc:p3.fc||[]},
+      _p4: p4State ? {...p4State, customProcs:p4State.customProcs||[], itens:(p4State.itens||[]).map(it=>({...it,dentes:it.dentes||[],subtopicos:it.subtopicos||[],subtipos:it.subtipos||{},valoresDente:it.valoresDente||{}}))} : null,
+    }));
+
     const ref = _fbDb.ref("sessoes/"+key);
-    const unsub = ref.on("value", (snap) => {
-      const data = snap.val();
-      if(!data) { setFbConectado(true); setFbStatus("connected"); return; }
-      const hash = JSON.stringify(data._ts||"");
-      if(hash === _lastWriteRef.current) return;
-      _skipNextRef.current = true;
-      try {
-        if(data._p1) setP1(data._p1);
-        if(data._p2) setP2(sanitizeP2(data._p2));
-        if(data._p3) {
-          const p3r = data._p3;
-          if(!p3r.fc) p3r.fc = [];
-          if(!Array.isArray(p3r.fc)) p3r.fc = Object.values(p3r.fc);
-          setP3(prev=>({...prev,...p3r}));
-        }
-        if(data._p4) {
-          const p4r = data._p4;
-          if(!p4r.procsBase) p4r.procsBase = null;
-          if(!p4r.customProcs) p4r.customProcs = [];
-          if(!Array.isArray(p4r.customProcs)) p4r.customProcs = Object.values(p4r.customProcs);
-          if(p4r.itens && !Array.isArray(p4r.itens)) p4r.itens = Object.values(p4r.itens);
-          if(p4r.itens) p4r.itens = p4r.itens.map(it=>({...it,dentes:it.dentes||[],subtopicos:it.subtopicos||[],subtipos:it.subtipos||{},valoresDente:it.valoresDente||{}}));
-          setP4State(p4r);
-        }
-      } catch(e) { console.error("Firebase sync parse error:", e); }
-      setFbUltimoSync(new Date());
+    // Enviar dados locais primeiro, depois começar a ouvir
+    ref.set(dadosLocais).then(() => {
+      const unsub = ref.on("value", (snap) => {
+        const data = snap.val();
+        if(!data) { setFbConectado(true); setFbStatus("connected"); return; }
+        const hash = JSON.stringify(data._ts||"");
+        if(hash === _lastWriteRef.current) return;
+        _skipNextRef.current = true;
+        try {
+          if(data._p1) setP1(data._p1);
+          if(data._p2) setP2(sanitizeP2(data._p2));
+          if(data._p3) {
+            const p3r = data._p3;
+            if(!p3r.fc) p3r.fc = [];
+            if(!Array.isArray(p3r.fc)) p3r.fc = Object.values(p3r.fc);
+            setP3(prev=>({...prev,...p3r}));
+          }
+          if(data._p4) {
+            const p4r = data._p4;
+            if(!p4r.procsBase) p4r.procsBase = null;
+            if(!p4r.customProcs) p4r.customProcs = [];
+            if(!Array.isArray(p4r.customProcs)) p4r.customProcs = Object.values(p4r.customProcs);
+            if(p4r.itens && !Array.isArray(p4r.itens)) p4r.itens = Object.values(p4r.itens);
+            if(p4r.itens) p4r.itens = p4r.itens.map(it=>({...it,dentes:it.dentes||[],subtopicos:it.subtopicos||[],subtipos:it.subtipos||{},valoresDente:it.valoresDente||{}}));
+            setP4State(p4r);
+          }
+        } catch(e) { console.error("Firebase sync parse error:", e); }
+        setFbUltimoSync(new Date());
+        setFbConectado(true);
+        setFbStatus("connected");
+        setTimeout(()=>{ _skipNextRef.current = false; }, 500);
+      });
+      _listenerRef.current = () => ref.off("value", unsub);
       setFbConectado(true);
       setFbStatus("connected");
-      setTimeout(()=>{ _skipNextRef.current = false; }, 500);
+    }).catch(e => {
+      console.error("Firebase initial write error:", e);
+      setFbStatus("error");
     });
-    _listenerRef.current = () => ref.off("value", unsub);
-    setFbConectado(true);
-    setFbStatus("connected");
-  },[setP1,setP2,setP3,setP4State]);
+  },[p1,p2,p3,p4State,setP1,setP2,setP3,setP4State]);
 
   const salvar = React.useCallback(() => {
     if(!_fbDb || !fbSessao || _skipNextRef.current) return;
@@ -2584,7 +2603,7 @@ function ArquivoDriveSection({onCarregar}) {
         <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"7px 10px",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,outline:"none"}}/>
         {filtrados.length>0&&<div onClick={()=>{if(selecionados.size===filtrados.length)setSelecionados(new Set());else setSelecionados(new Set(filtrados.map(a=>a.id)));}} style={{padding:"5px 8px",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:9,color:"#9A8060"}}>{selecionados.size===filtrados.length?"Desmarcar":"Sel. tudo"}</div>}
         <div onClick={listar} style={{padding:"7px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:10,color:"#9A8060"}}>↻</div>
-        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
+        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Sair</div>
       </div>
       {selecionados.size>0&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,padding:"6px 10px",background:"#FFF0F0",border:"1px solid #E57373",borderRadius:3}}>
         <span style={{fontSize:11,color:"#C62828",flex:1}}>{selecionados.size} selecionado(s)</span>
@@ -3709,20 +3728,19 @@ function useDriveLogado() {
   return logado;
 }
 
-// Restaurar token salvo no localStorage (persistência entre recargas)
+// Restaurar token salvo no localStorage
 function gdriveRestaurarToken() {
   try {
     const token = localStorage.getItem("integra_gdrive_token");
     const time = localStorage.getItem("integra_gdrive_token_time");
     if(token && time) {
       const elapsed = Date.now() - Number(time);
-      // Token Google dura ~3600s (1h), usar 50min como margem
       if(elapsed < 50 * 60 * 1000) {
         _gdriveToken = token;
-        notifyDriveLogin();
+        _driveListeners.forEach(fn=>fn(true));
+        gdriveIniciarRenovacao();
         return true;
       } else {
-        // Token expirado, limpar
         localStorage.removeItem("integra_gdrive_token");
         localStorage.removeItem("integra_gdrive_token_time");
       }
@@ -3731,42 +3749,28 @@ function gdriveRestaurarToken() {
   return false;
 }
 
-// Renovação silenciosa — tenta obter novo token sem popup
-async function gdriveRenovarSilencioso() {
-  try {
-    await gdriveEnsureScript();
-    return new Promise((resolve) => {
+// Timer para renovar token antes de expirar
+let _gdriveRenovarTimer = null;
+function gdriveIniciarRenovacao() {
+  if(_gdriveRenovarTimer) clearTimeout(_gdriveRenovarTimer);
+  _gdriveRenovarTimer = setTimeout(async () => {
+    if(!_gdriveToken) return;
+    try {
+      await gdriveEnsureScript();
       const tc = window.google.accounts.oauth2.initTokenClient({
         client_id: GDRIVE_CLIENT_ID,
         scope: GDRIVE_SCOPE,
         callback: (r) => {
-          if(r.access_token) {
-            _gdriveToken = r.access_token;
-            notifyDriveLogin();
-            resolve(true);
-          } else { resolve(false); }
+          if(r.access_token) { _gdriveToken = r.access_token; notifyDriveLogin(); gdriveIniciarRenovacao(); }
         },
-        error_callback: () => { resolve(false); },
+        error_callback: () => {},
       });
       tc.requestAccessToken({prompt: ""});
-    });
-  } catch(e) { return false; }
-}
-
-// Iniciar timer para renovar token antes de expirar
-let _gdriveRenovarTimer = null;
-function gdriveIniciarRenovacao() {
-  if(_gdriveRenovarTimer) clearTimeout(_gdriveRenovarTimer);
-  // Renovar a cada 45 minutos
-  _gdriveRenovarTimer = setTimeout(async () => {
-    if(_gdriveToken) {
-      const ok = await gdriveRenovarSilencioso();
-      if(ok) gdriveIniciarRenovacao();
-    }
+    } catch(e){}
   }, 45 * 60 * 1000);
 }
 
-// Tentar restaurar ao carregar o módulo
+// Restaurar ao carregar o módulo
 gdriveRestaurarToken();
 
 async function gdriveEnsureScript() {
@@ -4073,7 +4077,7 @@ function DriveSync({relatorio, onCarregar}) {
             ☁ Arquivo de pacientes em nuvem
           </div>
           <div onClick={async()=>{_gdriveFolderId=null;try{await gdriveLogin(true);}catch(e){notifyDriveLogin();}}} style={{fontSize:10,color:GOLD_DARK,cursor:"pointer",padding:"4px 10px",border:"1px solid "+GOLD,borderRadius:20}}>Trocar conta</div>
-          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar Google</div>
+          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
         </div>
       )}
       {msgDrive&&<div style={{fontSize:10,marginTop:5,color:msgDrive.tipo==="ok"?"#1e7e34":"#C62828"}}>{msgDrive.texto}</div>}
@@ -4757,7 +4761,7 @@ function App() {
 
       {/* Barra de ações globais — fixa em todas as abas exceto Relatório */}
       {pag!=="rel"&&(
-        <div className="no-print" style={{position:"sticky",top:0,zIndex:150,maxWidth:"100%",padding:"8px 16px",display:"flex",gap:6,alignItems:"center",justifyContent:"center",flexWrap:"wrap",background:"rgba(255,255,255,0.97)",borderBottom:"1px solid "+BORDER,backdropFilter:"blur(8px)"}}>
+        <div className="no-print" style={{position:"fixed",top:0,left:0,right:0,zIndex:150,padding:"8px 16px",display:"flex",gap:6,alignItems:"center",justifyContent:"center",flexWrap:"wrap",background:"rgba(255,255,255,0.97)",borderBottom:"1px solid "+BORDER,backdropFilter:"blur(8px)",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
           <div onClick={()=>{
             const dup = verificarDuplicata(p1);
             if(dup) { const opcao = window.confirm("Atendimento ja existe. OK=Sobrepor / Cancelar=Salvar copia"); salvarRelatorio(p1,p2,p3,p4State,opcao); }
@@ -4809,6 +4813,7 @@ function App() {
           {fb.fbConectado?("🔗 "+fb.fbSessao):"📡 Conectar"}
         </div>
       )}
+      {pag!=="rel"&&<div className="no-print" style={{height:44}}/>}
 
       {/* Modal Pasta Drive Global */}
       {showGlobalPasta&&<DrivePastaModal onClose={()=>setShowGlobalPasta(false)} onCarregar={(dados)=>{
