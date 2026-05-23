@@ -2584,7 +2584,7 @@ function ArquivoDriveSection({onCarregar}) {
         <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"7px 10px",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,outline:"none"}}/>
         {filtrados.length>0&&<div onClick={()=>{if(selecionados.size===filtrados.length)setSelecionados(new Set());else setSelecionados(new Set(filtrados.map(a=>a.id)));}} style={{padding:"5px 8px",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:9,color:"#9A8060"}}>{selecionados.size===filtrados.length?"Desmarcar":"Sel. tudo"}</div>}
         <div onClick={listar} style={{padding:"7px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:10,color:"#9A8060"}}>↻</div>
-        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Sair</div>
+        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
       </div>
       {selecionados.size>0&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,padding:"6px 10px",background:"#FFF0F0",border:"1px solid #E57373",borderRadius:3}}>
         <span style={{fontSize:11,color:"#C62828",flex:1}}>{selecionados.size} selecionado(s)</span>
@@ -3691,12 +3691,83 @@ let _gdriveToken = null;
 let _gdriveFolderId = null;
 const _driveListeners = new Set();
 function onDriveLogin(fn) { _driveListeners.add(fn); return ()=>_driveListeners.delete(fn); }
-function notifyDriveLogin() { _driveListeners.forEach(fn=>fn(!!_gdriveToken)); }
+function notifyDriveLogin() {
+  try {
+    if(_gdriveToken) {
+      localStorage.setItem("integra_gdrive_token", _gdriveToken);
+      localStorage.setItem("integra_gdrive_token_time", String(Date.now()));
+    } else {
+      localStorage.removeItem("integra_gdrive_token");
+      localStorage.removeItem("integra_gdrive_token_time");
+    }
+  } catch(e){}
+  _driveListeners.forEach(fn=>fn(!!_gdriveToken));
+}
 function useDriveLogado() {
   const [logado, setLogado] = React.useState(!!_gdriveToken);
   React.useEffect(()=>{ const unsub = onDriveLogin(setLogado); return unsub; },[]);
   return logado;
 }
+
+// Restaurar token salvo no localStorage (persistência entre recargas)
+function gdriveRestaurarToken() {
+  try {
+    const token = localStorage.getItem("integra_gdrive_token");
+    const time = localStorage.getItem("integra_gdrive_token_time");
+    if(token && time) {
+      const elapsed = Date.now() - Number(time);
+      // Token Google dura ~3600s (1h), usar 50min como margem
+      if(elapsed < 50 * 60 * 1000) {
+        _gdriveToken = token;
+        notifyDriveLogin();
+        return true;
+      } else {
+        // Token expirado, limpar
+        localStorage.removeItem("integra_gdrive_token");
+        localStorage.removeItem("integra_gdrive_token_time");
+      }
+    }
+  } catch(e){}
+  return false;
+}
+
+// Renovação silenciosa — tenta obter novo token sem popup
+async function gdriveRenovarSilencioso() {
+  try {
+    await gdriveEnsureScript();
+    return new Promise((resolve) => {
+      const tc = window.google.accounts.oauth2.initTokenClient({
+        client_id: GDRIVE_CLIENT_ID,
+        scope: GDRIVE_SCOPE,
+        callback: (r) => {
+          if(r.access_token) {
+            _gdriveToken = r.access_token;
+            notifyDriveLogin();
+            resolve(true);
+          } else { resolve(false); }
+        },
+        error_callback: () => { resolve(false); },
+      });
+      tc.requestAccessToken({prompt: ""});
+    });
+  } catch(e) { return false; }
+}
+
+// Iniciar timer para renovar token antes de expirar
+let _gdriveRenovarTimer = null;
+function gdriveIniciarRenovacao() {
+  if(_gdriveRenovarTimer) clearTimeout(_gdriveRenovarTimer);
+  // Renovar a cada 45 minutos
+  _gdriveRenovarTimer = setTimeout(async () => {
+    if(_gdriveToken) {
+      const ok = await gdriveRenovarSilencioso();
+      if(ok) gdriveIniciarRenovacao();
+    }
+  }, 45 * 60 * 1000);
+}
+
+// Tentar restaurar ao carregar o módulo
+gdriveRestaurarToken();
 
 async function gdriveEnsureScript() {
   if(window.google && window.google.accounts) return;
@@ -3722,26 +3793,25 @@ async function gdriveEnsureScript() {
   });
 }
 
-async function gdriveLogin() {
+async function gdriveLogin(forcarSelecao) {
   await gdriveEnsureScript();
   return new Promise((resolve,reject)=>{
     const tc = window.google.accounts.oauth2.initTokenClient({
       client_id: GDRIVE_CLIENT_ID,
       scope: GDRIVE_SCOPE,
       callback: (r)=>{
-        if(r.access_token){ _gdriveToken=r.access_token; notifyDriveLogin(); resolve(r.access_token); }
+        if(r.access_token){ _gdriveToken=r.access_token; notifyDriveLogin(); gdriveIniciarRenovacao(); resolve(r.access_token); }
         else reject(new Error("Login cancelado"));
       },
       error_callback: (err)=>{
         reject(new Error(err.type||"Erro OAuth"));
       },
     });
-    // Revogar token anterior para forçar tela de seleção de conta
-    if(_gdriveToken) {
+    if(forcarSelecao && _gdriveToken) {
       try { window.google.accounts.oauth2.revoke(_gdriveToken); } catch(e){}
       _gdriveToken = null;
     }
-    tc.requestAccessToken({prompt:"consent"});
+    tc.requestAccessToken({prompt: forcarSelecao ? "consent" : ""});
   });
 }
 
@@ -4002,8 +4072,8 @@ function DriveSync({relatorio, onCarregar}) {
           }}>
             ☁ Arquivo de pacientes em nuvem
           </div>
-          <div onClick={async()=>{_gdriveToken=null;_gdriveFolderId=null;try{await gdriveEnsureScript();await gdriveLogin();}catch(e){notifyDriveLogin();}}} style={{fontSize:10,color:GOLD_DARK,cursor:"pointer",padding:"4px 10px",border:"1px solid "+GOLD,borderRadius:20}}>Trocar conta</div>
-          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar</div>
+          <div onClick={async()=>{_gdriveFolderId=null;try{await gdriveLogin(true);}catch(e){notifyDriveLogin();}}} style={{fontSize:10,color:GOLD_DARK,cursor:"pointer",padding:"4px 10px",border:"1px solid "+GOLD,borderRadius:20}}>Trocar conta</div>
+          <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setShowPasta(false);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Desconectar Google</div>
         </div>
       )}
       {msgDrive&&<div style={{fontSize:10,marginTop:5,color:msgDrive.tipo==="ok"?"#1e7e34":"#C62828"}}>{msgDrive.texto}</div>}
@@ -4710,7 +4780,7 @@ function App() {
               <div onClick={()=>setShowGlobalPasta(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"8px 16px",background:GOLD_DARK,border:"2px solid "+GOLD_DARK,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:700,color:"#fff",boxShadow:"0 2px 8px rgba(122,96,32,0.3)"}}>
                 ☁ Pacientes em nuvem
               </div>
-              <div onClick={async()=>{_gdriveToken=null;_gdriveFolderId=null;try{await gdriveEnsureScript();await gdriveLogin();}catch(e){notifyDriveLogin();}}} style={{padding:"6px 10px",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,color:GOLD_DARK}}>
+              <div onClick={async()=>{_gdriveFolderId=null;try{await gdriveLogin(true);}catch(e){notifyDriveLogin();}}} style={{padding:"6px 10px",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,color:GOLD_DARK}}>
                 Trocar conta
               </div>
             </>
