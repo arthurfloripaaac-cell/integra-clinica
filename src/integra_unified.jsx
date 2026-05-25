@@ -189,73 +189,39 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
         min-height: auto !important;
         overflow: visible !important;
       }
-      /* Table-based header/footer repetition */
-      .rel-print-table {
-        width: 100%;
-        border-collapse: collapse;
+      /* Header/footer fixos — repete em todas as páginas */
+      .rel-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: #fff !important;
       }
-      .rel-print-table thead { display: table-header-group; }
-      .rel-print-table tfoot { display: table-footer-group; }
-      .rel-print-table thead td,
-      .rel-print-table tfoot td {
-        padding: 0;
+      .rel-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: #fff !important;
       }
-      /* Prevent sections from being cut in half - only small blocks */
-      .rel-section {
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
+      /* Espaçamento para não sobrepor header/footer */
+      .rel-content {
+        padding-top: 80px !important;
+        padding-bottom: 70px !important;
       }
-      /* Section titles: NEVER leave alone at bottom of page */
+      /* Títulos nunca ficam sozinhos no fim da página */
       .rel-section-title {
         break-after: avoid !important;
         page-break-after: avoid !important;
       }
-      /* Small cards/rows: avoid cutting */
+      /* Cards não quebram no meio */
       .rel-card {
         break-inside: avoid !important;
         page-break-inside: avoid !important;
       }
-      /* Page numbering */
-      .relatorio-container { counter-reset: page-num; }
-      .rel-print-table tfoot { counter-increment: page-num; }
-      .rel-page-number::after { content: "Página " counter(page-num); }
-      /* Prevent orphan lines */
-      .rel-content p, .rel-content div {
-        orphans: 3;
-        widows: 3;
-      }
-      /* Force header background rendering on all pages */
-      .rel-header {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        position: relative !important;
-        overflow: hidden !important;
-      }
-      .rel-header-bg {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      .rel-print-table thead td {
-        position: relative;
-        overflow: hidden;
-      }
-      /* Spacing between header and content on page 2+ */
-      .rel-print-table thead td {
-        padding-bottom: 0 !important;
-      }
-      .rel-print-table tbody td {
-        padding-top: 0 !important;
-      }
-      /* Spacing between content and footer */
-      .rel-print-table tfoot td {
-        padding-top: 8px !important;
-      }
-      @page { margin: 10mm 10mm 12mm 10mm; size: A4 portrait; }
+      @page { margin: 8mm 10mm; size: A4 portrait; }
     }
   `;
   document.head.appendChild(_s);
@@ -3197,12 +3163,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
         </div>}
         {!isPreview&&<DriveSync relatorio={_driveData} onCarregar={onCarregarDrive}/>}
       </div>
-      <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",minHeight:"calc(100vh - 80px)"}}>
-        <table className="rel-print-table" style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><td>
+      <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
+
         {/* Cabeçalho */}
         <div className="rel-header" style={{position:"relative",overflow:"hidden",padding:"22px 28px 18px",borderBottom:"2px solid "+GOLD}}>
-          <svg className="rel-header-bg" style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none"}} viewBox="0 0 680 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none"}} viewBox="0 0 680 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
             <polygon points="0,0 480,0 680,80 200,80" fill="#5B2D6E" opacity="0.06"/>
             <line x1="0" y1="0" x2="200" y2="80" stroke="#5B2D6E" strokeWidth="2.5" opacity="0.30"/>
             <line x1="480" y1="0" x2="680" y2="80" stroke="#5B2D6E" strokeWidth="2.5" opacity="0.30"/>
@@ -3230,9 +3195,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             </div>
           </div>
         </div>
-        </td></tr></thead>
-        <tbody><tr><td>
-        <div className="rel-content" style={{padding:"22px 24px"}}>
+
+        <div className="rel-content" style={{padding:"22px 24px",flex:1}}>
 
           {/* Dados do Paciente */}
           {temDados && <>
@@ -3573,10 +3537,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           </>);})()}
 
         </div>
-        </td></tr></tbody>
-        <tfoot><tr><td>
           {/* Rodapé */}
-          <div className="rel-footer" style={{borderTop:"2px solid "+GOLD,padding:"10px 24px 14px",display:"flex",alignItems:"center",gap:14,justifyContent:"center"}}>
+          <div className="rel-footer" style={{borderTop:"2px solid "+GOLD,marginTop:"auto",padding:"10px 24px 14px",display:"flex",alignItems:"center",gap:14,justifyContent:"center"}}>
             <div style={{flexShrink:0}}>
               <svg width="44" height="44" viewBox="0 0 25 25" xmlns="http://www.w3.org/2000/svg" style={{border:"2px solid "+GOLD_PALE,borderRadius:3,padding:2,background:"#fff"}}><rect x="0" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="0" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="1" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="2" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="3" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="4" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="5" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="6" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="7" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="8" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="9" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="10" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="11" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="12" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="13" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="14" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="15" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="7" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="16" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="17" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="18" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="19" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="13" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="20" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="15" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="23" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="21" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="22" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="22" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="12" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="17" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="19" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="20" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="23" width="1" height="1" fill="#5C4A2A"/><rect x="0" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="1" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="2" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="3" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="4" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="5" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="6" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="8" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="9" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="10" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="11" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="14" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="16" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="18" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="21" y="24" width="1" height="1" fill="#5C4A2A"/><rect x="24" y="24" width="1" height="1" fill="#5C4A2A"/></svg>
             </div>
@@ -3587,8 +3549,6 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             </div>
             <div className="rel-page-number" style={{marginLeft:"auto",fontSize:8,color:"#ccc",fontStyle:"italic"}}/>
           </div>
-        </td></tr></tfoot>
-        </table>
       </div>
     </div>
   );
