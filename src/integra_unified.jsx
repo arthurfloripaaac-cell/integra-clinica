@@ -3134,7 +3134,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
   );
 
   return (
-    <div className="relatorio-outer" style={{maxWidth:680,margin:"0 auto",padding:"4px 16px 40px"}}>
+    <div className="relatorio-outer" style={{maxWidth:680,margin:"0 auto",padding:"8px 16px 40px"}}>
       <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
 
         {/* Cabeçalho */}
