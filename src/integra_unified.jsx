@@ -4547,6 +4547,7 @@ function FormularioPaciente({formId}) {
   const [cpf, setCpf] = React.useState("");
   const [telefone, setTelefone] = React.useState("");
   const [dataNasc, setDataNasc] = React.useState("");
+  const [dataNascTexto, setDataNascTexto] = React.useState("");
   const [respNome, setRespNome] = React.useState("");
   const [respCpf, setRespCpf] = React.useState("");
   const [assinatura, setAssinatura] = React.useState("");
@@ -4555,6 +4556,37 @@ function FormularioPaciente({formId}) {
   const [erro, setErro] = React.useState("");
   const [idade, setIdade] = React.useState(null);
   const [isMinor, setIsMinor] = React.useState(false);
+  const [usarCalendario, setUsarCalendario] = React.useState(false);
+
+  // Máscara DD/MM/AAAA para data
+  const maskData = (v) => {
+    const nums = v.replace(/\D/g,"").slice(0,8);
+    if(nums.length<=2) return nums;
+    if(nums.length<=4) return nums.slice(0,2)+"/"+nums.slice(2);
+    return nums.slice(0,2)+"/"+nums.slice(2,4)+"/"+nums.slice(4);
+  };
+
+  const onDataTexto = (v) => {
+    const masked = maskData(v);
+    setDataNascTexto(masked);
+    // Converter DD/MM/AAAA para AAAA-MM-DD
+    const parts = masked.split("/");
+    if(parts.length===3 && parts[2].length===4) {
+      const d=parseInt(parts[0]), m=parseInt(parts[1]), y=parseInt(parts[2]);
+      if(d>=1&&d<=31&&m>=1&&m<=12&&y>=1900&&y<=2030) {
+        setDataNasc(y+"-"+(m<10?"0"+m:m)+"-"+(d<10?"0"+d:d));
+      }
+    }
+  };
+
+  const onDataCalendario = (v) => {
+    setDataNasc(v);
+    // Converter AAAA-MM-DD para DD/MM/AAAA
+    if(v) {
+      const p = v.split("-");
+      if(p.length===3) setDataNascTexto(p[2]+"/"+p[1]+"/"+p[0]);
+    }
+  };
 
   React.useEffect(()=>{
     if(!dataNasc) { setIdade(null); setIsMinor(false); return; }
@@ -4597,15 +4629,17 @@ function FormularioPaciente({formId}) {
     } catch(e) { setErro("Erro: "+e.message); setEnviando(false); }
   };
 
-  const inpF = {width:"100%",padding:"12px 14px",border:"1px solid "+BORDER,borderRadius:4,fontSize:15,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box"};
+  // Estilo de input responsivo e grande para idosos
+  const inpF = {width:"100%",padding:"16px 18px",border:"2px solid "+BORDER,borderRadius:8,fontSize:18,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.4};
+  const lblF = {fontSize:13,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,display:"block",marginBottom:6};
 
   if(enviado) return (
     <div style={{minHeight:"100vh",background:CREAM,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:"#fff",borderRadius:8,padding:32,maxWidth:400,width:"100%",textAlign:"center",border:"1px solid "+GOLD,boxShadow:"0 4px 20px rgba(0,0,0,0.1)"}}>
-        <div style={{fontSize:48,marginBottom:16}}>✓</div>
-        <div style={{fontSize:18,fontWeight:700,color:GOLD_DARK,marginBottom:8}}>Dados enviados com sucesso!</div>
-        <div style={{fontSize:13,color:"#5C4A2A",lineHeight:1.6}}>Obrigado, {nome.split(" ")[0]}. Seus dados foram recebidos pela equipe da Íntegra Clínica Odontológica. Você pode fechar esta página.</div>
-        <div style={{marginTop:20,padding:"12px 16px",background:GOLD_PALE,borderRadius:4,fontSize:11,color:GOLD_DARK}}>Íntegra Clínica Odontológica · Desde 1996</div>
+      <div style={{background:"#fff",borderRadius:12,padding:36,maxWidth:440,width:"100%",textAlign:"center",border:"2px solid "+GOLD,boxShadow:"0 4px 24px rgba(0,0,0,0.1)"}}>
+        <div style={{fontSize:56,marginBottom:16}}>✓</div>
+        <div style={{fontSize:22,fontWeight:700,color:GOLD_DARK,marginBottom:10}}>Dados enviados com sucesso!</div>
+        <div style={{fontSize:16,color:"#5C4A2A",lineHeight:1.6}}>Obrigado, {nome.split(" ")[0]}. Seus dados foram recebidos pela equipe da Íntegra Clínica Odontológica. Você pode fechar esta página.</div>
+        <div style={{marginTop:24,padding:"14px 18px",background:GOLD_PALE,borderRadius:6,fontSize:13,color:GOLD_DARK}}>Íntegra Clínica Odontológica · Desde 1996</div>
       </div>
     </div>
   );
@@ -4613,55 +4647,61 @@ function FormularioPaciente({formId}) {
   return (
     <div style={{minHeight:"100vh",background:CREAM,padding:"0 0 40px"}}>
       {/* Header */}
-      <div style={{background:"linear-gradient(135deg,#2C1810 0%,#1A0F08 100%)",padding:"20px 24px",display:"flex",alignItems:"center",gap:12}}>
-        <svg width="32" height="42" viewBox="0 0 40 52" fill="none">
+      <div style={{background:"linear-gradient(135deg,#2C1810 0%,#1A0F08 100%)",padding:"22px 24px",display:"flex",alignItems:"center",gap:14}}>
+        <svg width="36" height="46" viewBox="0 0 40 52" fill="none">
           <ellipse cx="20" cy="26" rx="18" ry="24" stroke="#B8962E" strokeWidth="1.5"/>
           <text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill="#B8962E">i</text>
         </svg>
         <div>
-          <div style={{fontFamily:"Georgia",fontSize:18,fontWeight:700,color:"#fff",letterSpacing:3,textTransform:"uppercase"}}>Íntegra</div>
-          <div style={{fontSize:7,letterSpacing:2.5,color:GOLD_LIGHT,textTransform:"uppercase"}}>Clínica Odontológica · Desde 1996</div>
+          <div style={{fontFamily:"Georgia",fontSize:20,fontWeight:700,color:"#fff",letterSpacing:3,textTransform:"uppercase"}}>Íntegra</div>
+          <div style={{fontSize:9,letterSpacing:2.5,color:GOLD_LIGHT,textTransform:"uppercase"}}>Clínica Odontológica · Desde 1996</div>
         </div>
       </div>
 
-      <div style={{maxWidth:420,margin:"0 auto",padding:"20px 16px"}}>
-        <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:8,padding:"24px 20px",boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
-          <div style={{fontSize:15,fontWeight:700,color:GOLD_DARK,marginBottom:4}}>Cadastro do Paciente</div>
-          <div style={{fontSize:12,color:"#9A8060",marginBottom:20,lineHeight:1.5}}>Preencha seus dados pessoais para agilizar seu atendimento na clínica.</div>
+      <div style={{maxWidth:480,margin:"0 auto",padding:"24px 16px"}}>
+        <div style={{background:"#fff",border:"2px solid "+BORDER,borderRadius:12,padding:"28px 22px",boxShadow:"0 2px 16px rgba(0,0,0,0.06)"}}>
+          <div style={{fontSize:20,fontWeight:700,color:GOLD_DARK,marginBottom:6}}>Cadastro do Paciente</div>
+          <div style={{fontSize:15,color:"#9A8060",marginBottom:24,lineHeight:1.5}}>Preencha seus dados para agilizar seu atendimento.</div>
 
-          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div style={{display:"flex",flexDirection:"column",gap:18}}>
             <div>
-              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>Nome completo *</label>
-              <input style={inpF} value={nome} onChange={e=>setNome(e.target.value)} placeholder="Seu nome completo" spellCheck={false}/>
+              <label style={lblF}>Nome completo *</label>
+              <input style={inpF} value={nome} onChange={e=>setNome(e.target.value)} placeholder="Seu nome completo" name="name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
             </div>
             <div>
-              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>CPF *</label>
-              <input style={inpF} value={cpf} onChange={e=>setCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric"/>
+              <label style={lblF}>CPF *</label>
+              <input style={inpF} value={cpf} onChange={e=>setCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" name="cpf" inputMode="numeric" autoComplete="off"/>
             </div>
             <div>
-              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>Telefone / WhatsApp *</label>
-              <input style={inpF} value={maskTelefone(telefone)} onChange={e=>setTelefone(e.target.value.replace(/\D/g,""))} placeholder="(48) 99999-9999" inputMode="tel"/>
+              <label style={lblF}>Telefone / WhatsApp *</label>
+              <input style={inpF} value={maskTelefone(telefone)} onChange={e=>setTelefone(e.target.value.replace(/\D/g,""))} placeholder="(48) 99999-9999" name="tel" inputMode="tel" autoComplete="tel"/>
             </div>
             <div>
-              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>Data de nascimento *</label>
-              <input style={inpF} type="date" value={dataNasc} onChange={e=>setDataNasc(e.target.value)}/>
+              <label style={lblF}>Data de nascimento *</label>
+              <input style={inpF} value={dataNascTexto} onChange={e=>onDataTexto(e.target.value)} placeholder="DD/MM/AAAA" inputMode="numeric" autoComplete="bday"/>
+              <div onClick={()=>setUsarCalendario(!usarCalendario)} style={{fontSize:12,color:GOLD_DARK,cursor:"pointer",marginTop:6,textDecoration:"underline"}}>
+                {usarCalendario?"Digitar data":"Usar calendário"}
+              </div>
+              {usarCalendario&&(
+                <input style={{...inpF,marginTop:8}} type="date" value={dataNasc} onChange={e=>onDataCalendario(e.target.value)}/>
+              )}
             </div>
             {idade!==null&&(
-              <div style={{fontSize:12,color:isMinor?PURPLE:GOLD_DARK,fontWeight:600,padding:"8px 12px",background:isMinor?"rgba(91,45,142,0.06)":GOLD_PALE,borderRadius:4,border:"1px solid "+(isMinor?"rgba(91,45,142,0.2)":GOLD_LIGHT)}}>
+              <div style={{fontSize:16,color:isMinor?PURPLE:GOLD_DARK,fontWeight:600,padding:"12px 16px",background:isMinor?"rgba(91,45,142,0.06)":GOLD_PALE,borderRadius:6,border:"1.5px solid "+(isMinor?"rgba(91,45,142,0.2)":GOLD_LIGHT)}}>
                 {isMinor?"⚠️ Menor de idade — preencha o responsável abaixo":idade+" anos"}
               </div>
             )}
             {isMinor&&(
-              <div style={{padding:"14px 16px",background:"rgba(91,45,142,0.05)",border:"1px solid rgba(91,45,142,0.2)",borderRadius:4}}>
-                <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:10}}>Responsável Legal</div>
-                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{padding:"18px 18px",background:"rgba(91,45,142,0.05)",border:"1.5px solid rgba(91,45,142,0.2)",borderRadius:8}}>
+                <div style={{fontSize:13,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:14}}>Responsável Legal</div>
+                <div style={{display:"flex",flexDirection:"column",gap:14}}>
                   <div>
-                    <label style={{fontSize:10,color:PURPLE,fontWeight:600,display:"block",marginBottom:4}}>Nome do responsável *</label>
-                    <input style={inpF} value={respNome} onChange={e=>setRespNome(e.target.value)} placeholder="Nome completo do responsável" spellCheck={false}/>
+                    <label style={{fontSize:13,color:PURPLE,fontWeight:600,display:"block",marginBottom:6}}>Nome do responsável *</label>
+                    <input style={inpF} value={respNome} onChange={e=>setRespNome(e.target.value)} placeholder="Nome completo do responsável" name="parent-name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
                   </div>
                   <div>
-                    <label style={{fontSize:10,color:PURPLE,fontWeight:600,display:"block",marginBottom:4}}>CPF do responsável</label>
-                    <input style={inpF} value={respCpf} onChange={e=>setRespCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric"/>
+                    <label style={{fontSize:13,color:PURPLE,fontWeight:600,display:"block",marginBottom:6}}>CPF do responsável</label>
+                    <input style={inpF} value={respCpf} onChange={e=>setRespCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" autoComplete="off"/>
                   </div>
                 </div>
               </div>
@@ -4669,25 +4709,25 @@ function FormularioPaciente({formId}) {
 
             {/* Assinatura */}
             <div>
-              <label style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,display:"block",marginBottom:4}}>Assinatura digital *</label>
-              <div style={{fontSize:11,color:"#9A8060",marginBottom:8}}>Desenhe sua assinatura com o dedo ou mouse no campo abaixo</div>
+              <label style={lblF}>Assinatura digital *</label>
+              <div style={{fontSize:14,color:"#9A8060",marginBottom:10}}>Desenhe sua assinatura com o dedo no campo abaixo</div>
               <AssinaturaCanvas value={assinatura} onChange={setAssinatura}/>
             </div>
 
             {/* Termo */}
-            <div style={{fontSize:10,color:"#9A8060",lineHeight:1.6,padding:"10px 12px",background:"#FAFAF8",borderRadius:4,border:"1px solid "+BORDER}}>
+            <div style={{fontSize:13,color:"#9A8060",lineHeight:1.6,padding:"14px 16px",background:"#FAFAF8",borderRadius:6,border:"1px solid "+BORDER}}>
               Ao enviar este formulário, declaro que as informações prestadas são verdadeiras e autorizo a Íntegra Clínica Odontológica a utilizar estes dados para fins de atendimento odontológico.
             </div>
 
-            {erro&&<div style={{fontSize:12,color:"#C62828",padding:"8px 12px",background:"#FFF0F0",border:"1px solid #E57373",borderRadius:4}}>{erro}</div>}
+            {erro&&<div style={{fontSize:15,color:"#C62828",padding:"12px 16px",background:"#FFF0F0",border:"1.5px solid #E57373",borderRadius:6}}>{erro}</div>}
 
-            <div onClick={enviando?null:enviar} style={{padding:"14px",background:enviando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:4,cursor:enviando?"default":"pointer",fontSize:14,fontWeight:700,textAlign:"center",letterSpacing:0.5}}>
+            <div onClick={enviando?null:enviar} style={{padding:"18px",background:enviando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:8,cursor:enviando?"default":"pointer",fontSize:18,fontWeight:700,textAlign:"center",letterSpacing:0.5}}>
               {enviando?"Enviando...":"Enviar dados"}
             </div>
           </div>
         </div>
 
-        <div style={{textAlign:"center",marginTop:16,fontSize:10,color:"#9A8060"}}>
+        <div style={{textAlign:"center",marginTop:20,fontSize:12,color:"#9A8060"}}>
           Íntegra Clínica Odontológica · www.odontologiaintegra.com.br
         </div>
       </div>
