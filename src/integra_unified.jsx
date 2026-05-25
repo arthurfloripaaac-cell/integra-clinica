@@ -200,12 +200,18 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
       .rel-print-table tfoot td {
         padding: 0;
       }
-      /* Prevent sections from being cut in half */
+      /* Prevent sections from being cut in half - only small blocks */
       .rel-section {
         break-inside: avoid !important;
         page-break-inside: avoid !important;
       }
-      .rel-content > div {
+      /* Section titles: NEVER leave alone at bottom of page */
+      .rel-section-title {
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+      }
+      /* Small cards/rows: avoid cutting */
+      .rel-card {
         break-inside: avoid !important;
         page-break-inside: avoid !important;
       }
@@ -3185,7 +3191,14 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             <div style={{display:"flex",alignItems:"center",gap:14}}>
               <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="20" cy="20" r="14" stroke={GOLD} strokeWidth="1.3" fill="none"/>
-                {[0,45,90,135,180,225,270,315].map((a,i)=>{const rad=a*Math.PI/180;const x=20+14*Math.cos(rad);const y=20+14*Math.sin(rad);return(<rect key={i} x={x-2.5} y={y-2.5} width="5" height="5" rx="0.8" fill={GOLD_DARK} transform={"rotate("+a+" "+x+" "+y+")"}/>);})}
+                <rect x="31.50" y="17.50" width="5" height="5" rx="0.8" fill={GOLD_DARK} transform="rotate(0 34 20)"/>
+                <rect x="27.40" y="27.40" width="5" height="5" rx="0.8" fill={GOLD_DARK} transform="rotate(45 29.9 29.9)"/>
+                <rect x="17.50" y="31.50" width="5" height="5" rx="0.8" fill={GOLD_DARK} transform="rotate(90 20 34)"/>
+                <rect x="7.60" y="27.40" width="5" height="5" rx="0.8" fill={GOLD_DARK} transform="rotate(135 10.1 29.9)"/>
+                <rect x="3.50" y="17.50" width="5" height="5" rx="0.8" fill={GOLD_DARK} transform="rotate(180 6 20)"/>
+                <rect x="7.60" y="7.60" width="5" height="5" rx="0.8" fill={GOLD_DARK} transform="rotate(225 10.1 10.1)"/>
+                <rect x="17.50" y="3.50" width="5" height="5" rx="0.8" fill={GOLD_DARK} transform="rotate(270 20 6)"/>
+                <rect x="27.40" y="7.60" width="5" height="5" rx="0.8" fill={GOLD_DARK} transform="rotate(315 29.9 10.1)"/>
               </svg>
               <div>
                 <div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:400,color:"#5B2D6E",letterSpacing:5,textTransform:"uppercase",lineHeight:1}}>Íntegra</div>
@@ -3200,7 +3213,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 
           {/* Dados do Paciente */}
           {temDados && <>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+            <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Dados do Paciente</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
@@ -3229,7 +3242,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 
           {/* Avaliação Clínica */}
           {temAval && <>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
+            <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Avaliação Clínica</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
@@ -3255,7 +3268,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 
           {/* Plano de Tratamento */}
           {temPlano && <>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
+            <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Plano de Tratamento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
@@ -3275,7 +3288,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   ? Object.keys(it.subtipos||{}).map(id=>proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ")||"—"
                   : proc.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>{const vd=it.valoresDente&&it.valoresDente[n];return nomeDente(n)+(vd&&vd!==it.valor?" — "+fmt2(parseMoeda(vd)):"");}).join("\n"):"—")
                   :(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":"Arcada inferior");
-                return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
+                return (<div key={it.id} className="rel-card" style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
                   <div>
                     <div style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{proc.nome}</div>
                     <div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
@@ -3296,7 +3309,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       : it.dentes.length*v)
                   : v;
                 const desc = it.modo==="livre" ? "" : it.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—"):(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":it.regiao==="inf"?"Arcada inferior":"—");
-                return (<div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
+                return (<div key={it.id} className="rel-card" style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
                   <div>
                     <div style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{it.nome}</div>
                     <div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
@@ -3317,7 +3330,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             if(!itensSep.length) return null; if((p3.modoRel||"soma")!=="separado"&&(p3.modoRel||"soma")!=="ambos") return null;
             return(
               <div style={{marginTop:16}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
                   <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Propostas Individuais</span>
                   <div style={{flex:1,height:1,background:BORDER}}/>
                 </div>
@@ -3436,7 +3449,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 </div>
               ) : null;
             })()}
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
+            <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
