@@ -4890,61 +4890,63 @@ function App() {
       {pag!=="rel"&&<Header/>}
       <DriveAutoSync p1={p1} p2={p2} p3={p3} p4State={p4State} setP1={setP1} setP2={setP2} setP3={setP3} setP4State={setP4State}/>
 
-      {/* Barra de ações globais — fixa em todas as abas exceto Relatório */}
-      {pag!=="rel"&&(
-        <div className="no-print" style={{position:"fixed",top:0,left:0,right:0,zIndex:150,padding:"8px 16px",display:"flex",gap:6,alignItems:"center",justifyContent:"center",flexWrap:"wrap",background:"rgba(255,255,255,0.97)",borderBottom:"1px solid "+BORDER,backdropFilter:"blur(8px)",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+      {/* Barra de ações globais — fixa em TODAS as abas */}
+        <div className="no-print" style={{position:"fixed",top:0,left:0,right:0,zIndex:150,padding:"6px 12px",display:"flex",gap:5,alignItems:"center",justifyContent:"center",flexWrap:"wrap",background:CREAM,borderBottom:"1.5px solid "+BORDER,backdropFilter:"blur(8px)",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+
+          {/* Pacientes em nuvem — principal */}
+          {driveLogado&&(
+            <div onClick={()=>setShowGlobalPasta(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",background:GOLD_DARK,color:"#fff",borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:700,boxShadow:"0 2px 6px rgba(122,96,32,0.25)"}}>
+              ☁ Pacientes
+            </div>
+          )}
+
+          {/* Salvar no Drive */}
+          {driveLogado&&(
+            <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now(),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,_driveFileId?"sobrepor":false);if(res&&res.precisaConfirmar){const op=window.confirm("Arquivo já existe. OK=Sobrepor / Cancelar=Nova cópia");await gdriveSalvarAtendimento(rel,op);}}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
+              ☁ Salvar
+            </div>
+          )}
+
+          {/* Exportar PDF */}
+          <div onClick={async()=>{const prev=pag;setPag("rel");setTimeout(async()=>{try{await gerarPDFRelatorio();}catch(e){console.error(e);alert("Erro ao gerar PDF: "+e.message);}setPag(prev);},1500);}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
+            📄 PDF
+          </div>
+
+          {/* Imprimir */}
+          <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>window.print(),300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
+            🖨️ Imprimir
+          </div>
+
+          {/* Firebase Sync — integrado na barra */}
+          <div onClick={()=>setShowFbModal(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:CREAM,border:"1px solid "+(fb.fbConectado?"#4CAF50":BORDER),color:fb.fbConectado?"#2E7D32":GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:fb.fbConectado?"#4CAF50":"#ccc"}}/>
+            {fb.fbConectado?("Rede "+fb.fbSessao):"📡 Rede"}
+          </div>
+
+          {/* Salvar local — discreto */}
           <div onClick={()=>{
             const dup = verificarDuplicata(p1);
             if(dup) { const opcao = window.confirm("Atendimento ja existe. OK=Sobrepor / Cancelar=Salvar copia"); salvarRelatorio(p1,p2,p3,p4State,opcao); }
             else { salvarRelatorio(p1,p2,p3,p4State,false); }
             setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
-          }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:relatorioSalvo?"#7A6020":"#fff",border:"1px solid "+(relatorioSalvo?GOLD_DARK:BORDER),color:relatorioSalvo?"#fff":GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
-            {relatorioSalvo?"✓ Salvo":"💾 Salvar local"}
+          }} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 10px",background:relatorioSalvo?GOLD_DARK:CREAM,border:"1px solid "+BORDER,color:relatorioSalvo?"#fff":"#9A8060",borderRadius:20,cursor:"pointer",fontSize:9,fontWeight:500}}>
+            {relatorioSalvo?"✓":"💾"}
           </div>
-          <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>window.print(),300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"linear-gradient(135deg,#2C1810,#1A0F08)",color:"#fff",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
-            🖨️ Imprimir
-          </div>
-          <div onClick={async()=>{const prev=pag;setPag("rel");setTimeout(async()=>{try{await gerarPDFRelatorio();}catch(e){console.error(e);alert("Erro ao gerar PDF: "+e.message);}setPag(prev);},1500);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
-            📄 Exportar PDF
-          </div>
+
+          {/* Separador + Conta Google */}
+          <div style={{width:1,height:20,background:BORDER,margin:"0 2px"}}/>
           {driveLogado?(
-            <>
-              <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now(),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,_driveFileId?"sobrepor":false);if(res&&res.precisaConfirmar){const op=window.confirm("Arquivo já existe. OK=Sobrepor / Cancelar=Nova cópia");await gdriveSalvarAtendimento(rel,op);}}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#e8f5e9",border:"1px solid #34A853",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#1e7e34"}}>
-                ☁ Salvar no Drive
-              </div>
-              <div onClick={()=>setShowGlobalPasta(true)} style={{display:"flex",alignItems:"center",gap:5,padding:"8px 16px",background:GOLD_DARK,border:"2px solid "+GOLD_DARK,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:700,color:"#fff",boxShadow:"0 2px 8px rgba(122,96,32,0.3)"}}>
-                ☁ Pacientes em nuvem
-              </div>
-              <div onClick={async()=>{_gdriveFolderId=null;try{await gdriveLogin(true);}catch(e){notifyDriveLogin();}}} style={{padding:"6px 10px",border:"1px solid "+GOLD,borderRadius:3,cursor:"pointer",fontSize:10,color:GOLD_DARK}}>
-                Trocar conta
-              </div>
-            </>
+            <div onClick={async()=>{_gdriveFolderId=null;try{await gdriveLogin(true);}catch(e){notifyDriveLogin();}}} style={{padding:"5px 8px",cursor:"pointer",fontSize:9,color:"#9A8060",borderRadius:20,border:"1px solid "+BORDER}}>
+              Trocar conta
+            </div>
           ):(
-            <div onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();}catch(e){alert(e.message.includes("cancelado")||e.message.includes("access_denied")?"Use: integratrindade@gmail.com, arthurarioli@hotmail.com ou arthurfloripa.aac@gmail.com":"Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid #dadce0",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:"#3c4043"}}>
+            <div onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();}catch(e){alert(e.message.includes("cancelado")||e.message.includes("access_denied")?"Use: integratrindade@gmail.com, arthurarioli@hotmail.com ou arthurfloripa.aac@gmail.com":"Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
               <svg width="12" height="12" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-              Conectar Drive
+              Google
             </div>
           )}
         </div>
-      )}
-      {pag!=="rel"&&<div className="no-print" style={{height:48}}/>}
-
-      {/* Botão Sync flutuante */}
-      {pag!=="rel"&&(
-        <div className="no-print" onClick={()=>setShowFbModal(true)} style={{
-          position:"fixed",bottom:76,right:70,zIndex:200,
-          background:fb.fbConectado?"#E8F5E9":"#fff",
-          border:"2px solid "+(fb.fbConectado?"#4CAF50":BORDER),
-          borderRadius:24,padding:"8px 14px",
-          cursor:"pointer",boxShadow:fb.fbConectado?"0 0 12px rgba(76,175,80,0.4)":"0 3px 12px rgba(0,0,0,0.2)",
-          display:"flex",alignItems:"center",gap:6,fontSize:10,fontWeight:700,
-          color:fb.fbConectado?"#2E7D32":"#9A8060",
-          animation:fb.fbConectado?"none":"none",
-        }}>
-          <div style={{width:10,height:10,borderRadius:"50%",background:fb.fbConectado?"#4CAF50":"#ccc",boxShadow:fb.fbConectado?"0 0 8px #4CAF50":"none",border:fb.fbConectado?"2px solid #2E7D32":"2px solid #ddd"}}/>
-          {fb.fbConectado?("🔗 "+fb.fbSessao):"📡 Conectar"}
-        </div>
-      )}
+      <div className="no-print" style={{height:44}}/>
 
       {/* Modal Pasta Drive Global */}
       {showGlobalPasta&&<DrivePastaModal onClose={()=>setShowGlobalPasta(false)} onCarregar={(dados)=>{
