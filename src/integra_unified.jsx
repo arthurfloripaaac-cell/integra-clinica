@@ -3846,7 +3846,9 @@ async function gerarPDFRelatorio() {
   // Alturas em mm
   const headerH = (headerCanvas.height / headerCanvas.width) * contentW;
   const footerH = (footerCanvas.height / footerCanvas.width) * contentW;
-  const espacoConteudo = pageH - marginTop - marginBot - headerH - footerH - 4;
+  const gapHeader = 6; // margem entre header e conteúdo
+  const gapFooter = 6; // margem entre conteúdo e footer
+  const espacoConteudo = pageH - marginTop - marginBot - headerH - footerH - gapHeader - gapFooter;
   const contentTotalH = (contentCanvas.height / contentCanvas.width) * contentW;
   const numPages = Math.ceil(contentTotalH / espacoConteudo);
 
@@ -3856,15 +3858,12 @@ async function gerarPDFRelatorio() {
   for(let pg = 0; pg < numPages; pg++) {
     if(pg > 0) pdf.addPage();
 
-    // Header em todas as páginas
+    // Header em todas as páginas (a linha dourada já está no borderBottom do header)
     pdf.addImage(headerImg, "PNG", marginL, marginTop, contentW, headerH);
-    pdf.setDrawColor(184, 150, 46);
-    pdf.setLineWidth(0.5);
-    pdf.line(marginL, marginTop + headerH + 1, pageW - marginR, marginTop + headerH + 1);
 
     // Fatia do conteúdo para esta página
     const yInicio = pg * espacoConteudo;
-    const yContent = marginTop + headerH + 2;
+    const yContent = marginTop + headerH + gapHeader;
     const sliceH = Math.min(espacoConteudo, contentTotalH - yInicio);
     const sliceHpx = (sliceH / contentTotalH) * contentCanvas.height;
     const yInicioPx = (yInicio / contentTotalH) * contentCanvas.height;
@@ -3878,11 +3877,8 @@ async function gerarPDFRelatorio() {
     const sliceImg = sliceCanvas.toDataURL("image/png");
     pdf.addImage(sliceImg, "PNG", marginL, yContent, contentW, sliceH);
 
-    // Footer em todas as páginas
+    // Footer em todas as páginas (a linha dourada já está no borderTop do footer)
     const footerY = pageH - marginBot - footerH;
-    pdf.setDrawColor(184, 150, 46);
-    pdf.setLineWidth(0.5);
-    pdf.line(marginL, footerY - 1, pageW - marginR, footerY - 1);
     pdf.addImage(footerImg, "PNG", marginL, footerY, contentW, footerH);
 
     // Página X de Y
