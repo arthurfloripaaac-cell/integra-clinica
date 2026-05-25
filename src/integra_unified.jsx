@@ -3135,26 +3135,6 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 
   return (
     <div className="relatorio-outer" style={{maxWidth:680,margin:"0 auto",padding:"4px 16px 40px"}}>
-      <div style={{marginBottom:8,display:"flex",justifyContent:"flex-end"}}>
-        {!isPreview&&<div className="no-print" style={{display:"flex",gap:10,alignItems:"center"}}>
-          {onSalvar&&<div onClick={onSalvar} style={{
-            display:"flex",alignItems:"center",gap:8,padding:"10px 20px",
-            background:salvoOk?"#7A6020":"#fff",border:"1px solid "+(salvoOk?GOLD_DARK:BORDER),
-            color:salvoOk?"#fff":GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:12,fontWeight:600,
-          }}>
-            {salvoOk?"✓ Salvo!":"💾 Salvar local"}
-          </div>}
-          <div onClick={()=>window.print()} style={{
-            display:"flex",alignItems:"center",gap:8,padding:"10px 20px",
-            background:"linear-gradient(135deg,#2C1810,#1A0F08)",
-            color:"#fff",borderRadius:3,cursor:"pointer",fontSize:12,fontWeight:600,
-            boxShadow:"0 2px 8px rgba(0,0,0,0.2)",
-          }}>
-            🖨️ Imprimir / Salvar PDF
-          </div>
-        </div>}
-        {!isPreview&&<DriveSync relatorio={_driveData} onCarregar={onCarregarDrive}/>}
-      </div>
       <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
 
         {/* Cabeçalho */}
