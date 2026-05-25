@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-// v8.10 - Correção estrutural de impressão (Cabeçalho/Rodapé repetidos e quebras de página nativas)
+// v8.10 - Correção de quebra de página na impressão (tabela mestra thead/tfoot)
 
 // ─── FIREBASE REALTIME DATABASE ────────────────────
 const FIREBASE_CONFIG = {
@@ -58,7 +58,7 @@ const PROCEDIMENTOS_PADRAO = [
   { id: "p10", nome: "Placa de Bruxismo", tipo: "regiao", valor: 1500 }
 ];
 
-const ESTILOS_GEOFOTO = `
+const ESTILOS_IMPRESSAO = `
   @media print {
     @page {
       size: A4;
@@ -77,7 +77,6 @@ const ESTILOS_GEOFOTO = `
       display: block !important;
     }
     
-    /* Estrutura Mestra Anti-Rachadura */
     .print-table-wrapper {
       width: 100% !important;
       border-collapse: collapse !important;
@@ -85,7 +84,6 @@ const ESTILOS_GEOFOTO = `
       padding: 0 !important;
     }
     
-    /* Configuração de repetição do Cabeçalho e Rodapé */
     thead.print-header {
       display: table-header-group !important;
     }
@@ -94,10 +92,10 @@ const ESTILOS_GEOFOTO = `
     }
     
     .print-header-padding {
-      height: 45mm; /* Espaço exato para o cabeçalho fixo não sobrepor o conteúdo */
+      height: 48mm;
     }
     .print-footer-padding {
-      height: 25mm; /* Espaço para o rodapé */
+      height: 25mm;
     }
     
     .print-header-fixed {
@@ -105,7 +103,7 @@ const ESTILOS_GEOFOTO = `
       top: 0;
       left: 0;
       right: 0;
-      height: 40mm;
+      height: 42mm;
       background: #faf7f2 !important;
       border-bottom: 2px solid #B8962E !important;
       padding: 20px 40px;
@@ -113,6 +111,7 @@ const ESTILOS_GEOFOTO = `
       display: flex;
       justify-content: space-between;
       align-items: center;
+      z-index: 9999;
     }
     
     .print-footer-fixed {
@@ -126,16 +125,14 @@ const ESTILOS_GEOFOTO = `
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 10px;
-      color: #655340 !important;
+      z-index: 9999;
     }
     
     .print-main-content {
-      padding: 10px 40px;
+      padding: 20px 40px;
       box-sizing: border-box;
     }
     
-    /* Impedir cortes bruscos dentro dos blocos e linhas */
     .avoid-break {
       page-break-inside: avoid !important;
       break-inside: avoid !important;
@@ -189,10 +186,10 @@ export default function IntegraUnifiedApp() {
   // Assinatura Digital
   const [assinaturaBase64, setAssinaturaBase64] = useState("");
 
-  // Injetar estilos de impressão dinamicamente
+  // Injetar estilos de impressão
   useEffect(() => {
     const styleTag = document.createElement("style");
-    styleTag.innerHTML = ESTILOS_GEOFOTO;
+    styleTag.innerHTML = ESTILOS_IMPRESSAO;
     document.head.appendChild(styleTag);
     return () => document.head.removeChild(styleTag);
   }, []);
@@ -235,14 +232,14 @@ export default function IntegraUnifiedApp() {
     _fbDb.ref("sessoes/" + chaveSessao).update(novosDados);
   };
 
-  // ─── LÓGICA DE TRATAMENTOS ───────────────────────
+  // ─── LÓGICA DE PRODUTOS ──────────────────────────
   const adicionarItemOrcamento = (proc, dentes, regiao) => {
     const novoItem = {
       idUnico: Date.now() + Math.random().toString(36).substr(2, 9),
       procedimento: proc,
       dentes: dentes || [],
-      regiao: regiao || "",
-      valorCalculado: proc.tipo === "dente" ? proc.valor * (dentes.length || 1) : proc.valor
+      regiao: regiao || "Boca Toda",
+      valorCalculado: proc.valor
     };
     const listaAtualizada = [...itensOrcamento, novoItem];
     setItensOrcamento(listaAtualizada);
@@ -259,7 +256,7 @@ export default function IntegraUnifiedApp() {
     return itensOrcamento.reduce((acc, curr) => acc + curr.valorCalculado, 0);
   }, [itensOrcamento]);
 
-  // ─── COMPONENTE GRÁFICO DO CABEÇALHO/RODAPÉ ──────
+  // Cabeçalho e Rodapé de Impressão Estáticos
   const ElementoCabecalho = () => (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
       <div>
@@ -267,8 +264,8 @@ export default function IntegraUnifiedApp() {
         <p style={{ margin: "2px 0 0 0", fontSize: "10px", color: "#9A8060", letterSpacing: "3px", textTransform: "uppercase" }}>Clínica Odontológica</p>
       </div>
       <div style={{ textAlign: "right", fontSize: "11px", color: "#655340", lineHeight: "1.4" }}>
-        <strong>Dr. Arthur A. Cheade</strong><br />
-        Responsável Clínico | CRO-SC XXXX<br />
+        <strong>{respClinico}</strong><br />
+        Responsável Clínico<br />
         Florianópolis - SC
       </div>
     </div>
@@ -277,50 +274,133 @@ export default function IntegraUnifiedApp() {
   const ElementoRodape = () => (
     <div style={{ width: "100%", textAlign: "center", fontSize: "11px", color: "#9A8060" }}>
       <p style={{ margin: 0 }}>Íntegra Clínica Odontológica - Desde 1996 | Excelência em Saúde Bucal</p>
-      <p style={{ margin: "4px 0 0 0", fontSize: "9px", color: "#B8962E" }}>Documento Gerado Via Sistema Unificado Integrado</p>
     </div>
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fcfaf7", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", color: "#4A3E3D", margin: 0, padding: 0 }}>
+    <div style={{ minHeight: "100vh", background: "#fcfaf7", fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif", color: "#4A3E3D", margin: 0, padding: 0 }}>
       
-      {/* ─── POPUP DE BOAS-VINDAS / CHAVE DE SESSÃO ─── */}
+      {/* ─── INTERFACE DE LOGIN ─────────────────────── */}
       {popupBoasVindas && (
-        <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(36,28,21,0.95)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999, padding: "20px" }}>
-          <div style={{ background: "#fcfaf7", padding: "40px", borderRadius: "12px", maxWidth: "450px", width: "100%", boxShadow: "0 20px 40px rgba(0,0,0,0.3)", border: "1px solid #E0D7CD", textAlign: "center" }}>
-            <h2 style={{ fontFamily: "Georgia, serif", color: "#B8962E", marginBottom: "10px", fontSize: "24px" }}>Sistema Íntegra v8.10</h2>
-            <p style={{ color: "#655340", fontSize: "14px", lineHeight: "1.5", marginBottom: "25px" }}>Insira a chave de sincronização para conectar a recepção e o consultório em tempo real.</p>
+        <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(36,28,21,0.95)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999 }}>
+          <div style={{ background: "#fcfaf7", padding: "40px", borderRadius: "12px", maxWidth: "450px", width: "100%", border: "1px solid #E0D7CD", textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+            <h2 style={{ fontFamily: "Georgia, serif", color: "#B8962E", marginBottom: "15px" }}>Painel Integrado Íntegra</h2>
             <input 
               type="text" 
-              placeholder="Ex: clinica-hoje" 
+              placeholder="Chave da Sessão (Ex: integra-hoje)" 
               value={chaveSessao} 
               onChange={(e) => setChaveSessao(e.target.value.toLowerCase().trim())} 
-              style={{ width: "100%", padding: "14px", borderRadius: "6px", border: "1px solid #C4B4A3", background: "#fff", fontSize: "16px", textAlign: "center", marginBottom: "20px", color: "#4A3E3D" }}
+              style={{ width: "100%", padding: "14px", borderRadius: "6px", border: "1px solid #C4B4A3", fontSize: "16px", textAlign: "center", marginBottom: "20px" }}
             />
             <button 
               onClick={() => { if(chaveSessao) setPopupBoasVindas(false); }}
               disabled={!chaveSessao}
-              style={{ width: "100%", padding: "14px", background: chaveSessao ? "#B8962E" : "#C4B4A3", color: "#fff", border: "none", borderRadius: "6px", fontSize: "16px", fontWeight: "600", cursor: chaveSessao ? "pointer" : "not-allowed", transition: "all 0.2s" }}
+              style={{ width: "100%", padding: "14px", background: chaveSessao ? "#B8962E" : "#C4B4A3", color: "#fff", border: "none", borderRadius: "6px", fontSize: "16px", fontWeight: "600", cursor: "pointer" }}
             >
-              Conectar Painel Clínico
+              Conectar Sistema
             </button>
           </div>
         </div>
       )}
 
-      {/* ─── INTERFACE VISUAL DA TELA (NO-PRINT) ─── */}
+      {/* ─── PAINEL VISUAL (WEB SCREEN) ──────────────── */}
       <div className="no-print" style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px" }}>
-        
-        {/* Topbar do Sistema */}
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "20px", borderBottom: "1px solid #E0D7CD", marginBottom: "25px" }}>
           <div>
-            <h1 style={{ margin: 0, fontFamily: "Georgia, serif", color: "#B8962E", fontSize: "24px" }}>ÍNTEGRA</h1>
-            <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "#9A8060" }}>Sessão Ativa: <strong>{chaveSessao || "Nenhuma"}</strong></span>
+            <h1 style={{ margin: 0, fontFamily: "Georgia, serif", color: "#B8962E" }}>ÍNTEGRA</h1>
+            <span style={{ fontSize: "12px", color: "#9A8060" }}>Conexão Ativa: {chaveSessao || "Nenhuma"}</span>
           </div>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button onClick={() => window.print()} style={{ padding: "10px 18px", background: "#B8962E", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "500", fontSize: "13px" }}>🖨️ Imprimir Orçamento</button>
-          </div>
+          <button onClick={() => window.print()} style={{ padding: "10px 20px", background: "#B8962E", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>🖨️ Gerar Impressão</button>
         </header>
 
-        {/* Menu de Abas */}
-        <nav style={{ display: "flex", background: "#f2ede
+        <nav style={{ display: "flex", background: "#f2ede6", borderRadius: "8px", padding: "6px", marginBottom: "25px", gap: "5px" }}>
+          <button onClick={() => setPag("p1")} style={{ flex: 1, padding: "12px", border: "none", borderRadius: "6px", background: pag === "p1" ? "#fff" : "transparent", color: "#B8962E", fontWeight: "600", cursor: "pointer" }}>👤 Paciente</button>
+          <button onClick={() => setPag("p2")} style={{ flex: 1, padding: "12px", border: "none", borderRadius: "6px", background: pag === "p2" ? "#fff" : "transparent", color: "#B8962E", fontWeight: "600", cursor: "pointer" }}>📋 Diagnóstico</button>
+          <button onClick={() => setPag("p3")} style={{ flex: 1, padding: "12px", border: "none", borderRadius: "6px", background: pag === "p3" ? "#fff" : "transparent", color: "#B8962E", fontWeight: "600", cursor: "pointer" }}>💰 Orçamento ({itensOrcamento.length})</button>
+        </nav>
+
+        {pag === "p1" && (
+          <div style={{ background: "#fff", padding: "30px", borderRadius: "12px", border: "1px solid #E0D7CD" }}>
+            <h3 style={{ marginTop: 0, color: "#655340", fontFamily: "Georgia, serif" }}>Cadastro Inicial</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginTop: "20px" }}>
+              <input type="text" placeholder="Nome Completo" value={nome} onChange={(e) => { setNome(e.target.value); salvarNoFirebase({ nome: e.target.value }); }} style={{ padding: "12px", borderRadius: "6px", border: "1px solid #E0D7CD" }} />
+              <input type="text" placeholder="CPF" value={cpf} onChange={(e) => { setCpf(e.target.value); salvarNoFirebase({ cpf: e.target.value }); }} style={{ padding: "12px", borderRadius: "6px", border: "1px solid #E0D7CD" }} />
+              <input type="text" placeholder="Telefone" value={telefone} onChange={(e) => { setTelefone(e.target.value); salvarNoFirebase({ telefone: e.target.value }); }} style={{ padding: "12px", borderRadius: "6px", border: "1px solid #E0D7CD" }} />
+              <input type="date" value={nascimento} onChange={(e) => { setNascimento(e.target.value); salvarNoFirebase({ nascimento: e.target.value }); }} style={{ padding: "12px", borderRadius: "6px", border: "1px solid #E0D7CD" }} />
+            </div>
+          </div>
+        )}
+
+        {pag === "p2" && (
+          <div style={{ background: "#fff", padding: "30px", borderRadius: "12px", border: "1px solid #E0D7CD" }}>
+            <h3 style={{ marginTop: 0, color: "#655340", fontFamily: "Georgia, serif" }}>Ficha Clínica</h3>
+            <div style={{ display: "flex", gap: "20px", margin: "20px 0" }}>
+              {Object.keys(achados).map(key => (
+                <label key={key} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input type="checkbox" checked={achados[key]} onChange={(e) => { const n = { ...achados, [key]: e.target.checked }; setAchados(n); salvarNoFirebase({ achados: n }); }} />
+                  <span style={{ textTransform: "capitalize" }}>{key}</span>
+                </label>
+              ))}
+            </div>
+            <textarea placeholder="Observações..." value={observacoes} onChange={(e) => { setObservacoes(e.target.value); salvarNoFirebase({ observacoes: e.target.value }); }} rows={4} style={{ width: "100%", padding: "12px", borderRadius: "6px", border: "1px solid #E0D7CD" }} />
+          </div>
+        )}
+
+        {pag === "p3" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+            <div style={{ background: "#fff", padding: "20px", borderRadius: "12px", border: "1px solid #E0D7CD" }}>
+              <h3 style={{ marginTop: 0 }}>Procedimentos</h3>
+              {PROCEDIMENTOS_PADRAO.map(p => (
+                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f2ede6" }}>
+                  <span>{p.nome}</span>
+                  <button onClick={() => adicionarItemOrcamento(p, [], "Boca Toda")} style={{ background: "none", border: "1px solid #B8962E", color: "#B8962E", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}>+ Add</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: "#fff", padding: "20px", borderRadius: "12px", border: "1px solid #E0D7CD" }}>
+              <h3 style={{ marginTop: 0 }}>Resumo</h3>
+              {itensOrcamento.map(i => (
+                <div key={i.idUnico} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
+                  <span>{i.procedimento.nome}</span>
+                  <button onClick={() => removerItemOrcamento(i.idUnico)} style={{ color: "red", background: "none", border: "none", cursor: "pointer" }}>✕</button>
+                </div>
+              ))}
+              <h4 style={{ borderTop: "2px solid #B8962E", paddingTop: "15px", marginTop: "15px", textAlign: "right" }}>Total: R$ {valorTotalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h4>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── LAYOUT DE IMPRESSÃO PROFISSIONAL (A4) ───── */}
+      <div className="print-only">
+        <table className="print-table-wrapper">
+          <thead className="print-header">
+            <tr>
+              <td>
+                <div className="print-header-padding" />
+                <div className="print-header-fixed">
+                  <ElementoCabecalho />
+                </div>
+              </td>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr>
+              <td>
+                <div className="print-main-content">
+                  
+                  {/* Paciente */}
+                  <div className="avoid-break" style={{ marginBottom: "25px", background: "#fcfaf7", padding: "20px", borderRadius: "6px", border: "1px solid #E0D7CD" }}>
+                    <h3 style={{ margin: "0 0 15px 0", fontSize: "14px", textTransform: "uppercase", color: "#B8962E", borderBottom: "1px solid #E0D7CD", paddingBottom: "5px" }}>Identificação do Paciente</h3>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 20px", fontSize: "13px" }}>
+                      <div><strong>Paciente:</strong> {nome || "Não preenchido"}</div>
+                      <div><strong>CPF:</strong> {cpf || "Não preenchido"}</div>
+                      <div><strong>WhatsApp:</strong> {telefone || "Não preenchido"}</div>
+                      <div><strong>Data Consulta:</strong> {dataConsulta ? new Date(dataConsulta).toLocaleDateString("pt-BR") : "---"}</div>
+                    </div>
+                  </div>
+
+                  {/* Diagnóstico */}
+                  <div className="avoid-break" style={{ marginBottom: "25px" }}>
+                    <h3 style={{ margin
