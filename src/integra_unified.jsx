@@ -189,27 +189,19 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
         min-height: auto !important;
         overflow: visible !important;
       }
-      /* Header/footer fixos — repete em todas as páginas */
+      /* Header/footer apenas na página 1 — sem repetir */
       .rel-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
+        position: relative;
         background: #fff !important;
       }
       .rel-footer {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
+        position: relative;
         background: #fff !important;
       }
-      /* Espaçamento para não sobrepor header/footer */
+      /* Conteúdo sem padding extra */
       .rel-content {
-        padding-top: 44px !important;
-        padding-bottom: 60px !important;
+        padding-top: 22px !important;
+        padding-bottom: 22px !important;
       }
       /* Títulos nunca ficam sozinhos no fim da página */
       .rel-section-title {
@@ -221,7 +213,7 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
         break-inside: avoid !important;
         page-break-inside: avoid !important;
       }
-      @page { margin: 8mm 10mm; size: A4 portrait; }
+      @page { margin: 15mm 10mm 12mm 10mm; size: A4 portrait; }
     }
   `;
   document.head.appendChild(_s);
