@@ -3807,13 +3807,18 @@ async function gerarPDFRelatorio() {
   const html2canvas = _html2canvas;
   const jsPDF = _jsPDF;
 
-  // Capturar header, content e footer como imagens separadas
-  const headerEl = document.querySelector(".rel-header");
-  const contentEl = document.querySelector(".rel-content");
-  const footerEl = document.querySelector(".rel-footer");
+  // Esperar elementos aparecerem (max 3s)
+  let headerEl, contentEl, footerEl;
+  for(let i = 0; i < 30; i++) {
+    headerEl = document.querySelector(".rel-header");
+    contentEl = document.querySelector(".rel-content");
+    footerEl = document.querySelector(".rel-footer");
+    if(headerEl && contentEl && footerEl) break;
+    await new Promise(r => setTimeout(r, 100));
+  }
 
   if(!headerEl || !contentEl || !footerEl) {
-    alert("Erro: Relatório não encontrado. Vá para a aba Relatório primeiro.");
+    alert("Erro: Relatório não encontrado. Tente novamente.");
     return;
   }
 
@@ -3827,10 +3832,13 @@ async function gerarPDFRelatorio() {
   const marginBot = 8;
   const contentW = pageW - marginL - marginR;
 
+  // html2canvas config — foreignObjectRendering evita problema de iframe
+  const h2cOpts = { scale, useCORS: true, backgroundColor: "#ffffff", foreignObjectRendering: false, allowTaint: true, logging: false };
+
   // Capturar imagens
-  const headerCanvas = await html2canvas(headerEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
-  const footerCanvas = await html2canvas(footerEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
-  const contentCanvas = await html2canvas(contentEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
+  const headerCanvas = await html2canvas(headerEl, h2cOpts);
+  const footerCanvas = await html2canvas(footerEl, h2cOpts);
+  const contentCanvas = await html2canvas(contentEl, h2cOpts);
 
   const headerImg = headerCanvas.toDataURL("image/png");
   const footerImg = footerCanvas.toDataURL("image/png");
@@ -4900,7 +4908,7 @@ function App() {
           <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>window.print(),300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"linear-gradient(135deg,#2C1810,#1A0F08)",color:"#fff",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
             🖨️ Imprimir
           </div>
-          <div onClick={async()=>{const prev=pag;setPag("rel");setTimeout(async()=>{try{await gerarPDFRelatorio();}catch(e){console.error(e);alert("Erro ao gerar PDF: "+e.message);}setPag(prev);},500);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
+          <div onClick={async()=>{const prev=pag;setPag("rel");setTimeout(async()=>{try{await gerarPDFRelatorio();}catch(e){console.error(e);alert("Erro ao gerar PDF: "+e.message);}setPag(prev);},1500);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
             📄 Exportar PDF
           </div>
           {driveLogado?(
