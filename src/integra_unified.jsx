@@ -3790,23 +3790,22 @@ function gdriveIniciarRenovacao() {
 gdriveRestaurarToken();
 
 // ─── GERAR PDF COM CABEÇALHO/RODAPÉ EM TODAS AS PÁGINAS ─────────────────────
-async function _loadScript(src) {
-  if(document.querySelector('script[src="'+src+'"]')) return;
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
+let _html2canvas = null;
+let _jsPDF = null;
 
 async function gerarPDFRelatorio() {
-  // Carregar libs via CDN
-  await _loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
-  await _loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js");
+  // Importar libs dinamicamente (instaladas via npm)
+  if(!_html2canvas) {
+    const mod = await import("html2canvas");
+    _html2canvas = mod.default || mod;
+  }
+  if(!_jsPDF) {
+    const mod = await import("jspdf");
+    _jsPDF = mod.jsPDF || mod.default;
+  }
 
-  const { jsPDF } = window.jspdf;
+  const html2canvas = _html2canvas;
+  const jsPDF = _jsPDF;
 
   // Capturar header, content e footer como imagens separadas
   const headerEl = document.querySelector(".rel-header");
@@ -3818,37 +3817,29 @@ async function gerarPDFRelatorio() {
     return;
   }
 
-  // Configurações
-  const scale = 2; // qualidade alta
-  const pageW = 210; // A4 mm
+  // Configurações A4
+  const scale = 2;
+  const pageW = 210;
   const pageH = 297;
   const marginL = 10;
   const marginR = 10;
   const marginTop = 8;
   const marginBot = 8;
-  const contentW = pageW - marginL - marginR; // área útil em mm
+  const contentW = pageW - marginL - marginR;
 
   // Capturar imagens
-  const headerCanvas = await window.html2canvas(headerEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
-  const footerCanvas = await window.html2canvas(footerEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
-  const contentCanvas = await window.html2canvas(contentEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
+  const headerCanvas = await html2canvas(headerEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
+  const footerCanvas = await html2canvas(footerEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
+  const contentCanvas = await html2canvas(contentEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
 
-  // Converter para dimensões em mm
   const headerImg = headerCanvas.toDataURL("image/png");
   const footerImg = footerCanvas.toDataURL("image/png");
-  const contentImg = contentCanvas.toDataURL("image/png");
 
-  // Calcular alturas proporcionais em mm
+  // Alturas em mm
   const headerH = (headerCanvas.height / headerCanvas.width) * contentW;
   const footerH = (footerCanvas.height / footerCanvas.width) * contentW;
-
-  // Espaço disponível para conteúdo em cada página
-  const espacoConteudo = pageH - marginTop - marginBot - headerH - footerH - 4; // 4mm gaps
-
-  // Altura total do conteúdo em mm
+  const espacoConteudo = pageH - marginTop - marginBot - headerH - footerH - 4;
   const contentTotalH = (contentCanvas.height / contentCanvas.width) * contentW;
-
-  // Quantas páginas
   const numPages = Math.ceil(contentTotalH / espacoConteudo);
 
   // Criar PDF
@@ -3857,51 +3848,43 @@ async function gerarPDFRelatorio() {
   for(let pg = 0; pg < numPages; pg++) {
     if(pg > 0) pdf.addPage();
 
-    // Header
+    // Header em todas as páginas
     pdf.addImage(headerImg, "PNG", marginL, marginTop, contentW, headerH);
-
-    // Linha dourada abaixo do header
     pdf.setDrawColor(184, 150, 46);
     pdf.setLineWidth(0.5);
     pdf.line(marginL, marginTop + headerH + 1, pageW - marginR, marginTop + headerH + 1);
 
-    // Content — recortar a fatia desta página
+    // Fatia do conteúdo para esta página
     const yInicio = pg * espacoConteudo;
-    const yContent = marginTop + headerH + 2; // posição Y onde o content começa
-
-    // Criar canvas recortado para esta página
-    const sliceCanvas = document.createElement("canvas");
+    const yContent = marginTop + headerH + 2;
     const sliceH = Math.min(espacoConteudo, contentTotalH - yInicio);
     const sliceHpx = (sliceH / contentTotalH) * contentCanvas.height;
     const yInicioPx = (yInicio / contentTotalH) * contentCanvas.height;
 
+    const sliceCanvas = document.createElement("canvas");
     sliceCanvas.width = contentCanvas.width;
     sliceCanvas.height = Math.ceil(sliceHpx);
     const ctx = sliceCanvas.getContext("2d");
-    ctx.drawImage(contentCanvas, 0, yInicioPx, contentCanvas.width, sliceHpx, 0, 0, contentCanvas.width, sliceHpx);
+    ctx.drawImage(contentCanvas, 0, yInicioPx, contentCanvas.width, sliceHpx, 0, 0, contentCanvas.width, Math.ceil(sliceHpx));
 
     const sliceImg = sliceCanvas.toDataURL("image/png");
     pdf.addImage(sliceImg, "PNG", marginL, yContent, contentW, sliceH);
 
-    // Linha dourada acima do footer
+    // Footer em todas as páginas
     const footerY = pageH - marginBot - footerH;
     pdf.setDrawColor(184, 150, 46);
     pdf.setLineWidth(0.5);
     pdf.line(marginL, footerY - 1, pageW - marginR, footerY - 1);
-
-    // Footer
     pdf.addImage(footerImg, "PNG", marginL, footerY, contentW, footerH);
 
-    // Número da página
+    // Página X de Y
     pdf.setFontSize(7);
     pdf.setTextColor(180, 180, 180);
-    pdf.text("Página " + (pg + 1) + " de " + numPages, pageW - marginR - 2, pageH - marginBot + 2, { align: "right" });
+    pdf.text("Pagina " + (pg + 1) + " de " + numPages, pageW - marginR - 2, pageH - marginBot + 2, { align: "right" });
   }
 
-  // Abrir PDF
-  const blob = pdf.output("blob");
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  // Download direto em vez de abrir aba (evita bloqueio de popup)
+  pdf.save("Integra_Relatorio.pdf");
 }
 
 async function gdriveEnsureScript() {
