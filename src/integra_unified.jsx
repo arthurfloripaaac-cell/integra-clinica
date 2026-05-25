@@ -231,10 +231,10 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
       }
       /* Spacing between header and content on page 2+ */
       .rel-print-table thead td {
-        padding-bottom: 8px !important;
+        padding-bottom: 0 !important;
       }
       .rel-print-table tbody td {
-        padding-top: 12px !important;
+        padding-top: 0 !important;
       }
       /* Spacing between content and footer */
       .rel-print-table tfoot td {
@@ -3186,7 +3186,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
         <table className="rel-print-table" style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><td>
         {/* Cabeçalho */}
-        <div className="rel-header" style={{position:"relative",padding:"22px 28px 18px",borderBottom:"2px solid "+GOLD,background:"linear-gradient(155deg, rgba(91,45,110,0.07) 0%, rgba(91,45,110,0.02) 35%, transparent 50%, rgba(184,150,46,0.05) 70%, rgba(184,150,46,0.02) 100%)",borderTop:"2.5px solid rgba(91,45,110,0.25)"}}>
+        <div className="rel-header" style={{position:"relative",padding:"22px 28px 18px",borderBottom:"2px solid "+GOLD,backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 680 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='0,0 480,0 680,80 200,80' fill='%235B2D6E' opacity='0.06'/%3E%3Cline x1='0' y1='0' x2='200' y2='80' stroke='%235B2D6E' stroke-width='2.5' opacity='0.30'/%3E%3Cline x1='480' y1='0' x2='680' y2='80' stroke='%235B2D6E' stroke-width='2.5' opacity='0.30'/%3E%3Cpolygon points='80,0 560,0 680,48 200,48' fill='%23B8962E' opacity='0.05'/%3E%3Cline x1='80' y1='0' x2='200' y2='48' stroke='%23B8962E' stroke-width='1.8' opacity='0.25'/%3E%3Cline x1='560' y1='0' x2='680' y2='48' stroke='%23B8962E' stroke-width='1.8' opacity='0.25'/%3E%3C/svg%3E\")",backgroundSize:"100% 100%",backgroundRepeat:"no-repeat"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div style={{display:"flex",alignItems:"center",gap:14}}>
               <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
