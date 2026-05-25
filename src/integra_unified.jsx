@@ -208,8 +208,8 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
       }
       /* Espaçamento para não sobrepor header/footer */
       .rel-content {
-        padding-top: 80px !important;
-        padding-bottom: 70px !important;
+        padding-top: 44px !important;
+        padding-bottom: 60px !important;
       }
       /* Títulos nunca ficam sozinhos no fim da página */
       .rel-section-title {
@@ -3163,7 +3163,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
         </div>}
         {!isPreview&&<DriveSync relatorio={_driveData} onCarregar={onCarregarDrive}/>}
       </div>
-      <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
+      <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
 
         {/* Cabeçalho */}
         <div className="rel-header" style={{position:"relative",overflow:"hidden",padding:"22px 28px 18px",borderBottom:"2px solid "+GOLD}}>
