@@ -3789,6 +3789,121 @@ function gdriveIniciarRenovacao() {
 // Executar restauração ao carregar o módulo
 gdriveRestaurarToken();
 
+// ─── GERAR PDF COM CABEÇALHO/RODAPÉ EM TODAS AS PÁGINAS ─────────────────────
+async function _loadScript(src) {
+  if(document.querySelector('script[src="'+src+'"]')) return;
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function gerarPDFRelatorio() {
+  // Carregar libs via CDN
+  await _loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+  await _loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js");
+
+  const { jsPDF } = window.jspdf;
+
+  // Capturar header, content e footer como imagens separadas
+  const headerEl = document.querySelector(".rel-header");
+  const contentEl = document.querySelector(".rel-content");
+  const footerEl = document.querySelector(".rel-footer");
+
+  if(!headerEl || !contentEl || !footerEl) {
+    alert("Erro: Relatório não encontrado. Vá para a aba Relatório primeiro.");
+    return;
+  }
+
+  // Configurações
+  const scale = 2; // qualidade alta
+  const pageW = 210; // A4 mm
+  const pageH = 297;
+  const marginL = 10;
+  const marginR = 10;
+  const marginTop = 8;
+  const marginBot = 8;
+  const contentW = pageW - marginL - marginR; // área útil em mm
+
+  // Capturar imagens
+  const headerCanvas = await window.html2canvas(headerEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
+  const footerCanvas = await window.html2canvas(footerEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
+  const contentCanvas = await window.html2canvas(contentEl, { scale, useCORS: true, backgroundColor: "#ffffff" });
+
+  // Converter para dimensões em mm
+  const headerImg = headerCanvas.toDataURL("image/png");
+  const footerImg = footerCanvas.toDataURL("image/png");
+  const contentImg = contentCanvas.toDataURL("image/png");
+
+  // Calcular alturas proporcionais em mm
+  const headerH = (headerCanvas.height / headerCanvas.width) * contentW;
+  const footerH = (footerCanvas.height / footerCanvas.width) * contentW;
+
+  // Espaço disponível para conteúdo em cada página
+  const espacoConteudo = pageH - marginTop - marginBot - headerH - footerH - 4; // 4mm gaps
+
+  // Altura total do conteúdo em mm
+  const contentTotalH = (contentCanvas.height / contentCanvas.width) * contentW;
+
+  // Quantas páginas
+  const numPages = Math.ceil(contentTotalH / espacoConteudo);
+
+  // Criar PDF
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  for(let pg = 0; pg < numPages; pg++) {
+    if(pg > 0) pdf.addPage();
+
+    // Header
+    pdf.addImage(headerImg, "PNG", marginL, marginTop, contentW, headerH);
+
+    // Linha dourada abaixo do header
+    pdf.setDrawColor(184, 150, 46);
+    pdf.setLineWidth(0.5);
+    pdf.line(marginL, marginTop + headerH + 1, pageW - marginR, marginTop + headerH + 1);
+
+    // Content — recortar a fatia desta página
+    const yInicio = pg * espacoConteudo;
+    const yContent = marginTop + headerH + 2; // posição Y onde o content começa
+
+    // Criar canvas recortado para esta página
+    const sliceCanvas = document.createElement("canvas");
+    const sliceH = Math.min(espacoConteudo, contentTotalH - yInicio);
+    const sliceHpx = (sliceH / contentTotalH) * contentCanvas.height;
+    const yInicioPx = (yInicio / contentTotalH) * contentCanvas.height;
+
+    sliceCanvas.width = contentCanvas.width;
+    sliceCanvas.height = Math.ceil(sliceHpx);
+    const ctx = sliceCanvas.getContext("2d");
+    ctx.drawImage(contentCanvas, 0, yInicioPx, contentCanvas.width, sliceHpx, 0, 0, contentCanvas.width, sliceHpx);
+
+    const sliceImg = sliceCanvas.toDataURL("image/png");
+    pdf.addImage(sliceImg, "PNG", marginL, yContent, contentW, sliceH);
+
+    // Linha dourada acima do footer
+    const footerY = pageH - marginBot - footerH;
+    pdf.setDrawColor(184, 150, 46);
+    pdf.setLineWidth(0.5);
+    pdf.line(marginL, footerY - 1, pageW - marginR, footerY - 1);
+
+    // Footer
+    pdf.addImage(footerImg, "PNG", marginL, footerY, contentW, footerH);
+
+    // Número da página
+    pdf.setFontSize(7);
+    pdf.setTextColor(180, 180, 180);
+    pdf.text("Página " + (pg + 1) + " de " + numPages, pageW - marginR - 2, pageH - marginBot + 2, { align: "right" });
+  }
+
+  // Abrir PDF
+  const blob = pdf.output("blob");
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
 async function gdriveEnsureScript() {
   if(window.google && window.google.accounts) return;
   // Check if already loading
@@ -4802,8 +4917,8 @@ function App() {
           <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>window.print(),300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"linear-gradient(135deg,#2C1810,#1A0F08)",color:"#fff",borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600}}>
             🖨️ Imprimir
           </div>
-          <div onClick={()=>{const prev=pag;setPag("rel");setTimeout(()=>{const w=window.open("","_blank");if(w){w.document.write(document.querySelector(".relatorio-container").outerHTML);w.document.close();w.print();}else{window.print();}},300);setTimeout(()=>setPag(prev),600);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
-            📄 Exportar em PDF
+          <div onClick={async()=>{const prev=pag;setPag("rel");setTimeout(async()=>{try{await gerarPDFRelatorio();}catch(e){console.error(e);alert("Erro ao gerar PDF: "+e.message);}setPag(prev);},500);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",background:"#fff",border:"1px solid "+GOLD_DARK,borderRadius:3,cursor:"pointer",fontSize:10,fontWeight:600,color:GOLD_DARK}}>
+            📄 Exportar PDF
           </div>
           {driveLogado?(
             <>
