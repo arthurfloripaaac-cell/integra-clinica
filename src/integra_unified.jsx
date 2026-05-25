@@ -218,6 +218,22 @@ if(typeof document !== "undefined" && !document.getElementById("integra-print-cs
         orphans: 3;
         widows: 3;
       }
+      /* Force header background rendering on all pages */
+      .rel-header {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      /* Spacing between header and content on page 2+ */
+      .rel-print-table thead td {
+        padding-bottom: 8px !important;
+      }
+      .rel-print-table tbody td {
+        padding-top: 12px !important;
+      }
+      /* Spacing between content and footer */
+      .rel-print-table tfoot td {
+        padding-top: 8px !important;
+      }
       @page { margin: 10mm 10mm 12mm 10mm; size: A4 portrait; }
     }
   `;
@@ -3164,16 +3180,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
         <table className="rel-print-table" style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><td>
         {/* Cabeçalho */}
-        <div className="rel-header" style={{position:"relative",overflow:"hidden",padding:"22px 28px 18px",borderBottom:"2px solid "+GOLD}}>
-          <svg style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none"}} viewBox="0 0 680 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-            <polygon points="0,0 480,0 680,80 200,80" fill="#5B2D6E" opacity="0.06"/>
-            <line x1="0" y1="0" x2="200" y2="80" stroke="#5B2D6E" strokeWidth="2.5" opacity="0.30"/>
-            <line x1="480" y1="0" x2="680" y2="80" stroke="#5B2D6E" strokeWidth="2.5" opacity="0.30"/>
-            <polygon points="80,0 560,0 680,48 200,48" fill="#B8962E" opacity="0.05"/>
-            <line x1="80" y1="0" x2="200" y2="48" stroke="#B8962E" strokeWidth="1.8" opacity="0.25"/>
-            <line x1="560" y1="0" x2="680" y2="48" stroke="#B8962E" strokeWidth="1.8" opacity="0.25"/>
-          </svg>
-          <div style={{position:"relative",zIndex:1,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div className="rel-header" style={{position:"relative",padding:"22px 28px 18px",borderBottom:"2px solid "+GOLD,background:"linear-gradient(155deg, rgba(91,45,110,0.07) 0%, rgba(91,45,110,0.02) 35%, transparent 50%, rgba(184,150,46,0.05) 70%, rgba(184,150,46,0.02) 100%)",borderTop:"2.5px solid rgba(91,45,110,0.25)"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div style={{display:"flex",alignItems:"center",gap:14}}>
               <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="20" cy="20" r="14" stroke={GOLD} strokeWidth="1.3" fill="none"/>
