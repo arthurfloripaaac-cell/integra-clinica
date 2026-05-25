@@ -4852,6 +4852,7 @@ function App() {
   const [showFbModal, setShowFbModal] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showGlobalPasta, setShowGlobalPasta] = useState(false);
+  const [modalSalvar, setModalSalvar] = useState(null); // {msg, onSobrepor, onDuplicar, onCancelar}
 
   // Auto-conectar Firebase na sessão "1" ao iniciar
   const _fbAutoConectadoRef = React.useRef(false);
@@ -4882,7 +4883,7 @@ function App() {
 
           {/* Salvar no Drive */}
           {driveLogado&&(
-            <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now(),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,_driveFileId?"sobrepor":false);if(res&&res.precisaConfirmar){const op=window.confirm("Arquivo já existe. OK=Sobrepor / Cancelar=Nova cópia");await gdriveSalvarAtendimento(rel,op);}}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
+            <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now(),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,_driveFileId?"sobrepor":false);if(res&&res.precisaConfirmar){setModalSalvar({msg:"Já existe um arquivo para "+(p1.nome||"este paciente")+" no Google Drive.",onSobrepor:async()=>{setModalSalvar(null);await gdriveSalvarAtendimento(rel,true);},onDuplicar:async()=>{setModalSalvar(null);await gdriveSalvarAtendimento(rel,false);},onCancelar:()=>setModalSalvar(null)});}}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
               ☁ Salvar
             </div>
           )}
@@ -4906,9 +4907,14 @@ function App() {
           {/* Salvar local — discreto */}
           <div onClick={()=>{
             const dup = verificarDuplicata(p1);
-            if(dup) { const opcao = window.confirm("Atendimento ja existe. OK=Sobrepor / Cancelar=Salvar copia"); salvarRelatorio(p1,p2,p3,p4State,opcao); }
-            else { salvarRelatorio(p1,p2,p3,p4State,false); }
-            setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
+            if(dup) {
+              setModalSalvar({
+                msg: "Já existe um atendimento salvo para este paciente.",
+                onSobrepor: ()=>{ setModalSalvar(null); salvarRelatorio(p1,p2,p3,p4State,true); setRelatorioSalvo(true); setTimeout(()=>setRelatorioSalvo(false),3000); },
+                onDuplicar: ()=>{ setModalSalvar(null); salvarRelatorio(p1,p2,p3,p4State,false); setRelatorioSalvo(true); setTimeout(()=>setRelatorioSalvo(false),3000); },
+                onCancelar: ()=>setModalSalvar(null),
+              });
+            } else { salvarRelatorio(p1,p2,p3,p4State,false); setRelatorioSalvo(true); setTimeout(()=>setRelatorioSalvo(false),3000); }
           }} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 10px",background:relatorioSalvo?GOLD_DARK:CREAM,border:"1px solid "+BORDER,color:relatorioSalvo?"#fff":"#9A8060",borderRadius:20,cursor:"pointer",fontSize:9,fontWeight:500}}>
             {relatorioSalvo?"✓":"💾"}
           </div>
@@ -5060,12 +5066,16 @@ function App() {
       {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSetModoRel={v=>sp3("modoRel",v)} onSalvar={()=>{
   const dup = verificarDuplicata(p1);
   if(dup) {
-    const opcao = window.confirm("Atendimento ja existe. OK=Sobrepor / Cancelar=Salvar copia");
-    salvarRelatorio(p1,p2,p3,p4State, opcao);
+    setModalSalvar({
+      msg: "Já existe um atendimento salvo para este paciente.",
+      onSobrepor: ()=>{ setModalSalvar(null); salvarRelatorio(p1,p2,p3,p4State,true); setRelatorioSalvo(true); setTimeout(()=>setRelatorioSalvo(false),3000); },
+      onDuplicar: ()=>{ setModalSalvar(null); salvarRelatorio(p1,p2,p3,p4State,false); setRelatorioSalvo(true); setTimeout(()=>setRelatorioSalvo(false),3000); },
+      onCancelar: ()=>setModalSalvar(null),
+    });
   } else {
     salvarRelatorio(p1,p2,p3,p4State,false);
+    setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
   }
-  setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
 }} salvoOk={relatorioSalvo} onCarregarDrive={(r)=>{
   if(r._p1) setP1(r._p1);
   if(r._p2) setP2(sanitizeP2(r._p2));
@@ -5096,6 +5106,27 @@ function App() {
         );
       })()}
 
+
+      {/* Modal Sobrepor / Duplicar / Cancelar */}
+      {modalSalvar&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{background:"#fff",borderRadius:10,padding:28,maxWidth:380,width:"90%",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
+            <div style={{fontSize:15,fontWeight:700,color:GOLD_DARK,marginBottom:8}}>Arquivo já existe</div>
+            <div style={{fontSize:12,color:"#5C4A2A",marginBottom:22,lineHeight:1.6}}>{modalSalvar.msg}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <div onClick={modalSalvar.onSobrepor} style={{padding:"12px 16px",background:GOLD_DARK,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:700,textAlign:"center"}}>
+                Sobrepor
+              </div>
+              <div onClick={modalSalvar.onDuplicar} style={{padding:"12px 16px",background:"#fff",color:GOLD_DARK,border:"1.5px solid "+GOLD,borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:600,textAlign:"center"}}>
+                Duplicar (salvar como cópia)
+              </div>
+              <div onClick={modalSalvar.onCancelar} style={{padding:"12px 16px",background:"#fff",color:"#9A8060",border:"1px solid "+BORDER,borderRadius:6,cursor:"pointer",fontSize:12,textAlign:"center"}}>
+                Cancelar
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Popup de boas-vindas — conectar Drive + status Firebase */}
       {showWelcome&&!driveLogado&&pag==="p1"&&(
