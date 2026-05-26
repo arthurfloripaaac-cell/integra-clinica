@@ -1963,7 +1963,7 @@ const p1Initial = {
   isMinor:false,
   respNome:"",
   respCpf:"",
-  dataConsulta:"",
+  dataConsulta:new Date().toISOString().split("T")[0],
   responsavel:"Dr. Arthur A. Cheade",
   assinatura:"",
 };
@@ -4630,8 +4630,8 @@ function FormularioPaciente({formId}) {
   };
 
   // Estilo de input responsivo e grande para idosos
-  const inpF = {width:"100%",padding:"16px 18px",border:"2px solid "+BORDER,borderRadius:8,fontSize:18,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.4};
-  const lblF = {fontSize:13,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,display:"block",marginBottom:6};
+  const inpF = {width:"100%",padding:"18px 20px",border:"2px solid "+BORDER,borderRadius:10,fontSize:20,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.4};
+  const lblF = {fontSize:15,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,display:"block",marginBottom:8};
 
   if(enviado) return (
     <div style={{minHeight:"100vh",background:CREAM,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
@@ -4658,8 +4658,8 @@ function FormularioPaciente({formId}) {
         </div>
       </div>
 
-      <div style={{maxWidth:480,margin:"0 auto",padding:"24px 16px"}}>
-        <div style={{background:"#fff",border:"2px solid "+BORDER,borderRadius:12,padding:"28px 22px",boxShadow:"0 2px 16px rgba(0,0,0,0.06)"}}>
+      <div style={{maxWidth:540,margin:"0 auto",padding:"24px 12px"}}>
+        <div style={{background:"#fff",border:"2px solid "+BORDER,borderRadius:12,padding:"28px 18px",boxShadow:"0 2px 16px rgba(0,0,0,0.06)"}}>
           <div style={{fontSize:20,fontWeight:700,color:GOLD_DARK,marginBottom:6}}>Cadastro do Paciente</div>
           <div style={{fontSize:15,color:"#9A8060",marginBottom:24,lineHeight:1.5}}>Preencha seus dados para agilizar seu atendimento.</div>
 
@@ -5196,16 +5196,23 @@ function App() {
         </div>
       )}
       {showConfigs&&<Configs onClose={()=>setShowConfigs(false)}/>}
-      <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:"#1A0F08",borderTop:"2px solid #2C1810",zIndex:100}}>
-        <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p1"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p1"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p1")}>👤 Paciente</button>
-        <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p2"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p2"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p2")}>🦷 Avaliação</button>
-        <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p4"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p4"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p4")}>🗒️ Plano</button>
-        <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="p3"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="p3"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("p3")}>💰 Orçamento</button>
-        <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="rel"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="rel"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("rel")}>📋 Relatório</button>
-        <button style={{flex:1,padding:"12px 4px 14px",border:"none",background:"transparent",color:pag==="arq"?"#B8962E":"#9A8060",fontFamily:"inherit",fontSize:10,fontWeight:600,letterSpacing:"1.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag==="arq"?"2px solid #B8962E":"2px solid transparent"}} onClick={()=>setPag("arq")}>📁 Arquivo</button>
-        <button style={{padding:"12px 12px 14px",border:"none",background:"transparent",color:"#9A8060",fontFamily:"inherit",fontSize:14,cursor:"pointer",borderTop:"2px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
+      <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:CREAM,borderTop:"2px solid "+GOLD,zIndex:100,boxShadow:"0 -2px 8px rgba(0,0,0,0.08)"}}>
+        {[
+          {id:"p1",icon:"1",label:"Paciente"},
+          {id:"p2",icon:"2",label:"Avaliação"},
+          {id:"p4",icon:"3",label:"Plano"},
+          {id:"p3",icon:"4",label:"Orçamento"},
+          {id:"rel",icon:"5",label:"Relatório"},
+          {id:"arq",icon:"📁",label:"Arquivo"},
+        ].map(tab=>(
+          <button key={tab.id} style={{flex:1,padding:"10px 2px 12px",border:"none",background:pag===tab.id?GOLD_DARK:"transparent",color:pag===tab.id?"#fff":GOLD_DARK,fontFamily:"inherit",fontSize:10,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",cursor:"pointer",borderTop:pag===tab.id?"3px solid "+GOLD:"3px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2,transition:"all 0.15s"}} onClick={()=>setPag(tab.id)}>
+            <span style={{fontSize:tab.icon.length>1?14:13,fontWeight:800,width:22,height:22,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:pag===tab.id?"#fff":GOLD_PALE,color:pag===tab.id?GOLD_DARK:GOLD_DARK}}>{tab.icon}</span>
+            <span>{tab.label}</span>
+          </button>
+        ))}
+        <button style={{padding:"10px 10px 12px",border:"none",background:"transparent",color:GOLD_DARK,fontFamily:"inherit",fontSize:16,cursor:"pointer",borderTop:"3px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
-      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v8.9</div>
+      <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v9.0</div>
     </div>
   );
 }
