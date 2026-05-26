@@ -2753,18 +2753,6 @@ function P4({onTotalChange, p4State, setP4State}) {
   return (
     <div style={{ fontFamily: "'Outfit',system-ui,sans-serif", background: CREAM, minHeight: "100vh", paddingBottom: 40 }}>
 
-      {/* Header */}
-      <div style={{ background: "linear-gradient(135deg,#2C1810 0%,#1A0F08 100%)", padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-        <svg width="30" height="40" viewBox="0 0 40 52" fill="none">
-          <ellipse cx="20" cy="26" rx="18" ry="24" stroke="#B8962E" strokeWidth="1.5" />
-          <text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill="#B8962E">i</text>
-        </svg>
-        <div>
-          <div style={{ fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700, color: "#fff", letterSpacing: 3, textTransform: "uppercase" }}>Íntegra</div>
-          <div style={{ fontSize: 7, letterSpacing: 2.5, color: GOLD_LIGHT, textTransform: "uppercase" }}>Clínica Odontológica</div>
-        </div>
-      </div>
-
       <div style={{ maxWidth: 620, margin: "0 auto", padding: "20px 16px" }}>
 
         {/* Total flutuante */}
@@ -4630,8 +4618,8 @@ function FormularioPaciente({formId}) {
   };
 
   // Estilo de input responsivo e grande para idosos
-  const inpF = {width:"100%",padding:"18px 20px",border:"2px solid "+BORDER,borderRadius:10,fontSize:20,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.4};
-  const lblF = {fontSize:15,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,display:"block",marginBottom:8};
+  const inpF = {width:"100%",padding:"20px 22px",border:"2.5px solid "+BORDER,borderRadius:12,fontSize:22,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.4};
+  const lblF = {fontSize:16,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,display:"block",marginBottom:10};
 
   if(enviado) return (
     <div style={{minHeight:"100vh",background:CREAM,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
@@ -5196,7 +5184,7 @@ function App() {
         </div>
       )}
       {showConfigs&&<Configs onClose={()=>setShowConfigs(false)}/>}
-      <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:CREAM,borderTop:"2px solid "+GOLD,zIndex:100,boxShadow:"0 -2px 8px rgba(0,0,0,0.08)"}}>
+      <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:CREAM,borderTop:"2px solid "+GOLD,zIndex:100,boxShadow:"0 -2px 12px rgba(0,0,0,0.1)"}}>
         {[
           {id:"p1",icon:"1",label:"Paciente"},
           {id:"p2",icon:"2",label:"Avaliação"},
@@ -5205,12 +5193,12 @@ function App() {
           {id:"rel",icon:"5",label:"Relatório"},
           {id:"arq",icon:"📁",label:"Arquivo"},
         ].map(tab=>(
-          <button key={tab.id} style={{flex:1,padding:"10px 2px 12px",border:"none",background:pag===tab.id?GOLD_DARK:"transparent",color:pag===tab.id?"#fff":GOLD_DARK,fontFamily:"inherit",fontSize:10,fontWeight:700,letterSpacing:"1px",textTransform:"uppercase",cursor:"pointer",borderTop:pag===tab.id?"3px solid "+GOLD:"3px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:2,transition:"all 0.15s"}} onClick={()=>setPag(tab.id)}>
-            <span style={{fontSize:tab.icon.length>1?14:13,fontWeight:800,width:22,height:22,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:pag===tab.id?"#fff":GOLD_PALE,color:pag===tab.id?GOLD_DARK:GOLD_DARK}}>{tab.icon}</span>
-            <span>{tab.label}</span>
+          <button key={tab.id} style={{flex:1,padding:"8px 2px 10px",border:"none",background:pag===tab.id?GOLD_DARK:"transparent",color:pag===tab.id?"#fff":GOLD_DARK,fontFamily:"inherit",fontSize:11,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag===tab.id?"3px solid "+GOLD:"3px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s"}} onClick={()=>setPag(tab.id)}>
+            <span style={{fontSize:tab.icon.length>1?16:15,fontWeight:800,width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:pag===tab.id?"#fff":GOLD_PALE,color:pag===tab.id?GOLD_DARK:GOLD_DARK,boxShadow:pag===tab.id?"0 2px 6px rgba(122,96,32,0.3)":"none"}}>{tab.icon}</span>
+            <span style={{fontSize:10}}>{tab.label}</span>
           </button>
         ))}
-        <button style={{padding:"10px 10px 12px",border:"none",background:"transparent",color:GOLD_DARK,fontFamily:"inherit",fontSize:16,cursor:"pointer",borderTop:"3px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
+        <button style={{padding:"8px 10px 10px",border:"none",background:"transparent",color:GOLD_DARK,fontFamily:"inherit",fontSize:18,cursor:"pointer",borderTop:"3px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
       <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v9.0</div>
     </div>
