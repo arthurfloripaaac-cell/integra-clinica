@@ -3444,8 +3444,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 </div>
               );
             })()}
-          </>);})()}
           </>}
+          </>);})()}
 
         </div>
           {/* Rodapé */}
