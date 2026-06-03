@@ -589,7 +589,6 @@ function P2({data, setData}) {
   const [editandoAchados, setEditandoAchados] = useState(false);
   const [novoAchado, setNovoAchado] = useState({label:"", cor:"#4CAF50"});
   const [adicionando, setAdicionando] = useState(false);
-  const [corrigindo, setCorrigindo] = useState(false);
   const set = (k,v) => setData(p=>({...p,[k]:v}));
 
   const toggleDente = n => {
@@ -610,18 +609,7 @@ function P2({data, setData}) {
 
   const limpar = () => setData(p=>({...p,achadosDente:{},achadoAtivo:null}));
 
-  const corrigir = async () => {
-    if(!obsTexto.trim()) return;
-    setCorrigindo(true);
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,system:"Corrija APENAS erros de ortografia e digitação. Não altere o texto, não reescreva. Retorne SOMENTE o texto corrigido.",messages:[{role:"user",content:obsTexto}]})});
-      const d = await res.json();
-      set("obsCorrigido", d.content.map(i=>i.text||"").join("").trim());
-    } catch(e){set("obsCorrigido",obsTexto);}
-    finally{setCorrigindo(false);}
-  };
-
-  const resumo = ACHADOS.map(a=>({...a,dentes:Object.entries(achadosDente).filter(([,v])=>v&&v[a.id]).map(([d])=>parseInt(d)).sort((x,y)=>x-y)})).filter(a=>a.dentes.length>0);
+  const resumo = ACHADOS.map(a=>{const dentes=Object.entries(achadosDente).filter(([k,v])=>k!=="_geral"&&v&&v[a.id]).map(([d])=>parseInt(d)).sort((x,y)=>x-y);const geral=achadosDente["_geral"]?.[a.id]||false;return{...a,dentes,geral};}).filter(a=>a.dentes.length>0||a.geral);
   const aObj = ACHADOS.find(a=>a.id===achadoAtivo);
 
   return (
@@ -656,13 +644,14 @@ function P2({data, setData}) {
           )}
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
             {ACHADOS.map(a=>{
-              const ativo=achadoAtivo===a.id,qtd=Object.values(achadosDente).filter(v=>v&&v[a.id]).length;
+              const ativo=achadoAtivo===a.id,qtd=Object.entries(achadosDente).filter(([k,v])=>k!=="_geral"&&v&&v[a.id]).length,isGeral=achadosDente["_geral"]?.[a.id]||false;
               return(<div key={a.id} style={{position:"relative",display:"flex",alignItems:"center"}}>
                 {editandoAchados&&<div onClick={()=>{set("achados",ACHADOS.filter(x=>x.id!==a.id));}} style={{position:"absolute",top:-4,right:-4,width:14,height:14,borderRadius:"50%",background:"#E57373",color:"#fff",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",zIndex:10,lineHeight:1}}>✕</div>}
-                <div onClick={()=>set("achadoAtivo",ativo?null:a.id)} style={{padding:"5px 12px",borderRadius:20,fontSize:11,cursor:"pointer",border:"2px solid "+(ativo?a.cor:qtd>0?a.cor+"88":BORDER),background:ativo?a.cor:qtd>0?a.cor+"11":"#fff",color:ativo?"#fff":qtd>0?a.cor:"#5C4A2A",fontWeight:ativo||qtd>0?700:400,display:"flex",alignItems:"center",gap:5}}>
+                <div onClick={()=>set("achadoAtivo",ativo?null:a.id)} style={{padding:"5px 12px",borderRadius:20,fontSize:11,cursor:"pointer",border:"2px solid "+(ativo?a.cor:(qtd>0||isGeral)?a.cor+"88":BORDER),background:ativo?a.cor:(qtd>0||isGeral)?a.cor+"11":"#fff",color:ativo?"#fff":(qtd>0||isGeral)?a.cor:"#5C4A2A",fontWeight:ativo||qtd>0||isGeral?700:400,display:"flex",alignItems:"center",gap:5}}>
                 <div style={{width:8,height:8,borderRadius:"50%",background:ativo?"#fff":a.cor}}/>
                 {a.label}
                 {qtd>0&&<span style={{fontSize:9,background:ativo?"rgba(255,255,255,0.3)":a.cor,color:"#fff",borderRadius:10,padding:"1px 5px"}}>{qtd}</span>}
+                {isGeral&&qtd===0&&<span style={{fontSize:9,background:ativo?"rgba(255,255,255,0.3)":a.cor,color:"#fff",borderRadius:10,padding:"1px 5px"}}>✓</span>}
               </div>
               </div>);
             })}
@@ -674,7 +663,10 @@ function P2({data, setData}) {
                 <span style={{width:8,height:8,borderRadius:"50%",background:aObj.cor,display:"inline-block"}}/>
                 Marcando: {aObj.label}
               </span>
-              <span onClick={()=>set("achadoAtivo",null)} style={{cursor:"pointer",color:"#9A8060",fontSize:12}}>✕ fechar</span>
+              <span style={{display:"flex",alignItems:"center",gap:8}}>
+                <span onClick={()=>{setData(p=>({...p,achadosDente:{...p.achadosDente,_geral:{...(p.achadosDente._geral||{}),[achadoAtivo]:!p.achadosDente._geral?.[achadoAtivo]}}}));}} style={{cursor:"pointer",color:achadosDente["_geral"]?.[achadoAtivo]?"#2E7D32":GOLD_DARK,fontSize:10,padding:"2px 8px",border:"1px solid "+(achadosDente["_geral"]?.[achadoAtivo]?"#4CAF50":GOLD),borderRadius:20,background:achadosDente["_geral"]?.[achadoAtivo]?"#E8F5E9":"#fff"}}>{achadosDente["_geral"]?.[achadoAtivo]?"✓ Região registrada":"+ Nova região"}</span>
+                <span onClick={()=>set("achadoAtivo",null)} style={{cursor:"pointer",color:"#9A8060",fontSize:12}}>✕</span>
+              </span>
             </div>
             {/* Textarea FORA de qualquer container colorido */}
             <textarea
@@ -815,20 +807,6 @@ function P2({data, setData}) {
       <Card>
         <SectionTitle>Informações Clínicas</SectionTitle>
         <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={obsTexto} onChange={e=>set("obsTexto",e.target.value)} placeholder="Queixa principal do paciente, histórico clínico, sinais e sintomas..." style={{width:"100%",padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:2,fontSize:13,color:"#1C1410",background:"#fff",fontFamily:"inherit",minHeight:90,resize:"vertical",lineHeight:1.6}}/>
-        {obsTexto.trim()&&(
-          <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
-            <div onClick={corrigir} style={{padding:"6px 14px",borderRadius:20,background:corrigindo?"#ccc":GOLD,color:"#fff",fontSize:11,fontWeight:700,cursor:corrigindo?"default":"pointer"}}>
-              {corrigindo?"Corrigindo...":"✓ Corrigir ortografia"}
-            </div>
-            {obsCorrigido&&obsCorrigido!==obsTexto&&(
-              <div onClick={()=>{ setData(prev=>({...prev, obsTexto:obsCorrigido, obsCorrigido:""})); }} style={{padding:"6px 14px",borderRadius:20,border:"1px solid "+GOLD,color:GOLD_DARK,fontSize:11,cursor:"pointer"}}>Aplicar correção</div>
-            )}
-          </div>
-        )}
-        {obsCorrigido&&<div style={{marginTop:10,padding:"10px 12px",background:"#fff",border:"1px solid "+GOLD,borderRadius:2,fontSize:13,color:"#1C1410",lineHeight:1.6}}>
-          <div style={{fontSize:8.5,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:6}}>Texto corrigido</div>
-          {obsCorrigido}
-        </div>}
       </Card>
     </div>
   );
@@ -2386,7 +2364,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                     <span style={{ fontSize: 12, color: GOLD_DARK, fontWeight: 600 }}>R$</span>
                     <input
                       style={{ width: 100, padding: "6px 8px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 13, fontWeight: 600, color: GOLD_DARK, background: "#fff", outline: "none", fontFamily: "inherit" }}
-                      value={(item.valoresDente || {})[n] || item.valor}
+                      value={(item.valoresDente||{})[n]!==undefined?(item.valoresDente||{})[n]:item.valor}
                       onChange={e => onChange({ ...item, valoresDente: { ...(item.valoresDente || {}), [n]: e.target.value.replace(/[^0-9,]/g, "") } })}
                       placeholder="0,00"
                     />
@@ -2455,23 +2433,6 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                 boxSizing:"border-box",
               }}
             />
-            {(item.obs||"").trim().length>0&&(
-              <div style={{marginTop:6,display:"flex",alignItems:"center",gap:6}}>
-                <div onClick={async()=>{
-                  if(item._corrigindo) return;
-                  onChange({...item, _corrigindo:true});
-                  try {
-                    const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,system:"Corrija APENAS erros de ortografia e digitação. Não altere o texto, não reescreva. Retorne SOMENTE o texto corrigido.",messages:[{role:"user",content:item.obs}]})});
-                    const d = await res.json();
-                    const corrigido = d.content.map(i=>i.text||"").join("").trim();
-                    if(corrigido && corrigido !== item.obs) onChange({...item, obs:corrigido, _corrigindo:false});
-                    else onChange({...item, _corrigindo:false});
-                  } catch(e){onChange({...item, _corrigindo:false});}
-                }} style={{padding:"4px 10px",borderRadius:20,background:item._corrigindo?"#ccc":GOLD,color:"#fff",fontSize:10,fontWeight:600,cursor:item._corrigindo?"default":"pointer"}}>
-                  {item._corrigindo?"Corrigindo...":"✓ Corrigir ortografia"}
-                </div>
-              </div>
-            )}
           </div>
           <div style={{ marginTop: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -3103,8 +3064,9 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
   const achadosList = p2.achados || ACHADOS_DEFAULT;
   const resumoAch = achadosList.map(a => ({
     id: a.id, lb: a.label, cor: a.cor,
-    dentes: Object.entries(achadosDente).filter(([,v])=>v&&v[a.id]).map(([d])=>parseInt(d)).sort((a,b)=>a-b)
-  })).filter(a=>a.dentes.length>0);
+    dentes: Object.entries(achadosDente).filter(([k,v])=>k!=="_geral"&&v&&v[a.id]).map(([d])=>parseInt(d)).sort((a,b)=>a-b),
+    geral: achadosDente["_geral"]?.[a.id]||false
+  })).filter(a=>a.dentes.length>0||a.geral);
 
   const fmt2 = v => "R$ "+(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
   const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
@@ -3202,7 +3164,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       <span style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{a.lb}</span>
                       {(p2.obsAchados||{})[a.id]&&<div style={{fontSize:11,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{(p2.obsAchados||{})[a.id]}</div>}
                     </div>
-                    <div style={{fontSize:11,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"50%"}}>{descreverRegiao(a.dentes,true)}</div>
+                    <div style={{fontSize:11,color:"#9A8060",textAlign:"right",whiteSpace:"pre-line",maxWidth:"50%"}}>{a.dentes.length>0?descreverRegiao(a.dentes,true):""}</div>
                   </div>
                 </div>
               ))}
@@ -3383,24 +3345,12 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             );
 
             return (<>
-            {/* Toggle modo relatório — soma ou separado */}
-            {(()=>{
-              const temPropostaSep = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)].length > 0;
-              const modoRel = p3.modoRel||"soma";
-              return temPropostaSep ? (
-                <div className="no-print" style={{display:"flex",alignItems:"center",gap:8,marginTop:16,marginBottom:8,padding:"8px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3}}>
-                  <span style={{fontSize:11,color:"#5C4A2A",flex:1}}>Apresentação da proposta:</span>
-                  {[["soma","Soma tudo"],["separado","Separado"],["ambos","Ambos"]].map(([k,l])=>(
-                    <div key={k} onClick={()=>onSetModoRel&&onSetModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:11,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
-                  ))}
-                </div>
-              ) : null;
-            })()}
             <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
 
+            {((p3.modoRel||"soma")==="soma"||(p3.modoRel||"soma")==="ambos")&&<>
             {/* ALTERNATIVA 1 — À vista com valor e desconto incorporados */}
             {temAVista && (()=>{
               const lb = [...formasAv,...(bolAv?["boleto"]:[])].map(id=>nomes[id]).join(" · ");
@@ -3495,6 +3445,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               );
             })()}
           </>);})()}
+          </>}
 
         </div>
           {/* Rodapé */}
