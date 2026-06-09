@@ -2676,7 +2676,7 @@ function P4({onTotalChange, p4State, setP4State}) {
     setCustomProcs(prev => prev.map((it, i) => i === idx ? novo : it));
   };
 
-  const adicionarCustom = (permanente=false) => {
+  const adicionarCustom = (permanente=true) => {
     if (!novoNome.trim()) return;
     setCustomProcs(prev => [...prev, {
       id: "custom_" + Date.now(),
@@ -2789,7 +2789,7 @@ function P4({onTotalChange, p4State, setP4State}) {
               <span style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>Plano de Tratamento</span>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <div onClick={() => setEditandoProcs(!editandoProcs)} style={{ fontSize: 10, color: editandoProcs ? GOLD_DARK : "#9A8060", cursor: "pointer", padding: "2px 8px", border: "1px solid " + (editandoProcs ? GOLD : BORDER), borderRadius: 20 }}>
+              <div onClick={() => setEditandoProcs(!editandoProcs)} style={{ fontSize: 11, color: editandoProcs ? "#fff" : GOLD_DARK, cursor: "pointer", padding: "5px 14px", border: "1.5px solid " + GOLD, borderRadius: 20, background: editandoProcs ? GOLD_DARK : "#fff", fontWeight: 600 }}>
                 {editandoProcs ? "✓ Concluir" : "✎ Editar"}
               </div>
             </div>
@@ -2834,15 +2834,27 @@ function P4({onTotalChange, p4State, setP4State}) {
                     }}>
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: ativo ? "#fff" : BORDER, flexShrink: 0 }} />
                     {editandoProcs ? (
-                      <input
-                        spellCheck={false} style={{ background: "transparent", border: "none", outline: "none", fontSize: 12, fontWeight: ativo ? 700 : 400, color: ativo ? "#fff" : "#5C4A2A", fontFamily: "inherit", width: Math.max(60, proc.nome.length * 7) + "px", cursor: "text" }}
-                        value={proc.nome}
-                        onClick={e => e.stopPropagation()}
-                        onChange={e => isCustom
-                          ? atualizarCustom(customIdx, { ...item, nome: e.target.value })
-                          : editarNomeProcBase(proc.id, e.target.value)
-                        }
-                      />
+                      <div style={{display:"flex",alignItems:"center",gap:6}} onClick={e=>e.stopPropagation()}>
+                        <input
+                          spellCheck={false} style={{ background: "transparent", border: "none", outline: "none", fontSize: 12, fontWeight: ativo ? 700 : 400, color: ativo ? "#fff" : "#5C4A2A", fontFamily: "inherit", width: Math.max(60, proc.nome.length * 7) + "px", cursor: "text" }}
+                          value={proc.nome}
+                          onChange={e => isCustom
+                            ? atualizarCustom(customIdx, { ...item, nome: e.target.value })
+                            : editarNomeProcBase(proc.id, e.target.value)
+                          }
+                        />
+                        <span style={{fontSize:10,color:ativo?"rgba(255,255,255,0.6)":"#9A8060"}}>R$</span>
+                        <input
+                          style={{width:56,padding:"2px 4px",background:ativo?"rgba(255,255,255,0.15)":"rgba(0,0,0,0.04)",border:"1px solid "+(ativo?"rgba(255,255,255,0.3)":BORDER),borderRadius:3,fontSize:11,fontWeight:600,color:ativo?"#fff":"#5C4A2A",outline:"none",fontFamily:"inherit",textAlign:"right"}}
+                          value={isCustom?(item?.valor||""):(item?.valor||String(proc.valorPadrao||0).replace(".",","))}
+                          onChange={e=>{
+                            const v=e.target.value.replace(/[^0-9,]/g,"");
+                            if(isCustom) atualizarCustom(customIdx,{...item,valor:v});
+                            else if(itemIdx>=0) atualizarItem(itemIdx,{...item,valor:v});
+                            else setItens(prev=>[...(prev||[]),{id:proc.id,ativo:false,valor:v,dentes:[],subtipos:{},regiao:null,qtd:1}]);
+                          }}
+                        />
+                      </div>
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span>{proc.nome}</span>
@@ -4862,24 +4874,22 @@ function App() {
     return {
       ...p4Initial,
       procsBase: saved.procsBase || null,
-      customProcs: (saved.customProcs||[]).map(c=>({...c, ativo:false})),
+      customProcs: (saved.customProcs||[]).map(c=>({...c, _permanente:true, ativo:false})),
     };
   })();
   const [p4State, setP4State, desfazerP4, podeDesfazerP4] = useUndo(_p4Init);
 
   // Salvar configuração permanente dos procedimentos (não os itens do atendimento)
   useEffect(() => {
-    if(p4State.procsBase) {
-      savePersisted("integra_p4config", {
-        procsBase: p4State.procsBase,
-        customProcs: (p4State.customProcs||[]).filter(c=>c._permanente),
-      });
-    }
+    savePersisted("integra_p4config", {
+      procsBase: p4State.procsBase || null,
+      customProcs: (p4State.customProcs||[]).map(c=>({...c, _permanente:true})),
+    });
   }, [p4State.procsBase, p4State.customProcs]);
 
   // Salvar achados editáveis permanentes
   useEffect(() => {
-    if(p2.achados && p2.achados !== ACHADOS_DEFAULT) {
+    if(p2.achados) {
       savePersisted("integra_achados_config", p2.achados);
     }
   }, [p2.achados]);
