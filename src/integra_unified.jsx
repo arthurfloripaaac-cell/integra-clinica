@@ -73,21 +73,51 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
 
     const ref = _fbDb.ref("sessoes/"+key);
 
-    // Primeiro: enviar dados locais para o Firebase para não perder nada
-    const tsInicial = Date.now().toString();
-    _lastWriteRef.current = JSON.stringify(tsInicial);
-    const dadosLocais = JSON.parse(JSON.stringify({
-      _ts: tsInicial,
-      _lastUpdate: new Date().toISOString(),
-      _paciente: p1.nome||"",
-      _p1: p1,
-      _p2: {...p2, achadosDente:p2.achadosDente||{}, obsAchados:p2.obsAchados||{}},
-      _p3: {...p3, fc:p3.fc||[]},
-      _p4: p4State ? {...p4State, customProcs:p4State.customProcs||[], itens:(p4State.itens||[]).map(it=>({...it,dentes:it.dentes||[],subtopicos:it.subtopicos||[],subtipos:it.subtipos||{},valoresDente:it.valoresDente||{}}))} : null,
-    }));
+    // Primeiro: verificar se já existem dados na sessão
+    ref.once("value").then((snap) => {
+      const existente = snap.val();
 
-    ref.set(dadosLocais).then(() => {
-      // Depois de enviar, começar a ouvir mudanças do outro computador
+      if(existente && existente._p1 && existente._p1.nome) {
+        // Sessão já tem dados — PUXAR em vez de sobrescrever
+        _lastWriteRef.current = JSON.stringify(existente._ts||"");
+        _skipNextRef.current = true;
+        try {
+          if(existente._p1) setP1(existente._p1);
+          if(existente._p2) setP2(sanitizeP2(existente._p2));
+          if(existente._p3) {
+            const p3r = existente._p3;
+            if(!p3r.fc) p3r.fc = [];
+            if(!Array.isArray(p3r.fc)) p3r.fc = Object.values(p3r.fc);
+            setP3(prev=>({...prev,...p3r}));
+          }
+          if(existente._p4) {
+            const p4r = existente._p4;
+            if(!p4r.procsBase) p4r.procsBase = null;
+            if(!p4r.customProcs) p4r.customProcs = [];
+            if(!Array.isArray(p4r.customProcs)) p4r.customProcs = Object.values(p4r.customProcs);
+            if(p4r.itens && !Array.isArray(p4r.itens)) p4r.itens = Object.values(p4r.itens);
+            if(p4r.itens) p4r.itens = p4r.itens.map(it=>({...it,dentes:it.dentes||[],subtopicos:it.subtopicos||[],subtipos:it.subtipos||{},valoresDente:it.valoresDente||{}}));
+            setP4State(p4r);
+          }
+        } catch(e) { console.error("Firebase pull error:", e); }
+        setTimeout(()=>{ _skipNextRef.current = false; }, 500);
+      } else {
+        // Sessão vazia — ENVIAR dados locais
+        const tsInicial = Date.now().toString();
+        _lastWriteRef.current = JSON.stringify(tsInicial);
+        const dadosLocais = JSON.parse(JSON.stringify({
+          _ts: tsInicial,
+          _lastUpdate: new Date().toISOString(),
+          _paciente: p1.nome||"",
+          _p1: p1,
+          _p2: {...p2, achadosDente:p2.achadosDente||{}, obsAchados:p2.obsAchados||{}},
+          _p3: {...p3, fc:p3.fc||[]},
+          _p4: p4State ? {...p4State, customProcs:p4State.customProcs||[], itens:(p4State.itens||[]).map(it=>({...it,dentes:it.dentes||[],subtopicos:it.subtopicos||[],subtipos:it.subtipos||{},valoresDente:it.valoresDente||{}}))} : null,
+        }));
+        ref.set(dadosLocais);
+      }
+
+      // Começar a ouvir mudanças do outro computador
       const unsub = ref.on("value", (snap) => {
         const data = snap.val();
         if(!data) { setFbConectado(true); setFbStatus("connected"); return; }
@@ -122,7 +152,7 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
       setFbConectado(true);
       setFbStatus("connected");
     }).catch(e => {
-      console.error("Firebase initial write error:", e);
+      console.error("Firebase connect error:", e);
       setFbStatus("off");
     });
   },[p1,p2,p3,p4State,setP1,setP2,setP3,setP4State]);
