@@ -307,7 +307,7 @@ function maskTelefone(v) {
 // ─── COMPONENTES COMUNS ───────────────────────────
 function Header() {
   return (
-    <div style={{background:"linear-gradient(135deg,#2C1810 0%,#1A0F08 100%)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+    <div style={{background:"linear-gradient(135deg,#3D1F4E 0%,#2A1538 100%)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between"}}>
       <div style={{display:"flex", alignItems:"center", gap:12}}>
         <svg width="32" height="42" viewBox="0 0 40 52" fill="none">
           <ellipse cx="20" cy="26" rx="18" ry="24" stroke="#B8962E" strokeWidth="1.5"/>
@@ -1322,7 +1322,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               ))}
             </div>
             {saldoTipo==="entrega" && saldo>0 && (
-              <div style={{marginTop:10,padding:"10px 14px",background:"#2C1810",borderRadius:3}}>
+              <div style={{marginTop:10,padding:"10px 14px",background:"#3D1F4E",borderRadius:3}}>
                 <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_LIGHT,marginBottom:6}}>Resumo</div>
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"rgba(255,255,255,0.7)"}}>
                   <span>Entrada</span><span>{fmt(entradaValor)}</span>
@@ -1362,7 +1362,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                 ))}
               </div>
               {boletoModo==="avista"&&valorFinal>0&&(
-                <div style={{background:"#2C1810",borderRadius:3,padding:"14px 16px"}}>
+                <div style={{background:"#3D1F4E",borderRadius:3,padding:"14px 16px"}}>
                   <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_LIGHT,marginBottom:8}}>Resumo</div>
                   <div style={{fontFamily:"Georgia",fontSize:26,fontWeight:700,color:"#fff"}}>{fmt(valorFinal)}</div>
                   <div style={{fontSize:11,color:GOLD_LIGHT,marginTop:8}}>✦ Sem taxas · 100% para a clínica</div>
@@ -1412,7 +1412,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                 {valorFinal>0&&nBoleto>0&&(()=>{
                   const b=calcBoleto();
                   const desc=boletoJuros==="sem_juros"?"Sem juros":boletoJuros==="com_juros"?"Juros 1,2% a.m.":"Primeiras "+boletoIsento+"x sem juros";
-                  return(<div style={{background:"#2C1810",borderRadius:3,padding:"14px 16px"}}>
+                  return(<div style={{background:"#3D1F4E",borderRadius:3,padding:"14px 16px"}}>
                     <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_LIGHT,marginBottom:8}}>Resumo</div>
                     <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:6}}><span style={{fontFamily:"Georgia",fontSize:26,fontWeight:700,color:"#fff"}}>{nBoleto}x</span><span style={{fontFamily:"Georgia",fontSize:18,fontWeight:700,color:GOLD_LIGHT}}>{fmt(b.parcela)}</span></div>
                     <div style={{fontSize:10,color:GOLD_LIGHT,opacity:0.8,marginBottom:10}}>{desc}</div>
@@ -1494,7 +1494,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
 
               {/* Tabela */}
               <div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
-                <div style={{display:"grid",gridTemplateColumns:"50px 1fr 1fr 1fr",background:"#2C1810",padding:"8px 14px"}}>
+                <div style={{display:"grid",gridTemplateColumns:"50px 1fr 1fr 1fr",background:"#3D1F4E",padding:"8px 14px"}}>
                   {["Parc.","Valor/parc.",quemPaga==="comprador"?"Total paciente":"Parcela fixa","Líquido clínica"].map(h=><div key={h} style={{fontSize:8,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_LIGHT,fontWeight:600}}>{h}</div>)}
                 </div>
                 {tabelaCredito.map((r,i)=>{
@@ -1521,7 +1521,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
             </div>
           )}
           {formaAtiva&&!["boleto","credito"].includes(formaAtiva)&&valorFinal>0&&(
-            <div style={{marginTop:14,background:"#2C1810",borderRadius:3,padding:"14px 16px"}}>
+            <div style={{marginTop:14,background:"#3D1F4E",borderRadius:3,padding:"14px 16px"}}>
               <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_LIGHT,marginBottom:8}}>Resumo</div>
               <div style={{fontFamily:"Georgia",fontSize:26,fontWeight:700,color:"#fff",marginBottom:10}}>{fmt(valorFinal)}</div>
               {FORMAS.find(f=>f.id===formaAtiva)?.taxa>0
@@ -2764,7 +2764,7 @@ function P4({onTotalChange, p4State, setP4State}) {
         {/* Total flutuante */}
         {totalGeral > 0 && (
           <div style={{
-            background: "linear-gradient(135deg,#2C1810,#1A0F08)", borderRadius: 4,
+            background: "linear-gradient(135deg,#3D1F4E,#2A1538)", borderRadius: 4,
             padding: "14px 18px", marginBottom: 16,
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
@@ -3619,7 +3619,7 @@ function CalculadoraFlutuante() {
       {/* Botão flutuante */}
       <div className="no-print" onClick={()=>setAberta(!aberta)} style={{
         position:"fixed",bottom:76,left:16,zIndex:200,
-        background:aberta?"#2C1810":"#5C4A2A",color:"#fff",
+        background:aberta?"#3D1F4E":"#5C4A2A",color:"#fff",
         borderRadius:24,padding:"9px 13px",fontSize:13,fontWeight:700,
         cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.3)",
         display:"flex",alignItems:"center",gap:5,
@@ -4295,7 +4295,7 @@ function MiniOrcamento({valor, procNome, propostaInicial, onSave, onClose}) {
     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:CREAM,borderRadius:8,width:"100%",maxWidth:540,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 40px rgba(0,0,0,0.4)",display:"flex",flexDirection:"column"}}>
         {/* Header */}
-        <div style={{background:"#2C1810",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderRadius:"8px 8px 0 0",flexShrink:0}}>
+        <div style={{background:"#3D1F4E",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderRadius:"8px 8px 0 0",flexShrink:0}}>
           <div>
             <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_LIGHT,marginBottom:2}}>Proposta Individual</div>
             <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{procNome}</div>
@@ -4658,7 +4658,7 @@ function FormularioPaciente({formId}) {
   return (
     <div style={{minHeight:"100vh",background:CREAM,padding:"0 0 40px"}}>
       {/* Header */}
-      <div style={{background:"linear-gradient(135deg,#2C1810 0%,#1A0F08 100%)",padding:"22px 24px",display:"flex",alignItems:"center",gap:14}}>
+      <div style={{background:"linear-gradient(135deg,#3D1F4E 0%,#2A1538 100%)",padding:"22px 24px",display:"flex",alignItems:"center",gap:14}}>
         <svg width="36" height="46" viewBox="0 0 40 52" fill="none">
           <ellipse cx="20" cy="26" rx="18" ry="24" stroke="#B8962E" strokeWidth="1.5"/>
           <text x="20" y="32" textAnchor="middle" fontFamily="Georgia" fontSize="18" fontStyle="italic" fill="#B8962E">i</text>
@@ -5050,7 +5050,7 @@ function App() {
       {pag!=="rel"&&(
         <div className="no-print preview-btn" onClick={()=>setPreviewAberto(!previewAberto)} style={{
           position:"fixed",bottom:76,right:16,zIndex:200,
-          background:previewAberto?"#2C1810":GOLD,color:"#fff",
+          background:previewAberto?"#3D1F4E":GOLD,color:"#fff",
           borderRadius:24,padding:"9px 14px",fontSize:10,fontWeight:700,
           cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.3)",
           display:"flex",alignItems:"center",gap:5,letterSpacing:1,
@@ -5067,7 +5067,7 @@ function App() {
           background:"#fff",boxShadow:"-4px 0 24px rgba(0,0,0,0.15)",
           zIndex:190,overflowY:"auto",paddingBottom:80,
         }}>
-          <div style={{padding:"12px 16px",background:"#2C1810",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{padding:"12px 16px",background:"#3D1F4E",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <span style={{fontSize:11,color:GOLD_LIGHT,fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Preview do Relatório</span>
             <span onClick={()=>setPreviewAberto(false)} style={{color:"#9A8060",cursor:"pointer",fontSize:16}}>✕</span>
           </div>
