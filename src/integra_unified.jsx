@@ -1041,12 +1041,20 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
               const dp2=prop.ds||0;
               const vf2=dp2>0?vb2*(1-dp2/100):vb2;
+              // Entrada individual
+              const propEntrada=prop.entrada||false;
+              const propEntradaTipo=prop.entradaTipo||"pct";
+              const propEntradaVal=parseFloat(String(prop.entradaVal||"0").replace(",","."))||0;
+              const propBaseEntrada=propEntrada?vb2:vf2;
+              const propEntradaValor=propEntrada?(propEntradaTipo==="pct"?propBaseEntrada*propEntradaVal/100:propEntradaVal):0;
+              const propSaldo=propEntrada?Math.max(0,propBaseEntrada-propEntradaValor):vf2;
               const propPlano=prop.plano||"hora";
               const propQuem=prop.quemPaga||"comprador";
               const propCi=parseInt(prop.ci||"0");
               const propCp=prop.cp?parseInt(prop.cp):null;
+              const creditoBaseInd=(propEntrada&&propEntradaValor>0&&(prop.saldoTipo||"parcelado")==="parcelado")?propSaldo:vb2;
               const tCp=(prop.fc&&prop.fc.includes("credito"))
-                ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vb2,n,propPlano,propQuem);return{n,...r};})
+                ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(creditoBaseInd,n,propPlano,propQuem);return{n,...r};})
                 :[];
               const tCpf=propCp?tCp.filter(r=>r.n===1||r.n<=propCp):tCp;
               const propBp=parseInt(prop.bp||"6");
@@ -1065,10 +1073,17 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                       {dp2>0?(<><span style={{fontSize:12,color:"#9A8060",textDecoration:"line-through"}}>{fmt(vb2)}</span><span style={{fontSize:10,color:"#9A8060",margin:"0 4px"}}>{dp2}%</span></>):null}<span style={{fontSize:13,fontWeight:700,color:GOLD_DARK}}>{fmt(vf2)}</span>
                     </div>
                   </div>
+                  {/* Entrada individual */}
+                  {propEntrada&&propEntradaValor>0&&(
+                    <div style={{padding:"8px 14px",fontSize:12,color:GOLD_DARK,borderBottom:"1px solid "+BORDER,background:GOLD_PALE}}>
+                      <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:700}}>Entrada</span><span style={{fontWeight:700}}>{fmt2(propEntradaValor)}{propEntradaTipo==="pct"?" ("+prop.entradaVal+"%)":""}</span></div>
+                      <div style={{display:"flex",justifyContent:"space-between",marginTop:2,fontSize:11,color:"#9A8060"}}><span>Valor remanescente</span><span>{fmt2(propSaldo)}</span></div>
+                    </div>
+                  )}
                   {/* À vista */}
                   {prop.fc&&(prop.fc.includes("pix")||prop.fc.includes("dinheiro"))&&(
                     <div style={{padding:"8px 14px",fontSize:12,color:"#5C4A2A",borderBottom:tCpf.length||bLs.length?"1px solid "+BORDER:"none"}}>
-                      {[prop.fc.includes("pix")&&"PIX",prop.fc.includes("dinheiro")&&"Dinheiro"].filter(Boolean).join(" · ")} — {fmt(vf2)}
+                      {[prop.fc.includes("pix")&&"PIX",prop.fc.includes("dinheiro")&&"Dinheiro"].filter(Boolean).join(" · ")} — {fmt(propEntrada&&propEntradaValor>0?propSaldo:vf2)}
                     </div>
                   )}
                   {/* Crédito */}
@@ -3249,6 +3264,13 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
                   const dp2=prop.ds||0;
                   const vf2=dp2>0?vb2*(1-dp2/100):vb2;
+                  // Entrada individual
+                  const propEntrada=prop.entrada||false;
+                  const propEntradaTipo=prop.entradaTipo||"pct";
+                  const propEntradaValCalc=parseFloat(String(prop.entradaVal||"0").replace(",","."))||0;
+                  const propBaseEntrada=propEntrada?vb2:vf2;
+                  const propEntradaValor=propEntrada?(propEntradaTipo==="pct"?propBaseEntrada*propEntradaValCalc/100:propEntradaValCalc):0;
+                  const propSaldo=propEntrada?Math.max(0,propBaseEntrada-propEntradaValor):vf2;
                   const nomes2={pix:"PIX",dinheiro:"Dinheiro",credito:"Cartão de crédito",boleto:"Boleto parcelado"};
                   return(
                     (()=>{
@@ -3257,8 +3279,9 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       const propQuem = prop.quemPaga||"comprador";
                       const propCi = parseInt(prop.ci||"0");
                       const propCp = prop.cp ? parseInt(prop.cp) : null;
+                      const creditoBaseRel=(propEntrada&&propEntradaValor>0&&(prop.saldoTipo||"parcelado")==="parcelado")?propSaldo:vb2;
                       const tCprop = (prop.fc&&prop.fc.includes("credito"))
-                        ? [1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vb2,n,propPlano,propQuem);return{n,...r};})
+                        ? [1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(creditoBaseRel,n,propPlano,propQuem);return{n,...r};})
                         : [];
                       const tCfilt = propCp ? tCprop.filter(r=>r.n===1||r.n<=propCp) : tCprop;
                       // Boleto
@@ -3283,10 +3306,17 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                               {dp2>0&&<span style={{fontSize:11,color:"#9A8060",marginLeft:6}}>({dp2}% desc. sobre {fmt2(vb2)})</span>}
                             </div>
                           </div>
+                          {/* Entrada individual */}
+                          {propEntrada&&propEntradaValor>0&&(
+                            <div style={{padding:"6px 14px",fontSize:11,color:GOLD_DARK,borderBottom:"1px solid "+BORDER,background:GOLD_PALE}}>
+                              <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:700}}>Entrada</span><span style={{fontWeight:700}}>{fmt2(propEntradaValor)}{propEntradaTipo==="pct"?" ("+prop.entradaVal+"%)":""}</span></div>
+                              <div style={{display:"flex",justifyContent:"space-between",marginTop:2,color:"#9A8060"}}><span>Valor remanescente</span><span>{fmt2(propSaldo)}</span></div>
+                            </div>
+                          )}
                           {/* À vista / PIX */}
                           {prop.fc&&(prop.fc.includes("pix")||prop.fc.includes("dinheiro"))&&(
                             <div style={{padding:"6px 14px",fontSize:11,color:"#5C4A2A",borderBottom:tCfilt.length||boletoLs.length?"1px solid "+BORDER:"none"}}>
-                              {[prop.fc.includes("pix")&&"PIX",prop.fc.includes("dinheiro")&&"Dinheiro"].filter(Boolean).join(" · ")} — {fmt2(vf2)}
+                              {[prop.fc.includes("pix")&&"PIX",prop.fc.includes("dinheiro")&&"Dinheiro"].filter(Boolean).join(" · ")} — {fmt2(propEntrada&&propEntradaValor>0?propSaldo:vf2)}
                             </div>
                           )}
                           {/* Cartão */}
