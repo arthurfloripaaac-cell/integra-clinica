@@ -1658,13 +1658,11 @@ function salvarRelatorio(p1, p2, p3, p4State, sobrepor=false) {
       if(idx >= 0) {
         relatorios[idx] = novo;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200)));
-        alert("Sobreposto com sucesso! Registro atualizado.");
         return novo;
       }
     }
     relatorios.unshift(novo);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200)));
-    alert("Salvo com sucesso! Total de registros: " + relatorios.length);
     return novo;
   } catch(e) {
     console.error("Erro ao salvar:", e);
@@ -4951,7 +4949,7 @@ function App() {
 
           {/* Salvar no Drive */}
           {driveLogado&&(
-            <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now(),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,_driveFileId?"sobrepor":false);if(res&&res.precisaConfirmar){setModalSalvar({msg:"Já existe um arquivo para "+(p1.nome||"este paciente")+" no Google Drive.",onSobrepor:async()=>{setModalSalvar(null);await gdriveSalvarAtendimento(rel,true);},onDuplicar:async()=>{setModalSalvar(null);await gdriveSalvarAtendimento(rel,false);},onCancelar:()=>setModalSalvar(null)});}}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
+            <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now()+Math.floor(Math.random()*1000),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,false);if(res&&res.precisaConfirmar){setModalSalvar({msg:"Já existe um arquivo para "+(p1.nome||"este paciente")+" no Google Drive.",onSobrepor:async()=>{setModalSalvar(null);try{await gdriveSalvarAtendimento(rel,true);}catch(e2){alert("Erro: "+e2.message);}},onDuplicar:async()=>{setModalSalvar(null);try{await gdriveSalvarAtendimento(rel,"novo");}catch(e2){alert("Erro: "+e2.message);}},onCancelar:()=>setModalSalvar(null)});}}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
               ☁ Salvar
             </div>
           )}
