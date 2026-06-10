@@ -2245,7 +2245,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                 <div style={{ fontSize: 13, fontWeight: 700, color: item.ativo ? "#1C1410" : "#9A8060" }}>
                   {proc.nome}
                 </div>
-                {item.ativo && (
+                {item.ativo && (<>
                   <div style={{display:"flex",alignItems:"center",gap:4}}>
                     {!item._permanente&&(
                       <div onClick={e=>{e.stopPropagation();onChange({...item,_permanente:true});}} style={{fontSize:9,color:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+BORDER,borderRadius:20,whiteSpace:"nowrap"}} title="Salvar como favorito">⭐ Favoritar</div>
@@ -2257,7 +2257,37 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                       {item.proposta?"✓ Proposta própria":"+ Proposta individual"}
                     </div>
                   </div>
-                )}
+                  {/* Resumo das condições de pagamento da proposta individual */}
+                  {item.proposta&&item.proposta.fc&&item.proposta.fc.length>0&&(
+                    <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>
+                      {(()=>{
+                        const prop=item.proposta;
+                        const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
+                        const dp2=prop.ds||0;
+                        const vf2=dp2>0?vb2*(1-dp2/100):vb2;
+                        const entVal=prop.entrada?((prop.entradaTipo||"pct")==="pct"?vb2*(parseFloat(prop.entradaVal||0)/100):parseFloat(prop.entradaVal||0)):0;
+                        const saldo=prop.entrada?Math.max(0,vb2-entVal):vf2;
+                        const tags=[];
+                        if(prop.entrada&&entVal>0) tags.push({lb:"Entrada "+fmt(entVal),cor:"#E8F5E9",txt:"#2E7D32"});
+                        if(prop.fc.includes("pix")||prop.fc.includes("dinheiro")){
+                          const ms=[prop.fc.includes("pix")&&"PIX",prop.fc.includes("dinheiro")&&"Dinh."].filter(Boolean).join("/");
+                          tags.push({lb:ms+" "+fmt(dp2>0?vf2:saldo),cor:GOLD_PALE,txt:GOLD_DARK});
+                        }
+                        if(prop.fc.includes("credito")){
+                          const mx=prop.cp?parseInt(prop.cp):12;
+                          tags.push({lb:"Cartão até "+mx+"x",cor:"#F3EDF6",txt:PURPLE});
+                        }
+                        if(prop.fc.includes("boleto")){
+                          const bp=parseInt(prop.bp||"6");
+                          tags.push({lb:"Boleto "+bp+"x",cor:"#FFF8E1",txt:"#E65100"});
+                        }
+                        return tags.map((t,i)=>(
+                          <span key={i} style={{fontSize:8,padding:"2px 7px",borderRadius:10,background:t.cor,color:t.txt,fontWeight:600,whiteSpace:"nowrap"}}>{t.lb}</span>
+                        ));
+                      })()}
+                    </div>
+                  )}
+                </>)}
               </div>
               {item.ativo && (
                 <div style={{ marginTop: 4 }}>
