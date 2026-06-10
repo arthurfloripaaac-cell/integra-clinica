@@ -2670,7 +2670,10 @@ function ArquivoDriveSection({onCarregar}) {
   );
 }
 
-function P4({onTotalChange, p4State, setP4State}) {
+function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, setP3}) {
+  const [showModelos, setShowModelos] = useState(false);
+  const [nomeModelo, setNomeModelo] = useState("");
+  const [salvandoModelo, setSalvandoModelo] = useState(false);
   // Force spellCheck on mount
   React.useEffect(()=>{try{document.querySelectorAll("textarea").forEach(t=>{t.setAttribute("spellcheck","true");t.setAttribute("lang","pt-BR");});}catch(e){}},[]);
   const defaultItens = PROC_BASE.map(p => ({
@@ -2818,6 +2821,9 @@ function P4({onTotalChange, p4State, setP4State}) {
               <span style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>Plano de Tratamento</span>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
+              <div onClick={() => setShowModelos(true)} style={{ fontSize: 11, color: PURPLE, cursor: "pointer", padding: "5px 14px", border: "1.5px solid " + PURPLE_LIGHT, borderRadius: 20, background: "#fff", fontWeight: 600 }}>
+                📋 Modelos{modelos.length>0?" ("+modelos.length+")":""}
+              </div>
               <div onClick={() => setEditandoProcs(!editandoProcs)} style={{ fontSize: 11, color: editandoProcs ? "#fff" : GOLD_DARK, cursor: "pointer", padding: "5px 14px", border: "1.5px solid " + GOLD, borderRadius: 20, background: editandoProcs ? GOLD_DARK : "#fff", fontWeight: 600 }}>
                 {editandoProcs ? "✓ Concluir" : "✎ Editar"}
               </div>
@@ -3051,6 +3057,97 @@ function P4({onTotalChange, p4State, setP4State}) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginTop: 4 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#1C1410", letterSpacing: 1 }}>TOTAL</span>
                 <span style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: GOLD_DARK }}>{fmt(totalGeral)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Botão Salvar como modelo */}
+        {(itens||[]).some(it=>it.ativo) && (
+          <div style={{marginTop:16,padding:"12px 16px",background:"#fff",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
+            <input value={nomeModelo} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo (ex: Profilaxia Padrão)" style={{flex:1,padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:6,fontSize:13,fontFamily:"inherit",outline:"none"}}/>
+            <div onClick={async()=>{
+              if(!nomeModelo.trim()){alert("Dê um nome ao modelo");return;}
+              setSalvandoModelo(true);
+              try{
+                const ativos=[...(itens||[]).filter(it=>it.ativo),...(customProcs||[]).filter(it=>it.ativo)];
+                const modelo={
+                  id:"modelo_"+Date.now(),
+                  nome:nomeModelo.trim(),
+                  criadoEm:new Date().toISOString(),
+                  itens:JSON.parse(JSON.stringify(ativos)),
+                  p3Config:p3?JSON.parse(JSON.stringify({vb:p3.vb,ds:p3.ds,dc:p3.dc,fc:p3.fc,entrada:p3.entrada,entradaTipo:p3.entradaTipo,entradaVal:p3.entradaVal,saldoTipo:p3.saldoTipo,cp:p3.cp,ci:p3.ci,bp:p3.bp,bj:p3.bj,bi:p3.bi,quemPaga:p3.quemPaga,boletoComDesconto:p3.boletoComDesconto,plano:p3.plano,modoRel:p3.modoRel})):null,
+                };
+                const novos=await salvarModeloProcedimento(modelo,modelos);
+                setModelos(novos);
+                setNomeModelo("");
+                alert("Modelo \""+modelo.nome+"\" salvo com sucesso!");
+              }catch(e){alert("Erro ao salvar modelo: "+e.message);}
+              setSalvandoModelo(false);
+            }} style={{padding:"8px 16px",background:salvandoModelo?"#ccc":PURPLE,color:"#fff",borderRadius:6,cursor:salvandoModelo?"default":"pointer",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
+              {salvandoModelo?"Salvando...":"💾 Salvar modelo"}
+            </div>
+          </div>
+        )}
+
+        {/* Modal de modelos salvos */}
+        {showModelos&&(
+          <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setShowModelos(false)}>
+            <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:12,maxWidth:500,width:"95%",maxHeight:"80vh",display:"flex",flexDirection:"column",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
+              <div style={{padding:"18px 20px",borderBottom:"1.5px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontSize:16,fontWeight:700,color:PURPLE}}>📋 Modelos de Orçamento</div>
+                <div onClick={()=>setShowModelos(false)} style={{cursor:"pointer",color:"#9A8060",fontSize:18}}>✕</div>
+              </div>
+              <div style={{padding:"12px 20px",overflowY:"auto",flex:1}}>
+                {modelos.length===0?(
+                  <div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:13}}>Nenhum modelo salvo. Configure procedimentos e clique em "Salvar modelo".</div>
+                ):modelos.map(m=>(
+                  <div key={m.id} style={{padding:"14px 16px",border:"1px solid "+BORDER,borderRadius:8,marginBottom:8,background:CREAM}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                      <div style={{fontSize:14,fontWeight:700,color:PURPLE}}>{m.nome}</div>
+                      <div style={{fontSize:9,color:"#9A8060"}}>{m.criadoEm?new Date(m.criadoEm).toLocaleDateString("pt-BR"):""}</div>
+                    </div>
+                    <div style={{fontSize:11,color:"#5C4A2A",marginBottom:8}}>
+                      {(m.itens||[]).map(it=>it.nome||it.id).join(" · ")}
+                      {m.p3Config&&m.p3Config.vb?" — R$ "+m.p3Config.vb:""}
+                    </div>
+                    <div style={{display:"flex",gap:6}}>
+                      <div onClick={async()=>{
+                        try{
+                          if(m.itens){
+                            const novosItens=(itens||[]).map(it=>({...it,ativo:false}));
+                            m.itens.forEach(mi=>{
+                              const idx=novosItens.findIndex(x=>x.id===mi.id);
+                              if(idx>=0) novosItens[idx]={...novosItens[idx],...mi,ativo:true};
+                              else{
+                                const isCustom=mi.id&&mi.id.startsWith("custom_");
+                                if(isCustom){
+                                  const existeCustom=(customProcs||[]).findIndex(c=>c.id===mi.id);
+                                  if(existeCustom>=0) setCustomProcs(prev=>prev.map((c,i)=>i===existeCustom?{...c,...mi,ativo:true}:c));
+                                  else setCustomProcs(prev=>[...prev,{...mi,ativo:true,_permanente:true}]);
+                                }
+                              }
+                            });
+                            setItens(novosItens);
+                          }
+                          if(m.p3Config&&setP3) setP3(m.p3Config);
+                          setShowModelos(false);
+                        }catch(e){alert("Erro ao aplicar modelo: "+e.message);}
+                      }} style={{flex:1,padding:"8px",background:PURPLE,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:700,textAlign:"center"}}>
+                        Aplicar
+                      </div>
+                      <div onClick={async()=>{
+                        if(!confirm("Excluir modelo \""+m.nome+"\"?")) return;
+                        try{
+                          const novos=await deletarModeloProcedimento(m.id,modelos);
+                          setModelos(novos);
+                        }catch(e){alert("Erro: "+e.message);}
+                      }} style={{padding:"8px 12px",border:"1px solid #E57373",borderRadius:6,cursor:"pointer",fontSize:11,color:"#C62828",textAlign:"center"}}>
+                        Excluir
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -3971,6 +4068,83 @@ async function gdriveListarArquivos(folderId, paciente) {
   const all = d.files||[];
   if(!nomeNorm) return all;
   return all.filter(f=>f.name.toLowerCase().includes(nomeNorm.slice(0,15)));
+}
+
+// ─── MODELOS DE PROCEDIMENTOS (TEMPLATES) ────────────────────────────────────
+const MODELOS_FB_PATH = "modelos_procedimentos";
+const MODELOS_DRIVE_FILENAME = "Integra_Modelos_Procedimentos.json";
+
+async function fbSalvarModelos(modelos) {
+  if(!_fbDb) return;
+  try { await _fbDb.ref(MODELOS_FB_PATH).set(modelos); } catch(e) { console.error("Firebase modelos save error:", e); }
+}
+
+async function fbCarregarModelos() {
+  if(!_fbDb) return null;
+  try {
+    const snap = await _fbDb.ref(MODELOS_FB_PATH).once("value");
+    const data = snap.val();
+    if(!data) return [];
+    return Array.isArray(data) ? data : Object.values(data);
+  } catch(e) { console.error("Firebase modelos load error:", e); return null; }
+}
+
+async function gdriveSalvarModelos(modelos) {
+  if(!_gdriveToken) return;
+  try {
+    const folderId = await gdriveGetFolder();
+    const busca = await fetch("https://www.googleapis.com/drive/v3/files?q=name%3D'"+encodeURIComponent(MODELOS_DRIVE_FILENAME)+"'+and+'"+folderId+"'+in+parents+and+trashed%3Dfalse&fields=files(id,name)",{headers:{Authorization:"Bearer "+_gdriveToken}});
+    const res = await busca.json();
+    const conteudo = JSON.stringify(modelos, null, 2);
+    const blob = new Blob([conteudo], {type:"application/json"});
+    if(res.files && res.files.length > 0) {
+      await fetch("https://www.googleapis.com/upload/drive/v3/files/"+res.files[0].id+"?uploadType=media",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken,"Content-Type":"application/json"},body:blob});
+    } else {
+      const meta = JSON.stringify({name:MODELOS_DRIVE_FILENAME,parents:[folderId],mimeType:"application/json"});
+      const form = new FormData();
+      form.append("metadata", new Blob([meta],{type:"application/json"}));
+      form.append("file", blob);
+      await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+    }
+  } catch(e) { console.error("Drive modelos save error:", e); }
+}
+
+async function gdriveCarregarModelos() {
+  if(!_gdriveToken) return null;
+  try {
+    const folderId = await gdriveGetFolder();
+    const busca = await fetch("https://www.googleapis.com/drive/v3/files?q=name%3D'"+encodeURIComponent(MODELOS_DRIVE_FILENAME)+"'+and+'"+folderId+"'+in+parents+and+trashed%3Dfalse&fields=files(id)",{headers:{Authorization:"Bearer "+_gdriveToken}});
+    const res = await busca.json();
+    if(!res.files || res.files.length === 0) return null;
+    const conteudo = await fetch("https://www.googleapis.com/drive/v3/files/"+res.files[0].id+"?alt=media",{headers:{Authorization:"Bearer "+_gdriveToken}});
+    return await conteudo.json();
+  } catch(e) { console.error("Drive modelos load error:", e); return null; }
+}
+
+async function salvarModeloProcedimento(modelo, modelosAtuais) {
+  const novos = [...modelosAtuais.filter(m=>m.id!==modelo.id), modelo];
+  await fbSalvarModelos(novos);
+  gdriveSalvarModelos(novos); // async sem await (backup)
+  return novos;
+}
+
+async function deletarModeloProcedimento(id, modelosAtuais) {
+  const novos = modelosAtuais.filter(m=>m.id!==id);
+  await fbSalvarModelos(novos);
+  gdriveSalvarModelos(novos);
+  return novos;
+}
+
+async function carregarModelosProcedimentos() {
+  // Tenta Firebase primeiro (mais rápido), fallback para Drive
+  const fb = await fbCarregarModelos();
+  if(fb && fb.length > 0) return fb;
+  const drive = await gdriveCarregarModelos();
+  if(drive && drive.length > 0) {
+    fbSalvarModelos(drive); // sync Firebase com Drive
+    return drive;
+  }
+  return [];
 }
 
 async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
@@ -4919,6 +5093,12 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [showGlobalPasta, setShowGlobalPasta] = useState(false);
   const [modalSalvar, setModalSalvar] = useState(null); // {msg, onSobrepor, onDuplicar, onCancelar}
+  const [modelos, setModelos] = useState([]); // modelos de procedimentos salvos
+
+  // Carregar modelos ao iniciar
+  useEffect(() => {
+    carregarModelosProcedimentos().then(m => { if(m && m.length) setModelos(m); }).catch(()=>{});
+  }, []);
 
   // Auto-conectar Firebase na sessão "1" ao iniciar
   const _fbAutoConectadoRef = React.useRef(false);
@@ -5104,7 +5284,7 @@ function App() {
   setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||""}));
 }}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
-      {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State}/>}
+      {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State} modelos={modelos} setModelos={setModelos} p3={p3} setP3={v=>setP3(prev=>({...prev,...v}))}/>}
       {pag==="p3"&&<P3
         vb={p3.vb || (p4Total > 0 ? String(p4Total) : "")} setVb={v=>sp3("vb",v)}
         ds={p3.ds} setDs={v=>sp3("ds",v)}
