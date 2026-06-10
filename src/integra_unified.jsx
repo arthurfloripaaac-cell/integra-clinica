@@ -1634,17 +1634,16 @@ function verificarDuplicata(p1) {
 
 function salvarRelatorio(p1, p2, p3, p4State, sobrepor=false) {
   const relatorios = carregarRelatorios();
-  const novo = {
-    id: Date.now(),
+  const novo = JSON.parse(JSON.stringify({
+    id: Date.now() + Math.random(),
     data: new Date().toISOString(),
-    // Resumo para listagem
     paciente: p1.nome || "Sem nome",
     cpf: p1.cpf || "",
     telefone: p1.telefone || "",
     dataNasc: p1.dataNasc || "",
     responsavel: p1.responsavel || "",
     dataConsulta: p1.dataConsulta || "",
-    achados: Object.entries(p2.achadosDente || {}).filter(([,v])=>Object.values(v).some(Boolean)).length,
+    achados: Object.entries(p2.achadosDente || {}).filter(([,v])=>Object.values(v||{}).some(Boolean)).length,
     procedimentos: [...(p4State?.itens||[]).filter(it=>it.ativo), ...(p4State?.customProcs||[]).filter(it=>it.ativo)].map(it=>{
       const proc = (p4State?.procsBase||PROC_BASE).find(p=>p.id===it.id) || {nome:it.nome||it.id};
       return proc.nome;
@@ -1653,23 +1652,21 @@ function salvarRelatorio(p1, p2, p3, p4State, sobrepor=false) {
     desconto: p3.ds||0,
     formas: p3.fc||[],
     temEntrada: p3.entrada||false,
-    // Dados completos para restaurar
     _p1: p1,
     _p2: p2,
     _p3: p3,
     _p4: p4State,
-  };
+  }));
   if(sobrepor) {
-    // Substituir existente com mesmo paciente+data
     const idx = relatorios.findIndex(r => r.paciente===novo.paciente && r.dataConsulta===novo.dataConsulta);
     if(idx >= 0) {
       relatorios[idx] = novo;
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200))); } catch(e){}
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200))); } catch(e){ alert("Erro ao salvar: "+e.message); }
       return novo;
     }
   }
   relatorios.unshift(novo);
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200))); } catch(e){}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200))); } catch(e){ alert("Erro ao salvar: "+e.message); }
   return novo;
 }
 
