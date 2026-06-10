@@ -1658,11 +1658,13 @@ function salvarRelatorio(p1, p2, p3, p4State, sobrepor=false) {
       if(idx >= 0) {
         relatorios[idx] = novo;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200)));
+        alert("Sobreposto com sucesso! Registro atualizado.");
         return novo;
       }
     }
     relatorios.unshift(novo);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(relatorios.slice(0,200)));
+    alert("Salvo com sucesso! Total de registros: " + relatorios.length);
     return novo;
   } catch(e) {
     console.error("Erro ao salvar:", e);
