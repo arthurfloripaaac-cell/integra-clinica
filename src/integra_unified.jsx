@@ -3924,7 +3924,7 @@ async function gdriveLogin(forcarSelecao) {
       try { window.google.accounts.oauth2.revoke(_gdriveToken); } catch(e){}
       _gdriveToken = null;
     }
-    tc.requestAccessToken({prompt: forcarSelecao ? "consent" : ""});
+    tc.requestAccessToken({prompt: forcarSelecao ? "consent" : "select_account"});
   });
 }
 
