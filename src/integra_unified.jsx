@@ -1064,7 +1064,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
         {/* Propostas individuais — modo separado */}
         {temSep&&(modoRel==="separado"||modoRel==="ambos")&&(
           <div style={{marginBottom:12}}>
-            <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:10}}>Propostas Individuais</div>
+            <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:10}}>Propostas</div>
             {itensSepP3.map((it,idx)=>{
               const proc=(p4State?.procsBase||[]).find(p=>p.id===it.id)||{nome:it.nome||it.id};
               const prop=it.proposta;
@@ -1090,7 +1090,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               const propBp=parseInt(prop.bp||"6");
               const propBj=prop.bj||"sem_juros";
               const propBi=parseInt(prop.bi||"3");
-              const bBase2=prop.boletoComDesconto?vf2:vb2;
+              const bBase2=(propEntrada&&propEntradaValor>0&&(prop.saldoTipo||"parcelado")==="parcelado")?propSaldo:(prop.boletoComDesconto?vf2:vb2);
               const bLs=(prop.fc&&prop.fc.includes("boleto")&&(prop.bm||"avista")==="parcelado")
                 ?Array.from({length:propBp},(_,i)=>{const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi;const sj=n<=nl,pc=propBj==="combinado"?Math.max(0,n-nl):sj?0:n;const t=sj?bBase2:bBase2*(1+0.012*pc);return{n,p:t/n,sj,t};})
                 :[];
@@ -1262,6 +1262,9 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
         {[["calc","⚙️ Calculadora"]].map(([t,l])=>(
           <div key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:20,fontSize:11,cursor:"pointer",background:tab===t?GOLD:"#fff",color:tab===t?"#fff":GOLD_DARK,border:"1.5px solid "+(tab===t?GOLD_DARK:BORDER),fontWeight:tab===t?700:400}}>{l}</div>
         ))}
+      </div>
+      <div style={{fontSize:10,color:"#9A8060",marginBottom:12,padding:"6px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:6}}>
+        Esta calculadora configura o orçamento geral (soma de todos os procedimentos). Propostas individuais por procedimento são configuradas na aba Plano de Tratamento, clicando em "Proposta individual".
       </div>
       {tab==="calc"&&<>
         <Card>
@@ -1541,7 +1544,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
           return(
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                <SectionTitle style={{margin:0}}>Propostas Individuais ({itensSepCalc.length})</SectionTitle>
+                <SectionTitle style={{margin:0}}>Propostas ({itensSepCalc.length})</SectionTitle>
                 <div style={{display:"flex",gap:4}}>
                   {[["soma","Soma tudo"],["separado","Separado"],["ambos","Ambos"]].map(([k,l])=>(
                     <div key={k} onClick={()=>setModoRel&&setModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:10,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
@@ -1560,14 +1563,20 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                     const propQuem=prop.quemPaga||"comprador";
                     const propCi=parseInt(prop.ci||"0");
                     const propCp=prop.cp?parseInt(prop.cp):null;
+                    const creditoBasePrev=(propEntrada2&&propEntradaValor2>0&&(prop.saldoTipo||"parcelado")==="parcelado")?propSaldo2:vb2;
                     const tCp2=(prop.fc&&prop.fc.includes("credito"))
-                      ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(vb2,n,propPlano,propQuem);return{n,...r};})
+                      ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(creditoBasePrev,n,propPlano,propQuem);return{n,...r};})
                       :[];
                     const tCpf2=propCp?tCp2.filter(r=>r.n===1||r.n<=propCp):tCp2;
                     const propBp=parseInt(prop.bp||"6");
                     const propBj=prop.bj||"sem_juros";
                     const propBi2=parseInt(prop.bi||"3");
-                    const bBaseC=prop.boletoComDesconto?vf2:vb2;
+                    const propEntrada2=prop.entrada||false;
+                    const propEntradaTipo2=prop.entradaTipo||"pct";
+                    const propEntradaVal2=parseFloat(String(prop.entradaVal||"0").replace(",","."))||0;
+                    const propEntradaValor2=propEntrada2?(propEntradaTipo2==="pct"?vb2*propEntradaVal2/100:propEntradaVal2):0;
+                    const propSaldo2=propEntrada2?Math.max(0,vb2-propEntradaValor2):vf2;
+                    const bBaseC=(propEntrada2&&propEntradaValor2>0&&(prop.saldoTipo||"parcelado")==="parcelado")?propSaldo2:(prop.boletoComDesconto?vf2:vb2);
                     const bLs2=(prop.fc&&prop.fc.includes("boleto")&&(prop.bm||"avista")==="parcelado")
                       ?Array.from({length:propBp},(_,i)=>{const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi2;const sj=n<=nl,pc=propBj==="combinado"?Math.max(0,n-nl):sj?0:n;const t=sj?bBaseC:bBaseC*(1+0.012*pc);return{n,p:t/n,sj,t};})
                       :[];
@@ -2881,7 +2890,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span>{proc.nome}</span>
-                        {(ativo || (isCustom && editandoProcs)) && !proc.subtipos && (
+                        {ativo && !proc.subtipos && (
                           <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 3 }}>
                             <span style={{ fontSize: 10, color: ativo?"rgba(255,255,255,0.7)":"#9A8060", marginLeft: 4 }}>R$</span>
                             <input
@@ -3109,7 +3118,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                       {(m.itens||[]).map(it=>it.nome||it.id).join(" · ")}
                       {m.p3Config&&m.p3Config.vb?" — R$ "+m.p3Config.vb:""}
                     </div>
-                    <div style={{display:"flex",gap:6}}>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                       <div onClick={async()=>{
                         try{
                           if(m.itens){
@@ -3131,8 +3140,30 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                           if(m.p3Config&&setP3) setP3(m.p3Config);
                           setShowModelos(false);
                         }catch(e){alert("Erro ao aplicar modelo: "+e.message);}
-                      }} style={{flex:1,padding:"8px",background:PURPLE,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:700,textAlign:"center"}}>
+                      }} style={{flex:1,padding:"8px",background:PURPLE,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:600,textAlign:"center"}}>
                         Aplicar
+                      </div>
+                      <div onClick={async()=>{
+                        const novoNome=prompt("Novo nome para o modelo:",m.nome);
+                        if(!novoNome||!novoNome.trim()) return;
+                        try{
+                          const editado={...m,nome:novoNome.trim()};
+                          const novos=await salvarModeloProcedimento(editado,modelos);
+                          setModelos(novos);
+                        }catch(e){alert("Erro: "+e.message);}
+                      }} style={{padding:"8px 12px",border:"1px solid "+GOLD,borderRadius:6,cursor:"pointer",fontSize:11,color:GOLD_DARK,textAlign:"center"}}>
+                        Editar
+                      </div>
+                      <div onClick={async()=>{
+                        const novoNome=prompt("Nome da cópia:",m.nome+" (cópia)");
+                        if(!novoNome||!novoNome.trim()) return;
+                        try{
+                          const copia={...JSON.parse(JSON.stringify(m)),id:"modelo_"+Date.now(),nome:novoNome.trim(),criadoEm:new Date().toISOString()};
+                          const novos=await salvarModeloProcedimento(copia,modelos);
+                          setModelos(novos);
+                        }catch(e){alert("Erro: "+e.message);}
+                      }} style={{padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:6,cursor:"pointer",fontSize:11,color:"#5C4A2A",textAlign:"center"}}>
+                        Duplicar
                       </div>
                       <div onClick={async()=>{
                         if(!confirm("Excluir modelo \""+m.nome+"\"?")) return;
@@ -3409,7 +3440,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             return(
               <div style={{marginTop:16}}>
                 <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                  <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Propostas Individuais</span>
+                  <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Propostas</span>
                   <div style={{flex:1,height:1,background:BORDER}}/>
                 </div>
                 {itensSep.map((it,idx)=>{
@@ -3454,7 +3485,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       return(
                         <div key={idx} style={{marginBottom:10,border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                           <div style={{padding:"8px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                            <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>{proc.nome}</span>
+                            <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>Proposta {idx+1} — {proc.nome}</span>
                             <div style={{textAlign:"right"}}>
                               <span style={{fontSize:14,fontWeight:700,color:GOLD_DARK}}>{fmt2(vf2)}</span>
                               {dp2>0&&<span style={{fontSize:11,color:"#9A8060",marginLeft:6}}>({dp2}% desc. sobre {fmt2(vb2)})</span>}
@@ -3544,18 +3575,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   <div style={{padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                        {dp>0?(
-                          <>
-                            <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vB)}</span>
-                            <span style={{fontSize:11,color:"#9A8060"}}>→</span>
-                            <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
-                            <span style={{fontSize:11,color:"#9A8060"}}>({dp}% de desconto)</span>
-                          </>
-                        ):(
-                          <span style={{fontSize:13,color:GOLD_DARK}}>{fmt2(vF)}</span>
-                        )}
+                        <span style={{fontSize:14,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                        {dp>0&&<span style={{fontSize:11,color:"#9A8060"}}>({dp}% de desconto)</span>}
                       </div>
-                      {lb&&<span style={{fontSize:13,fontWeight:600,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
+                      {lb&&<span style={{fontSize:12,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
                     </div>
                     {fc.includes("debito")&&<div style={{fontSize:10,color:"#9A8060",marginTop:3}}>Taxa 1,99% PagBank no débito</div>}
                   </div>
