@@ -1563,11 +1563,6 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                     const propQuem=prop.quemPaga||"comprador";
                     const propCi=parseInt(prop.ci||"0");
                     const propCp=prop.cp?parseInt(prop.cp):null;
-                    const creditoBasePrev=(propEntrada2&&propEntradaValor2>0&&(prop.saldoTipo||"parcelado")==="parcelado")?propSaldo2:vb2;
-                    const tCp2=(prop.fc&&prop.fc.includes("credito"))
-                      ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(creditoBasePrev,n,propPlano,propQuem);return{n,...r};})
-                      :[];
-                    const tCpf2=propCp?tCp2.filter(r=>r.n===1||r.n<=propCp):tCp2;
                     const propBp=parseInt(prop.bp||"6");
                     const propBj=prop.bj||"sem_juros";
                     const propBi2=parseInt(prop.bi||"3");
@@ -1576,6 +1571,11 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                     const propEntradaVal2=parseFloat(String(prop.entradaVal||"0").replace(",","."))||0;
                     const propEntradaValor2=propEntrada2?(propEntradaTipo2==="pct"?vb2*propEntradaVal2/100:propEntradaVal2):0;
                     const propSaldo2=propEntrada2?Math.max(0,vb2-propEntradaValor2):vf2;
+                    const creditoBasePrev=(propEntrada2&&propEntradaValor2>0&&(prop.saldoTipo||"parcelado")==="parcelado")?propSaldo2:vb2;
+                    const tCp2=(prop.fc&&prop.fc.includes("credito"))
+                      ?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(creditoBasePrev,n,propPlano,propQuem);return{n,...r};})
+                      :[];
+                    const tCpf2=propCp?tCp2.filter(r=>r.n===1||r.n<=propCp):tCp2;
                     const bBaseC=(propEntrada2&&propEntradaValor2>0&&(prop.saldoTipo||"parcelado")==="parcelado")?propSaldo2:(prop.boletoComDesconto?vf2:vb2);
                     const bLs2=(prop.fc&&prop.fc.includes("boleto")&&(prop.bm||"avista")==="parcelado")
                       ?Array.from({length:propBp},(_,i)=>{const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi2;const sj=n<=nl,pc=propBj==="combinado"?Math.max(0,n-nl):sj?0:n;const t=sj?bBaseC:bBaseC*(1+0.012*pc);return{n,p:t/n,sj,t};})
@@ -2704,7 +2704,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
   const [editandoProcs, setEditandoProcs] = useState(false);
   const [novoNome, setNovoNome] = useState("");
   const [novoValor, setNovoValor] = useState("");
-  const [novoModo, setNovoModo] = useState("dente");
+  const [novoModo, setNovoModo] = useState("livre");
   const [novoObs, setNovoObs] = useState("");
   const [mostrarForm, setMostrarForm] = useState(false);
 
@@ -2981,18 +2981,6 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                     placeholder="0,00"
                   />
                 </div>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 600 }}>Tipo</label>
-                  <select
-                    style={{ padding: "10px 12px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, outline: "none", fontFamily: "inherit", cursor: "pointer" }}
-                    value={novoModo}
-                    onChange={e => setNovoModo(e.target.value)}
-                  >
-                    <option value="dente">Por dente</option>
-                    <option value="regiao">Por região</option>
-                    <option value="livre">Valor livre</option>
-                  </select>
-                </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <label style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 600 }}>Observação / Descrição</label>
@@ -3073,7 +3061,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
 
         {/* Botão Salvar como modelo — sempre visível */}
         <div style={{marginTop:16,padding:"12px 16px",background:"#fff",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
-            <input value={nomeModelo} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo (ex: Profilaxia Padrão)" style={{flex:1,padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:6,fontSize:13,fontFamily:"inherit",outline:"none"}}/>
+            <input value={nomeModelo||[...(itens||[]).filter(it=>it.ativo).map(it=>{const p=(procsBase||[]).find(pp=>pp.id===it.id);return p?p.nome:it.nome||it.id;}),...(customProcs||[]).filter(it=>it.ativo).map(it=>it.nome)].join(" + ")} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo" style={{flex:1,padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:6,fontSize:13,fontFamily:"inherit",outline:"none"}}/>
             <div onClick={async()=>{
               if(!nomeModelo.trim()){alert("Dê um nome ao modelo");return;}
               setSalvandoModelo(true);
