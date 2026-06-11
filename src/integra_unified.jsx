@@ -2515,6 +2515,19 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                 boxSizing:"border-box",
               }}
             />
+            {/* Anotações internas — NÃO aparece no relatório */}
+            <div style={{marginTop:8}}>
+              <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"#9A8060",marginBottom:4,display:"flex",alignItems:"center",gap:6}}>
+                📝 Anotação interna
+                <span style={{fontSize:8,color:"#bbb",fontWeight:400,textTransform:"none",letterSpacing:0}}>(não aparece no relatório)</span>
+              </div>
+              <input
+                value={item.anotacao || ""}
+                onChange={e => onChange({ ...item, anotacao: e.target.value })}
+                placeholder="Ex: Orçamento premium, pacote completo..."
+                style={{width:"100%",padding:"6px 10px",border:"1px dashed #ccc",borderRadius:4,fontSize:11,fontFamily:"inherit",color:"#9A8060",background:"#FAFAF8",outline:"none"}}
+              />
+            </div>
           </div>
           <div style={{ marginTop: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -2888,8 +2901,9 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                         }
                       />
                     ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <span>{proc.nome}</span>
+                        {item?.anotacao&&<span style={{fontSize:8,color:ativo?"rgba(255,255,255,0.6)":"#9A8060",fontStyle:"italic",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>({item.anotacao})</span>}
                         {ativo && !proc.subtipos && (
                           <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 3 }}>
                             <span style={{ fontSize: 10, color: ativo?"rgba(255,255,255,0.7)":"#9A8060", marginLeft: 4 }}>R$</span>
@@ -3063,13 +3077,15 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
         <div style={{marginTop:16,padding:"12px 16px",background:"#fff",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
             <input value={nomeModelo||[...(itens||[]).filter(it=>it.ativo).map(it=>{const p=(procsBase||[]).find(pp=>pp.id===it.id);return p?p.nome:it.nome||it.id;}),...(customProcs||[]).filter(it=>it.ativo).map(it=>it.nome)].join(" + ")} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo" style={{flex:1,padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:6,fontSize:13,fontFamily:"inherit",outline:"none"}}/>
             <div onClick={async()=>{
-              if(!nomeModelo.trim()){alert("Dê um nome ao modelo");return;}
+              const nomeAuto=[...(itens||[]).filter(it=>it.ativo).map(it=>{const p=(procsBase||[]).find(pp=>pp.id===it.id);return p?p.nome:it.nome||it.id;}),...(customProcs||[]).filter(it=>it.ativo).map(it=>it.nome)].join(" + ");
+              const nomeFinal=(nomeModelo||nomeAuto).trim();
+              if(!nomeFinal){alert("Dê um nome ao modelo");return;}
               setSalvandoModelo(true);
               try{
                 const ativos=[...(itens||[]).filter(it=>it.ativo),...(customProcs||[]).filter(it=>it.ativo)];
                 const modelo={
                   id:"modelo_"+Date.now(),
-                  nome:nomeModelo.trim(),
+                  nome:nomeFinal,
                   criadoEm:new Date().toISOString(),
                   itens:JSON.parse(JSON.stringify(ativos)),
                   p3Config:p3?JSON.parse(JSON.stringify({vb:p3.vb,ds:p3.ds,dc:p3.dc,fc:p3.fc,entrada:p3.entrada,entradaTipo:p3.entradaTipo,entradaVal:p3.entradaVal,saldoTipo:p3.saldoTipo,cp:p3.cp,ci:p3.ci,bp:p3.bp,bj:p3.bj,bi:p3.bi,quemPaga:p3.quemPaga,boletoComDesconto:p3.boletoComDesconto,plano:p3.plano,modoRel:p3.modoRel})):null,
@@ -3461,7 +3477,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       const propBp = parseInt(prop.bp||"6");
                       const propBj = prop.bj||"sem_juros";
                       const propBi = parseInt(prop.bi||"3");
-                      const bBaseR=prop.boletoComDesconto?vf2:vb2;
+                      const bBaseR=(propEntrada&&propEntradaValor>0&&(prop.saldoTipo||"parcelado")==="parcelado")?propSaldo:(prop.boletoComDesconto?vf2:vb2);
                       const boletoLs = prop.fc&&prop.fc.includes("boleto")&&(prop.bm||"avista")==="parcelado"
                         ? Array.from({length:propBp},(_,i)=>{
                             const n=i+1,nl=propBj==="sem_juros"?propBp:propBj==="com_juros"?0:propBi;
@@ -3473,11 +3489,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       return(
                         <div key={idx} style={{marginBottom:10,border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                           <div style={{padding:"8px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                            <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>Proposta {idx+1} — {proc.nome}</span>
-                            <div style={{textAlign:"right"}}>
-                              <span style={{fontSize:14,fontWeight:700,color:GOLD_DARK}}>{fmt2(vf2)}</span>
-                              {dp2>0&&<span style={{fontSize:11,color:"#9A8060",marginLeft:6}}>({dp2}% desc. sobre {fmt2(vb2)})</span>}
-                            </div>
+                            <span style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>Proposta {idx+1} — {proc.nome}</span>
+                            {!propEntrada&&<span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vf2)}{dp2>0?" ("+dp2+"% desc.)":""}</span>}
                           </div>
                           {/* Entrada individual */}
                           {propEntrada&&propEntradaValor>0&&(
