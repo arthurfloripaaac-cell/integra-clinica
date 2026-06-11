@@ -3062,9 +3062,8 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
           </div>
         )}
 
-        {/* Botão Salvar como modelo */}
-        {(itens||[]).some(it=>it.ativo) && (
-          <div style={{marginTop:16,padding:"12px 16px",background:"#fff",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
+        {/* Botão Salvar como modelo — sempre visível */}
+        <div style={{marginTop:16,padding:"12px 16px",background:"#fff",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
             <input value={nomeModelo} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo (ex: Profilaxia Padrão)" style={{flex:1,padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:6,fontSize:13,fontFamily:"inherit",outline:"none"}}/>
             <div onClick={async()=>{
               if(!nomeModelo.trim()){alert("Dê um nome ao modelo");return;}
@@ -3088,7 +3087,6 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
               {salvandoModelo?"Salvando...":"💾 Salvar modelo"}
             </div>
           </div>
-        )}
 
         {/* Modal de modelos salvos */}
         {showModelos&&(
@@ -3606,7 +3604,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                     {/* Boleto parcelado */}
                     {fc.includes("boleto")&&bm==="parcelado"&&(()=>{
                       const nl=bj==="sem_juros"?nb:bj==="com_juros"?0:parseInt(bi)||0;
-                      const bBase=boletoComDesconto?vF:vB; // desconto só se toggle ativado
+                      const bBase=(entrada&&entradaValor2>0&&(p3.saldoTipo||"parcelado")==="parcelado")?saldo2:(boletoComDesconto?vF:vB);
                       const ls=Array.from({length:nb},(_,i)=>{
                         const n=i+1,sj=n<=nl,pc=bj==="combinado"?Math.max(0,n-nl):sj?0:n;
                         const t=sj?bBase:bBase*(1+0.012*pc);
@@ -4123,25 +4121,38 @@ async function gdriveCarregarModelos() {
 
 async function salvarModeloProcedimento(modelo, modelosAtuais) {
   const novos = [...modelosAtuais.filter(m=>m.id!==modelo.id), modelo];
-  await fbSalvarModelos(novos);
+  // Salvar em 3 camadas: localStorage (imediato) + Firebase + Drive
+  try { localStorage.setItem("integra_modelos_v1", JSON.stringify(novos)); } catch(e){}
+  fbSalvarModelos(novos).catch(()=>{});
   gdriveSalvarModelos(novos); // async sem await (backup)
   return novos;
 }
 
 async function deletarModeloProcedimento(id, modelosAtuais) {
   const novos = modelosAtuais.filter(m=>m.id!==id);
-  await fbSalvarModelos(novos);
+  try { localStorage.setItem("integra_modelos_v1", JSON.stringify(novos)); } catch(e){}
+  fbSalvarModelos(novos).catch(()=>{});
   gdriveSalvarModelos(novos);
   return novos;
 }
 
 async function carregarModelosProcedimentos() {
-  // Tenta Firebase primeiro (mais rápido), fallback para Drive
+  // 1. Tenta localStorage (mais rápido, sempre disponível)
+  try {
+    const local = JSON.parse(localStorage.getItem("integra_modelos_v1")||"[]");
+    if(local && local.length > 0) return local;
+  } catch(e){}
+  // 2. Tenta Firebase
   const fb = await fbCarregarModelos();
-  if(fb && fb.length > 0) return fb;
+  if(fb && fb.length > 0) {
+    try { localStorage.setItem("integra_modelos_v1", JSON.stringify(fb)); } catch(e){}
+    return fb;
+  }
+  // 3. Tenta Drive
   const drive = await gdriveCarregarModelos();
   if(drive && drive.length > 0) {
-    fbSalvarModelos(drive); // sync Firebase com Drive
+    try { localStorage.setItem("integra_modelos_v1", JSON.stringify(drive)); } catch(e){}
+    fbSalvarModelos(drive);
     return drive;
   }
   return [];
