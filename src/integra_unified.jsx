@@ -1389,7 +1389,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                   <div style={{padding:"10px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,marginBottom:12}}>
                     <div style={{fontSize:11,color:"#5C4A2A",marginBottom:8}}>Até quantas parcelas sem juros?</div>
                     <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                      {[1,2,3,4,5,6].map(n=>(
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>(
                         <div key={n} onClick={()=>setBoletoIsento(String(n))} style={{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"1.5px solid "+(parseInt(boletoIsento)===n?GOLD_DARK:BORDER),background:parseInt(boletoIsento)===n?GOLD:"#fff",color:parseInt(boletoIsento)===n?"#fff":"#5C4A2A",fontSize:11,cursor:"pointer"}}>{n}</div>
                       ))}
                     </div>
@@ -2254,12 +2254,6 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                 </div>
                 {item.ativo && (<>
                   <div style={{display:"flex",alignItems:"center",gap:4}}>
-                    {!item._permanente&&(
-                      <div onClick={e=>{e.stopPropagation();onChange({...item,_permanente:true});}} style={{fontSize:9,color:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+BORDER,borderRadius:20,whiteSpace:"nowrap"}} title="Salvar como favorito">⭐ Favoritar</div>
-                    )}
-                    {item._permanente&&(
-                      <div style={{fontSize:9,color:GOLD_DARK,padding:"2px 8px",border:"1px solid "+GOLD,borderRadius:20,whiteSpace:"nowrap",background:GOLD_PALE}}>⭐ Salvo</div>
-                    )}
                     <div onClick={e=>{e.stopPropagation();onChange({...item,_showMiniOrc:!item._showMiniOrc});}} style={{fontSize:9,color:item.proposta?GOLD_DARK:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+(item.proposta?GOLD:BORDER),borderRadius:20,whiteSpace:"nowrap"}}>
                       {item.proposta?"✓ Proposta própria":"+ Proposta individual"}
                     </div>
@@ -2696,6 +2690,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
   const [showModelos, setShowModelos] = useState(false);
   const [nomeModelo, setNomeModelo] = useState("");
   const [salvandoModelo, setSalvandoModelo] = useState(false);
+  const [modelosSel, setModelosSel] = useState(new Set());
   // Force spellCheck on mount
   React.useEffect(()=>{try{document.querySelectorAll("textarea").forEach(t=>{t.setAttribute("spellcheck","true");t.setAttribute("lang","pt-BR");});}catch(e){}},[]);
   const defaultItens = PROC_BASE.map(p => ({
@@ -2970,58 +2965,40 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
           })}
         </div>
 
-        {/* Formulário adicionar — só aparece quando mostrarForm ativo */}
-        {mostrarForm && <div style={{ background: "#fff", border: "1px solid " + GOLD, borderRadius: 4, padding: 18, marginBottom: 14 }}>
-          <SectionTitle>Novo Procedimento</SectionTitle>
-          {true && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 600 }}>Nome do procedimento</label>
-                <input
-                  style={{ padding: "10px 12px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 13, outline: "none", fontFamily: "inherit" }}
-                  value={novoNome}
-                  onChange={e => setNovoNome(e.target.value)}
-                  spellCheck={false} placeholder="Ex: Faceta de porcelana"
-                  autoFocus
-                />
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 600 }}>Valor (R$)</label>
-                  <input
-                    style={{ padding: "10px 12px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 13, outline: "none", fontFamily: "inherit" }}
-                    value={novoValor}
-                    onChange={e => setNovoValor(e.target.value.replace(/[^0-9,]/g, ""))}
-                    placeholder="0,00"
-                  />
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 600 }}>Observação / Descrição</label>
-                <textarea
-                  spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences"
-                  style={{ padding: "10px 12px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, fontFamily: "inherit", resize: "vertical", minHeight: 60, color: "#1C1410" }}
-                  value={novoObs}
-                  onChange={e => setNovoObs(e.target.value)}
-                  placeholder="Descrição, materiais, observações clínicas..."
-                />
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <div onClick={()=>adicionarCustom(false)} style={{
-                  flex: 1, padding: "10px", borderRadius: 3, background: GOLD,
-                  color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "center",
-                }}>+ Adicionar (este atendimento)</div>
-                <div onClick={()=>adicionarCustom(true)} style={{
-                  flex: 1, padding: "10px", borderRadius: 3, background: GOLD_DARK,
-                  color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", textAlign: "center",
-                }}>⭐ Salvar como padrão</div>
-                <div onClick={() => { setMostrarForm(false); setNovoNome(""); setNovoValor(""); }} style={{
-                  padding: "10px 16px", borderRadius: 3, border: "1px solid " + BORDER,
-                  color: "#9A8060", fontSize: 12, cursor: "pointer", textAlign: "center",
-                }}>Cancelar</div>
-              </div>
-            </div>
-          )}
+        {/* Formulário adicionar — simplificado: apenas título + destino */}
+        {mostrarForm && <div style={{ background: "#fff", border: "1px solid " + GOLD, borderRadius: 8, padding: 18, marginBottom: 14 }}>
+          <div style={{fontSize:13,fontWeight:700,color:GOLD_DARK,marginBottom:12}}>Novo Procedimento</div>
+          <input
+            style={{ width:"100%",padding: "12px 14px", border: "1px solid " + BORDER, borderRadius: 6, fontSize: 14, outline: "none", fontFamily: "inherit",marginBottom:12 }}
+            value={novoNome}
+            onChange={e => setNovoNome(e.target.value)}
+            spellCheck={false} placeholder="Nome do procedimento (ex: Faceta de porcelana)"
+            autoFocus
+          />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div onClick={()=>{if(!novoNome.trim())return;adicionarCustom(true);}} style={{
+              flex: 1, padding: "11px", borderRadius: 6, background: GOLD_DARK,
+              color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "center",
+            }}>Adicionar aos procedimentos</div>
+            <div onClick={async()=>{
+              if(!novoNome.trim())return;
+              setSalvandoModelo(true);
+              try{
+                const modelo={id:"modelo_"+Date.now(),nome:novoNome.trim(),criadoEm:new Date().toISOString(),itens:[{id:"custom_"+Date.now(),nome:novoNome.trim(),modo:"livre",ativo:true,valor:"0",obs:"",dentes:[],regiao:null,qtd:1,_permanente:true}],p3Config:null};
+                const novos=await salvarModeloProcedimento(modelo,modelos);
+                setModelos(novos);
+                setNovoNome("");setMostrarForm(false);
+              }catch(e){alert("Erro: "+e.message);}
+              setSalvandoModelo(false);
+            }} style={{
+              flex: 1, padding: "11px", borderRadius: 6, background: PURPLE,
+              color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "center",
+            }}>📋 Salvar como modelo</div>
+            <div onClick={() => { setMostrarForm(false); setNovoNome(""); }} style={{
+              padding: "11px 16px", borderRadius: 6, border: "1px solid " + BORDER,
+              color: "#9A8060", fontSize: 12, cursor: "pointer", textAlign: "center",
+            }}>Cancelar</div>
+          </div>
         </div>}
 
         {/* Resumo */}
@@ -3103,38 +3080,50 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
 
         {/* Modal de modelos salvos */}
         {showModelos&&(
-          <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setShowModelos(false)}>
+          <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>{setShowModelos(false);setModelosSel(new Set());}}>
             <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:12,maxWidth:500,width:"95%",maxHeight:"80vh",display:"flex",flexDirection:"column",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
               <div style={{padding:"18px 20px",borderBottom:"1.5px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div style={{fontSize:16,fontWeight:700,color:PURPLE}}>📋 Modelos de Orçamento</div>
-                <div onClick={()=>setShowModelos(false)} style={{cursor:"pointer",color:"#9A8060",fontSize:18}}>✕</div>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  {modelosSel.size>0&&(
+                    <div onClick={async()=>{
+                      if(!confirm("Excluir "+modelosSel.size+" modelo(s) selecionado(s)?")) return;
+                      try{let novos=[...modelos];for(const id of modelosSel){novos=novos.filter(m=>m.id!==id);}
+                      try{localStorage.setItem("integra_modelos_v1",JSON.stringify(novos));}catch(e){}
+                      fbSalvarModelos(novos).catch(()=>{});gdriveSalvarModelos(novos);
+                      setModelos(novos);setModelosSel(new Set());}catch(e){alert("Erro: "+e.message);}
+                    }} style={{padding:"6px 12px",background:"#C62828",color:"#fff",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:600}}>
+                      Excluir {modelosSel.size} selecionado(s)
+                    </div>
+                  )}
+                  <div onClick={()=>{setShowModelos(false);setModelosSel(new Set());}} style={{cursor:"pointer",color:"#9A8060",fontSize:18}}>✕</div>
+                </div>
               </div>
               <div style={{padding:"12px 20px",overflowY:"auto",flex:1}}>
                 {modelos.length===0?(
-                  <div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:13}}>Nenhum modelo salvo. Configure procedimentos e clique em "Salvar modelo".</div>
+                  <div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:13}}>Nenhum modelo salvo. Adicione procedimentos e clique em "Salvar como modelo".</div>
                 ):modelos.map(m=>(
-                  <div key={m.id} style={{padding:"14px 16px",border:"1px solid "+BORDER,borderRadius:8,marginBottom:8,background:CREAM}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                      <div style={{fontSize:14,fontWeight:700,color:PURPLE}}>{m.nome}</div>
-                      <div style={{fontSize:9,color:"#9A8060"}}>{m.criadoEm?new Date(m.criadoEm).toLocaleDateString("pt-BR"):""}</div>
+                  <div key={m.id} style={{padding:"12px 14px",border:"1px solid "+(modelosSel.has(m.id)?"#E57373":BORDER),borderRadius:8,marginBottom:8,background:modelosSel.has(m.id)?"#FFF5F5":CREAM}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                      <input type="checkbox" checked={modelosSel.has(m.id)} onChange={()=>{const ns=new Set(modelosSel);if(ns.has(m.id))ns.delete(m.id);else ns.add(m.id);setModelosSel(ns);}} style={{width:16,height:16,cursor:"pointer"}}/>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:14,fontWeight:700,color:PURPLE}}>{m.nome}</div>
+                        <div style={{fontSize:10,color:"#9A8060"}}>{m.criadoEm?new Date(m.criadoEm).toLocaleDateString("pt-BR"):""} · {(m.itens||[]).length} procedimento(s)</div>
+                      </div>
                     </div>
-                    <div style={{fontSize:11,color:"#5C4A2A",marginBottom:8}}>
-                      {(m.itens||[]).map(it=>it.nome||it.id).join(" · ")}
-                      {m.p3Config&&m.p3Config.vb?" — R$ "+m.p3Config.vb:""}
-                    </div>
-                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    <div style={{display:"flex",gap:6}}>
                       <div onClick={async()=>{
                         try{
                           if(m.itens){
                             const novosItens=(itens||[]).map(it=>({...it,ativo:false}));
                             m.itens.forEach(mi=>{
-                              const idx=novosItens.findIndex(x=>x.id===mi.id);
-                              if(idx>=0) novosItens[idx]={...novosItens[idx],...mi,ativo:true};
+                              const idx2=novosItens.findIndex(x=>x.id===mi.id);
+                              if(idx2>=0) novosItens[idx2]={...novosItens[idx2],...mi,ativo:true};
                               else{
-                                const isCustom=mi.id&&mi.id.startsWith("custom_");
-                                if(isCustom){
-                                  const existeCustom=(customProcs||[]).findIndex(c=>c.id===mi.id);
-                                  if(existeCustom>=0) setCustomProcs(prev=>prev.map((c,i)=>i===existeCustom?{...c,...mi,ativo:true}:c));
+                                const isC=mi.id&&mi.id.startsWith("custom_");
+                                if(isC){
+                                  const ec=(customProcs||[]).findIndex(c=>c.id===mi.id);
+                                  if(ec>=0) setCustomProcs(prev=>prev.map((c,i)=>i===ec?{...c,...mi,ativo:true}:c));
                                   else setCustomProcs(prev=>[...prev,{...mi,ativo:true,_permanente:true}]);
                                 }
                               }
@@ -3142,41 +3131,21 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                             setItens(novosItens);
                           }
                           if(m.p3Config&&setP3) setP3(m.p3Config);
-                          setShowModelos(false);
-                        }catch(e){alert("Erro ao aplicar modelo: "+e.message);}
+                          setShowModelos(false);setModelosSel(new Set());
+                        }catch(e){alert("Erro ao aplicar: "+e.message);}
                       }} style={{flex:1,padding:"8px",background:PURPLE,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:600,textAlign:"center"}}>
                         Aplicar
                       </div>
                       <div onClick={async()=>{
-                        const novoNome=prompt("Novo nome para o modelo:",m.nome);
-                        if(!novoNome||!novoNome.trim()) return;
+                        const nn=prompt("Nome da cópia:",m.nome+" (cópia)");
+                        if(!nn||!nn.trim()) return;
                         try{
-                          const editado={...m,nome:novoNome.trim()};
-                          const novos=await salvarModeloProcedimento(editado,modelos);
-                          setModelos(novos);
-                        }catch(e){alert("Erro: "+e.message);}
-                      }} style={{padding:"8px 12px",border:"1px solid "+GOLD,borderRadius:6,cursor:"pointer",fontSize:11,color:GOLD_DARK,textAlign:"center"}}>
-                        Editar
-                      </div>
-                      <div onClick={async()=>{
-                        const novoNome=prompt("Nome da cópia:",m.nome+" (cópia)");
-                        if(!novoNome||!novoNome.trim()) return;
-                        try{
-                          const copia={...JSON.parse(JSON.stringify(m)),id:"modelo_"+Date.now(),nome:novoNome.trim(),criadoEm:new Date().toISOString()};
+                          const copia={...JSON.parse(JSON.stringify(m)),id:"modelo_"+Date.now(),nome:nn.trim(),criadoEm:new Date().toISOString()};
                           const novos=await salvarModeloProcedimento(copia,modelos);
                           setModelos(novos);
                         }catch(e){alert("Erro: "+e.message);}
                       }} style={{padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:6,cursor:"pointer",fontSize:11,color:"#5C4A2A",textAlign:"center"}}>
                         Duplicar
-                      </div>
-                      <div onClick={async()=>{
-                        if(!confirm("Excluir modelo \""+m.nome+"\"?")) return;
-                        try{
-                          const novos=await deletarModeloProcedimento(m.id,modelos);
-                          setModelos(novos);
-                        }catch(e){alert("Erro: "+e.message);}
-                      }} style={{padding:"8px 12px",border:"1px solid #E57373",borderRadius:6,cursor:"pointer",fontSize:11,color:"#C62828",textAlign:"center"}}>
-                        Excluir
                       </div>
                     </div>
                   </div>
@@ -3411,7 +3380,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                     </div>}
 
                   </div>
-                  <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
+                  
                 </div>)
               }),
               ...p4Custom.map(it => {
@@ -3431,7 +3400,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:11,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
                     </div>}
                   </div>
-                  <div style={{fontSize:14,fontWeight:700,color:GOLD_DARK,flexShrink:0,marginLeft:12}}>{fmt2(sub)}</div>
+                  
                 </div>)
               })].filter(Boolean)}
             </div>
