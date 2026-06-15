@@ -1263,8 +1263,9 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
           <div key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:20,fontSize:11,cursor:"pointer",background:tab===t?GOLD:"#fff",color:tab===t?"#fff":GOLD_DARK,border:"1.5px solid "+(tab===t?GOLD_DARK:BORDER),fontWeight:tab===t?700:400}}>{l}</div>
         ))}
       </div>
-      <div style={{fontSize:10,color:"#9A8060",marginBottom:12,padding:"6px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:6}}>
-        Esta calculadora configura o orçamento geral (soma de todos os procedimentos). Propostas individuais por procedimento são configuradas na aba Plano de Tratamento, clicando em "Proposta individual".
+      <div style={{fontSize:12,color:PURPLE,marginBottom:14,padding:"14px 18px",background:"#F3EDF6",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:10,lineHeight:1.7}}>
+        <div style={{fontWeight:700,marginBottom:4,fontSize:13}}>ℹ️ Orçamento Geral</div>
+        Esta calculadora configura o orçamento que soma todos os procedimentos selecionados. Para criar orçamentos individuais por procedimento, acesse a aba <strong>Plano de Tratamento</strong> e clique em <strong>"Proposta individual"</strong> no procedimento desejado.
       </div>
       {tab==="calc"&&<>
         <Card>
@@ -2254,8 +2255,8 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                 </div>
                 {item.ativo && (<>
                   <div style={{display:"flex",alignItems:"center",gap:4}}>
-                    <div onClick={e=>{e.stopPropagation();onChange({...item,_showMiniOrc:!item._showMiniOrc});}} style={{fontSize:9,color:item.proposta?GOLD_DARK:"#9A8060",cursor:"pointer",padding:"2px 8px",border:"1px solid "+(item.proposta?GOLD:BORDER),borderRadius:20,whiteSpace:"nowrap"}}>
-                      {item.proposta?"✓ Proposta própria":"+ Proposta individual"}
+                    <div onClick={e=>{e.stopPropagation();onChange({...item,_showMiniOrc:!item._showMiniOrc});}} style={{fontSize:10,color:item.proposta?"#fff":PURPLE,cursor:"pointer",padding:"4px 12px",border:"1.5px solid "+(item.proposta?PURPLE:PURPLE_LIGHT),borderRadius:20,whiteSpace:"nowrap",background:item.proposta?PURPLE:"#F3EDF6",fontWeight:600}}>
+                      {item.proposta?"✓ Proposta configurada":"+ Proposta individual"}
                     </div>
                   </div>
                   {/* Resumo das condições de pagamento da proposta individual */}
@@ -2979,21 +2980,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
             <div onClick={()=>{if(!novoNome.trim())return;adicionarCustom(true);}} style={{
               flex: 1, padding: "11px", borderRadius: 6, background: GOLD_DARK,
               color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "center",
-            }}>Adicionar aos procedimentos</div>
-            <div onClick={async()=>{
-              if(!novoNome.trim())return;
-              setSalvandoModelo(true);
-              try{
-                const modelo={id:"modelo_"+Date.now(),nome:novoNome.trim(),criadoEm:new Date().toISOString(),itens:[{id:"custom_"+Date.now(),nome:novoNome.trim(),modo:"livre",ativo:true,valor:"0",obs:"",dentes:[],regiao:null,qtd:1,_permanente:true}],p3Config:null};
-                const novos=await salvarModeloProcedimento(modelo,modelos);
-                setModelos(novos);
-                setNovoNome("");setMostrarForm(false);
-              }catch(e){alert("Erro: "+e.message);}
-              setSalvandoModelo(false);
-            }} style={{
-              flex: 1, padding: "11px", borderRadius: 6, background: PURPLE,
-              color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "center",
-            }}>📋 Salvar como modelo</div>
+            }}>+ Adicionar procedimento</div>
             <div onClick={() => { setMostrarForm(false); setNovoNome(""); }} style={{
               padding: "11px 16px", borderRadius: 6, border: "1px solid " + BORDER,
               color: "#9A8060", fontSize: 12, cursor: "pointer", textAlign: "center",
@@ -3057,6 +3044,27 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
               const nomeAuto=[...(itens||[]).filter(it=>it.ativo).map(it=>{const p=(procsBase||[]).find(pp=>pp.id===it.id);return p?p.nome:it.nome||it.id;}),...(customProcs||[]).filter(it=>it.ativo).map(it=>it.nome)].join(" + ");
               const nomeFinal=(nomeModelo||nomeAuto).trim();
               if(!nomeFinal){alert("Dê um nome ao modelo");return;}
+              const existente=modelos.find(m=>m.nome.toLowerCase()===nomeFinal.toLowerCase());
+              if(existente){
+                const escolha=prompt("Já existe um modelo com o nome \""+nomeFinal+"\". Digite:\n1 = Sobrepor (atualizar existente)\n2 = Duplicar (criar cópia)\n3 = Cancelar");
+                if(escolha==="3"||!escolha){setSalvandoModelo(false);return;}
+                setSalvandoModelo(true);
+                try{
+                  const ativos=[...(itens||[]).filter(it=>it.ativo),...(customProcs||[]).filter(it=>it.ativo)];
+                  const p3Data=p3?JSON.parse(JSON.stringify({vb:p3.vb,ds:p3.ds,dc:p3.dc,fc:p3.fc,entrada:p3.entrada,entradaTipo:p3.entradaTipo,entradaVal:p3.entradaVal,saldoTipo:p3.saldoTipo,cp:p3.cp,ci:p3.ci,bp:p3.bp,bj:p3.bj,bi:p3.bi,quemPaga:p3.quemPaga,boletoComDesconto:p3.boletoComDesconto,plano:p3.plano,modoRel:p3.modoRel})):null;
+                  if(escolha==="1"){
+                    const atualizado={...existente,itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data,criadoEm:new Date().toISOString()};
+                    const novos=await salvarModeloProcedimento(atualizado,modelos);
+                    setModelos(novos);setNomeModelo("");
+                  } else {
+                    const modelo={id:"modelo_"+Date.now(),nome:nomeFinal+" (cópia)",criadoEm:new Date().toISOString(),itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data};
+                    const novos=await salvarModeloProcedimento(modelo,modelos);
+                    setModelos(novos);setNomeModelo("");
+                  }
+                }catch(e){alert("Erro: "+e.message);}
+                setSalvandoModelo(false);
+                return;
+              }
               setSalvandoModelo(true);
               try{
                 const ativos=[...(itens||[]).filter(it=>it.ativo),...(customProcs||[]).filter(it=>it.ativo)];
@@ -3070,7 +3078,6 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                 const novos=await salvarModeloProcedimento(modelo,modelos);
                 setModelos(novos);
                 setNomeModelo("");
-                alert("Modelo \""+modelo.nome+"\" salvo com sucesso!");
               }catch(e){alert("Erro ao salvar modelo: "+e.message);}
               setSalvandoModelo(false);
             }} style={{padding:"8px 16px",background:salvandoModelo?"#ccc":PURPLE,color:"#fff",borderRadius:6,cursor:salvandoModelo?"default":"pointer",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
@@ -3458,7 +3465,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       return(
                         <div key={idx} style={{marginBottom:10,border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                           <div style={{padding:"8px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                            <span style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>Proposta {idx+1} — {proc.nome}</span>
+                            <span style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{idx+1}. {proc.nome}</span>
                             {!propEntrada&&<span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vf2)}{dp2>0?" ("+dp2+"% desc.)":""}</span>}
                           </div>
                           {/* Entrada individual */}
