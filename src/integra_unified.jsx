@@ -954,7 +954,7 @@ function VerificadorTaxas({plano}) {
   );
 }
 
-function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=true,setCt,bt=true,setBt,planoExterno,setPlanoExterno,p3QuemPaga,setP3QuemPaga,boletoComDesconto=false,setBoletoComDesconto,p4State=null,modoRel="soma",setModoRel}) {
+function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:descCustom,setDc:setDescCustom,fc:formasChecked,setFc:setFormasChecked,fa:formaAtiva,setFa:setFormaAtiva,bm:boletoModo,setBm:setBoletoModo,bp:boletoParc,setBp:setBoletoParc,bj:boletoJuros,setBj:setBoletoJuros,bi:boletoIsento,setBi:setBoletoIsento,ci:creditoIsento,setCi:setCreditoIsento,cp:creditoParc,setCp:setCreditoParc,tb:tab,setTb:setTab,entrada,setEntrada,entradaTipo,setEntradaTipo,entradaVal,setEntradaVal,saldoTipo,setSaldoTipo,ct=false,setCt,bt=false,setBt,planoExterno,setPlanoExterno,p3QuemPaga,setP3QuemPaga,boletoComDesconto=false,setBoletoComDesconto,p4State=null,modoRel="soma",setModoRel,bpSel,setBpSel,cpSel,setCpSel}) {
   const [plano, setPlanoLocal] = React.useState(planoExterno||"hora");
   const setPlano = (v) => { setPlanoLocal(v); if(setPlanoExterno) setPlanoExterno(v); };
   const planoAtual = plano;
@@ -1380,6 +1380,10 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                   ))}
                   <input style={{...inp,width:50,textAlign:"center",padding:"4px 8px"}} value={boletoParc} onChange={e=>setBoletoParc(e.target.value.replace(/[^0-9]/g,""))}/>
                 </div>
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:9,color:"#9A8060",marginBottom:4}}>Mostrar apenas parcelas específicas (separar por vírgula, vazio = todas)</div>
+                  <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} value={p3.bpSel||""} onChange={e=>setBpSel?setBpSel(e.target.value.replace(/[^0-9,]/g,"")):null} placeholder="Ex: 6,12,18"/>
+                </div>
                 <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Modalidade</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
                   {[["sem_juros","Sem juros"],["com_juros","Com juros 1,2% a.m."],["combinado","Combinado"]].map(([m,l])=>(
@@ -1494,6 +1498,10 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                   ))}
                   <div onClick={()=>setCreditoIsento("0")} style={{padding:"0 10px",height:30,borderRadius:20,display:"flex",alignItems:"center",border:"1.5px solid "+(nIsentoCredito===0?GOLD_DARK:BORDER),background:nIsentoCredito===0?GOLD:"#fff",color:nIsentoCredito===0?"#fff":"#5C4A2A",fontSize:10,cursor:"pointer"}}>Nenhuma</div>
                 </div>
+              </div>
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:9,color:"#9A8060",marginBottom:4}}>Mostrar apenas parcelas específicas no relatório (separar por vírgula, vazio = todas)</div>
+                <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} value={cpSel||""} onChange={e=>setCpSel?setCpSel(e.target.value.replace(/[^0-9,]/g,"")):null} placeholder="Ex: 1,6,12"/>
               </div>
 
               {/* Tabela */}
@@ -2804,7 +2812,14 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
   ].reduce((a, b) => a + b, 0);
 
   React.useEffect(() => { if(onTotalChange) onTotalChange(totalGeral); }, [totalGeral]);
-  const itensAtivos = [...itens.filter(it => it.ativo), ...customProcs.filter(it => it.ativo)];
+  const itensAtivos = (() => {
+    const ids = new Set();
+    const result = [];
+    for(const it of [...itens.filter(i=>i.ativo), ...customProcs.filter(i=>i.ativo)]) {
+      if(!ids.has(it.id)) { ids.add(it.id); result.push(it); }
+    }
+    return result;
+  })();
 
   return (
     <div style={{ fontFamily: "'Outfit',system-ui,sans-serif", background: CREAM, minHeight: "100vh", paddingBottom: 40 }}>
@@ -3037,54 +3052,6 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
           </div>
         )}
 
-        {/* Botão Salvar como modelo — sempre visível */}
-        <div style={{marginTop:16,padding:"12px 16px",background:"#fff",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:8,display:"flex",alignItems:"center",gap:10}}>
-            <input value={nomeModelo||[...(itens||[]).filter(it=>it.ativo).map(it=>{const p=(procsBase||[]).find(pp=>pp.id===it.id);return p?p.nome:it.nome||it.id;}),...(customProcs||[]).filter(it=>it.ativo).map(it=>it.nome)].join(" + ")} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo" style={{flex:1,padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:6,fontSize:13,fontFamily:"inherit",outline:"none"}}/>
-            <div onClick={async()=>{
-              const nomeAuto=[...(itens||[]).filter(it=>it.ativo).map(it=>{const p=(procsBase||[]).find(pp=>pp.id===it.id);return p?p.nome:it.nome||it.id;}),...(customProcs||[]).filter(it=>it.ativo).map(it=>it.nome)].join(" + ");
-              const nomeFinal=(nomeModelo||nomeAuto).trim();
-              if(!nomeFinal){alert("Dê um nome ao modelo");return;}
-              const existente=modelos.find(m=>m.nome.toLowerCase()===nomeFinal.toLowerCase());
-              if(existente){
-                const escolha=prompt("Já existe um modelo com o nome \""+nomeFinal+"\". Digite:\n1 = Sobrepor (atualizar existente)\n2 = Duplicar (criar cópia)\n3 = Cancelar");
-                if(escolha==="3"||!escolha){setSalvandoModelo(false);return;}
-                setSalvandoModelo(true);
-                try{
-                  const ativos=[...(itens||[]).filter(it=>it.ativo),...(customProcs||[]).filter(it=>it.ativo)];
-                  const p3Data=p3?JSON.parse(JSON.stringify({vb:p3.vb,ds:p3.ds,dc:p3.dc,fc:p3.fc,entrada:p3.entrada,entradaTipo:p3.entradaTipo,entradaVal:p3.entradaVal,saldoTipo:p3.saldoTipo,cp:p3.cp,ci:p3.ci,bp:p3.bp,bj:p3.bj,bi:p3.bi,quemPaga:p3.quemPaga,boletoComDesconto:p3.boletoComDesconto,plano:p3.plano,modoRel:p3.modoRel})):null;
-                  if(escolha==="1"){
-                    const atualizado={...existente,itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data,criadoEm:new Date().toISOString()};
-                    const novos=await salvarModeloProcedimento(atualizado,modelos);
-                    setModelos(novos);setNomeModelo("");
-                  } else {
-                    const modelo={id:"modelo_"+Date.now(),nome:nomeFinal+" (cópia)",criadoEm:new Date().toISOString(),itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data};
-                    const novos=await salvarModeloProcedimento(modelo,modelos);
-                    setModelos(novos);setNomeModelo("");
-                  }
-                }catch(e){alert("Erro: "+e.message);}
-                setSalvandoModelo(false);
-                return;
-              }
-              setSalvandoModelo(true);
-              try{
-                const ativos=[...(itens||[]).filter(it=>it.ativo),...(customProcs||[]).filter(it=>it.ativo)];
-                const modelo={
-                  id:"modelo_"+Date.now(),
-                  nome:nomeFinal,
-                  criadoEm:new Date().toISOString(),
-                  itens:JSON.parse(JSON.stringify(ativos)),
-                  p3Config:p3?JSON.parse(JSON.stringify({vb:p3.vb,ds:p3.ds,dc:p3.dc,fc:p3.fc,entrada:p3.entrada,entradaTipo:p3.entradaTipo,entradaVal:p3.entradaVal,saldoTipo:p3.saldoTipo,cp:p3.cp,ci:p3.ci,bp:p3.bp,bj:p3.bj,bi:p3.bi,quemPaga:p3.quemPaga,boletoComDesconto:p3.boletoComDesconto,plano:p3.plano,modoRel:p3.modoRel})):null,
-                };
-                const novos=await salvarModeloProcedimento(modelo,modelos);
-                setModelos(novos);
-                setNomeModelo("");
-              }catch(e){alert("Erro ao salvar modelo: "+e.message);}
-              setSalvandoModelo(false);
-            }} style={{padding:"8px 16px",background:salvandoModelo?"#ccc":PURPLE,color:"#fff",borderRadius:6,cursor:salvandoModelo?"default":"pointer",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
-              {salvandoModelo?"Salvando...":"💾 Salvar modelo"}
-            </div>
-          </div>
-
         {/* Modal de modelos salvos */}
         {showModelos&&(
           <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>{setShowModelos(false);setModelosSel(new Set());}}>
@@ -3216,7 +3183,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
   }),[p1,p2,p3,p4State]);
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
   const {achadosDente={},obsTexto=""} = p2;
-  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=true,bt=true,plano="dias14",quemPaga="comprador",boletoComDesconto=false} = p3;
+  const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=false,bt=false,plano="dias14",quemPaga="comprador",boletoComDesconto=false} = p3;
   const dp = ds===-1?(parseFloat(dc)||0):ds;
   const vB = parseFloat(String(vb).replace(",","."))||0;
   const vF = dp>0 ? vB*(1-dp/100) : vB;
@@ -3231,6 +3198,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
     :vB;
   const creditoBaseRel=(entrada&&entradaValor2>0&&saldoTipo==="parcelado")?baseCreditoSemDesc:vB;
   const tC = creditoBaseRel>0?[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(creditoBaseRel,n,plano,quemPaga);return{n,...r};}):[];
+  // Filtrar parcelas específicas
+  const cpSelArr=(p3.cpSel||"").split(",").map(s=>parseInt(s.trim())).filter(n=>n>0);
+  const bpSelArr=(p3.bpSel||"").split(",").map(s=>parseInt(s.trim())).filter(n=>n>0);
+  const tCFilt=cpSelArr.length>0?tC.filter(r=>cpSelArr.includes(r.n)):tC;
 
   const defaultItensRel = PROC_BASE.map(p => ({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],subtipos:{},regiao:p.id==="profilaxia"?"boca":p.id==="clareamento"?"boca":null,qtd:1}));
   const procsBaseRel = p4State?.procsBase || PROC_BASE.map(p => ({...p}));
@@ -3518,7 +3489,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {/* Proposta Financeira */}
           {temOrc && (()=>{
             const cpSel = p3.cp ? parseInt(p3.cp) : null;
-            const tCFiltrado = cpSel ? tC.filter(r=>r.n===1||r.n<=cpSel) : tC;
+            const tCFiltrado = cpSelArr.length>0 ? tC.filter(r=>cpSelArr.includes(r.n)) : (cpSel ? tC.filter(r=>r.n===1||r.n<=cpSel) : tC);
 
             // Verificar quais alternativas existem
             const formasAv = ["pix","dinheiro","debito"].filter(id=>fc.includes(id));
@@ -3610,14 +3581,15 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                         const t=sj?bBase:bBase*(1+0.012*pc);
                         return{n,p:t/n,sj,t};
                       });
+                      const lsFilt=bpSelArr.length>0?ls.filter(l=>bpSelArr.includes(l.n)):ls;
                       return(<div style={{border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                         <div style={{borderLeft:"3px solid "+GOLD}}>
                           <div style={{padding:"10px 14px 8px",borderBottom:"1px solid "+BORDER,background:"#fff"}}>
                             <span style={{fontSize:13,fontWeight:700,color:"#5C4A2A"}}>Boleto parcelado</span>
                           </div>
                           {(()=>{
-                            const meio=Math.ceil(ls.length/2);
-                            const col1=ls.slice(0,meio),col2=ls.slice(meio);
+                            const meio=Math.ceil(lsFilt.length/2);
+                            const col1=lsFilt.slice(0,meio),col2=lsFilt.slice(meio);
                             const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span>{bt&&<span style={{fontSize:10,color:l.sj||bj==="sem_juros"?GOLD_DARK:"#9A8060"}}>{l.sj||bj==="sem_juros"?"s/j":"tot "+fmt2(l.t)}</span>}</div>);
                             return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((l,i)=>rb(l,i,i===col1.length-1))}</div><div>{col2.map((l,i)=>rb(l,i,i===col2.length-1))}</div></div>);
                           })()}
@@ -3655,7 +3627,7 @@ const p4Initial = {
   procsBase: null, // null = será carregado do localStorage ou PROC_BASE
 };
 
-const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"0",cp:null,tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:true,bt:true,quemPaga:"comprador",boletoComDesconto:false,modoRel:"soma"};
+const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"0",cp:null,cpSel:"",bpSel:"",tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:false,bt:false,quemPaga:"comprador",boletoComDesconto:false,modoRel:"soma"};
 
 
 // ─── CALCULADORA FLUTUANTE ───────────────────────────
@@ -5313,7 +5285,9 @@ function App() {
         entradaTipo={p3.entradaTipo} setEntradaTipo={v=>sp3("entradaTipo",v)}
         entradaVal={p3.entradaVal} setEntradaVal={v=>sp3("entradaVal",v)}
         saldoTipo={p3.saldoTipo} setSaldoTipo={v=>sp3("saldoTipo",v)}
-        ct={p3.ct!==false} setCt={v=>sp3("ct",v)} bt={p3.bt!==false} setBt={v=>sp3("bt",v)}
+        ct={p3.ct===true} setCt={v=>sp3("ct",v)} bt={p3.bt===true} setBt={v=>sp3("bt",v)}
+        bpSel={p3.bpSel||""} setBpSel={v=>sp3("bpSel",v)}
+        cpSel={p3.cpSel||""} setCpSel={v=>sp3("cpSel",v)}
         planoExterno={p3.plano||"dias14"} setPlanoExterno={v=>sp3("plano",v)}
         p3QuemPaga={p3.quemPaga||"comprador"} setP3QuemPaga={v=>sp3("quemPaga",v)}
         boletoComDesconto={p3.boletoComDesconto||false} setBoletoComDesconto={v=>sp3("boletoComDesconto",v)}
