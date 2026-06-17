@@ -3048,6 +3048,39 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#1C1410", letterSpacing: 1 }}>TOTAL</span>
                 <span style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: GOLD_DARK }}>{fmt(totalGeral)}</span>
               </div>
+              {/* Salvar como modelo */}
+              <div style={{marginTop:12,display:"flex",gap:8,alignItems:"center"}}>
+                <input value={nomeModelo||[...itens.filter(i=>i.ativo).map(i=>{const p=procsBase.find(pp=>pp.id===i.id);return p?p.nome:i.id;}),...customProcs.filter(i=>i.ativo).map(i=>i.nome)].join(" + ")} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo" style={{flex:1,padding:"8px 10px",border:"1px solid "+PURPLE_LIGHT,borderRadius:6,fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+                <div onClick={async()=>{
+                  const nomeAuto=[...itens.filter(i=>i.ativo).map(i=>{const p=procsBase.find(pp=>pp.id===i.id);return p?p.nome:i.id;}),...customProcs.filter(i=>i.ativo).map(i=>i.nome)].join(" + ");
+                  const nomeFinal=(nomeModelo||nomeAuto).trim();
+                  if(!nomeFinal) return;
+                  const existente=modelos.find(m=>m.nome.toLowerCase()===nomeFinal.toLowerCase());
+                  setSalvandoModelo(true);
+                  try{
+                    const ativos=[...itens.filter(i=>i.ativo),...customProcs.filter(i=>i.ativo)];
+                    const p3Data=p3?JSON.parse(JSON.stringify({vb:p3.vb,ds:p3.ds,dc:p3.dc,fc:p3.fc,entrada:p3.entrada,entradaTipo:p3.entradaTipo,entradaVal:p3.entradaVal,saldoTipo:p3.saldoTipo,cp:p3.cp,ci:p3.ci,bp:p3.bp,bj:p3.bj,bi:p3.bi,quemPaga:p3.quemPaga,boletoComDesconto:p3.boletoComDesconto,plano:p3.plano,modoRel:p3.modoRel})):null;
+                    if(existente){
+                      const escolha=prompt("Modelo \""+nomeFinal+"\" já existe.\n1 = Sobrepor\n2 = Duplicar\n3 = Cancelar");
+                      if(!escolha||escolha==="3"){setSalvandoModelo(false);return;}
+                      if(escolha==="1"){
+                        const novos=await salvarModeloProcedimento({...existente,itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data,criadoEm:new Date().toISOString()},modelos);
+                        setModelos(novos);
+                      } else {
+                        const novos=await salvarModeloProcedimento({id:"modelo_"+Date.now(),nome:nomeFinal+" (cópia)",criadoEm:new Date().toISOString(),itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data},modelos);
+                        setModelos(novos);
+                      }
+                    } else {
+                      const novos=await salvarModeloProcedimento({id:"modelo_"+Date.now(),nome:nomeFinal,criadoEm:new Date().toISOString(),itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data},modelos);
+                      setModelos(novos);
+                    }
+                    setNomeModelo("");
+                  }catch(e){alert("Erro: "+e.message);}
+                  setSalvandoModelo(false);
+                }} style={{padding:"8px 14px",background:PURPLE,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
+                  📋 Salvar modelo
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -5285,7 +5318,7 @@ function App() {
         entradaTipo={p3.entradaTipo} setEntradaTipo={v=>sp3("entradaTipo",v)}
         entradaVal={p3.entradaVal} setEntradaVal={v=>sp3("entradaVal",v)}
         saldoTipo={p3.saldoTipo} setSaldoTipo={v=>sp3("saldoTipo",v)}
-        ct={p3.ct===true} setCt={v=>sp3("ct",v)} bt={p3.bt===true} setBt={v=>sp3("bt",v)}
+        ct={!!p3.ct} setCt={v=>sp3("ct",v)} bt={!!p3.bt} setBt={v=>sp3("bt",v)}
         bpSel={p3.bpSel||""} setBpSel={v=>sp3("bpSel",v)}
         cpSel={p3.cpSel||""} setCpSel={v=>sp3("cpSel",v)}
         planoExterno={p3.plano||"dias14"} setPlanoExterno={v=>sp3("plano",v)}
@@ -5310,14 +5343,14 @@ function App() {
 }} salvoOk={relatorioSalvo} onCarregarDrive={(r)=>{
   if(r._p1) setP1(r._p1);
   if(r._p2) setP2(sanitizeP2(r._p2));
-  if(r._p3) setP3({...p3Initial,...r._p3});
+  if(r._p3) setP3({...p3Initial,...r._p3,ct:false,bt:false});
   if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
   setPag("p1");
 }}/>}
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
         if(r._p2) setP2(sanitizeP2(r._p2));
-        if(r._p3) setP3({...p3Initial,...r._p3});
+        if(r._p3) setP3({...p3Initial,...r._p3,ct:false,bt:false});
         if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
         setPag("p1");
       }}/>}
