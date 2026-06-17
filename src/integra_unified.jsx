@@ -131,7 +131,7 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
             const p3r = data._p3;
             if(!p3r.fc) p3r.fc = [];
             if(!Array.isArray(p3r.fc)) p3r.fc = Object.values(p3r.fc);
-            setP3(prev=>({...prev,...p3r,ct:false,bt:false}));
+            setP3(prev=>({...prev,...p3r}));
           }
           if(data._p4) {
             const p4r = data._p4;
@@ -1382,7 +1382,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                 </div>
                 <div style={{marginBottom:10}}>
                   <div style={{fontSize:9,color:"#9A8060",marginBottom:4}}>Mostrar apenas parcelas específicas (separar por vírgula, vazio = todas)</div>
-                  <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} defaultValue={bpSel||""} onBlur={e=>setBpSel(e.target.value.replace(/[^0-9,]/g,""))} onKeyDown={e=>{if(e.key==="Enter"){e.target.blur();}}} placeholder="Ex: 6,12,18"/>
+                  <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} defaultValue={bpSel||""} onChange={e=>{const v=e.target.value.replace(/[^0-9,]/g,"");setBpSel(v);}} onBlur={e=>setBpSel(e.target.value.replace(/[^0-9,]/g,""))} placeholder="Ex: 6,12,18"/>
                 </div>
                 <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Modalidade</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
@@ -1501,7 +1501,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               </div>
               <div style={{marginBottom:10}}>
                 <div style={{fontSize:9,color:"#9A8060",marginBottom:4}}>Mostrar apenas parcelas específicas no relatório (separar por vírgula, vazio = todas)</div>
-                <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} defaultValue={cpSel||""} onBlur={e=>setCpSel(e.target.value.replace(/[^0-9,]/g,""))} onKeyDown={e=>{if(e.key==="Enter"){e.target.blur();}}} placeholder="Ex: 1,6,12"/>
+                <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} defaultValue={cpSel||""} onChange={e=>{const v=e.target.value.replace(/[^0-9,]/g,"");setCpSel(v);}} onBlur={e=>setCpSel(e.target.value.replace(/[^0-9,]/g,""))} placeholder="Ex: 1,6,12"/>
               </div>
 
               {/* Tabela */}
@@ -2730,7 +2730,12 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
   };
 
   const atualizarCustom = (idx, novo) => {
-    setCustomProcs(prev => prev.map((it, i) => i === idx ? novo : it));
+    if(idx < 0 && novo?.id) {
+      // Tentar encontrar por ID
+      setCustomProcs(prev => prev.map(it => it.id === novo.id ? novo : it));
+    } else if(idx >= 0) {
+      setCustomProcs(prev => prev.map((it, i) => i === idx ? novo : it));
+    }
   };
 
   const adicionarCustom = (permanente=true) => {
