@@ -88,7 +88,7 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
             const p3r = existente._p3;
             if(!p3r.fc) p3r.fc = [];
             if(!Array.isArray(p3r.fc)) p3r.fc = Object.values(p3r.fc);
-            setP3(prev=>({...prev,...p3r}));
+            setP3(prev=>({...prev,...p3r,ct:false,bt:false}));
           }
           if(existente._p4) {
             const p4r = existente._p4;
@@ -131,7 +131,7 @@ function useFirebaseSync(sessionId, p1, p2, p3, p4State, setP1, setP2, setP3, se
             const p3r = data._p3;
             if(!p3r.fc) p3r.fc = [];
             if(!Array.isArray(p3r.fc)) p3r.fc = Object.values(p3r.fc);
-            setP3(prev=>({...prev,...p3r}));
+            setP3(prev=>({...prev,...p3r,ct:false,bt:false}));
           }
           if(data._p4) {
             const p4r = data._p4;
@@ -2863,8 +2863,12 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
             </div>
           </div>
 
-          {/* Chips de procedimentos — igual achados clínicos */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+          {/* Layout duas colunas: Procedimentos + Modelos */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+            {/* Coluna 1: Procedimentos */}
+            <div>
+              <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Procedimentos</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {[...procsBase, ...customProcs.map(c => ({...c, isCustom: true}))].map((proc, idx) => {
               const isCustom = proc.isCustom;
               const itemIdx = isCustom ? -1 : itens.findIndex(it => it.id === proc.id);
@@ -2885,10 +2889,16 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                       const newAtivo = !ativo;
                       if (isCustom) {
                         atualizarCustom(customIdx, { ...item, ativo: newAtivo });
-                      } else if (itemIdx >= 0) {
-                        atualizarItem(itemIdx, { ...item, ativo: newAtivo });
                       } else {
-                        setItens(prev => [...(prev || []), { id: proc.id, ativo: true, valor: String(proc.valorPadrao||0).replace(".", ","), dentes: [], subtipos: {}, regiao: null, qtd: 1 }]);
+                        setItens(prev => {
+                          const arr = prev || [];
+                          const existIdx = arr.findIndex(x => x.id === proc.id);
+                          if(existIdx >= 0) {
+                            return arr.map((x,i) => i === existIdx ? {...x, ativo: newAtivo} : x);
+                          } else {
+                            return [...arr, { id: proc.id, ativo: true, valor: String(proc.valorPadrao||0).replace(".", ","), dentes: [], subtipos: {}, regiao: null, qtd: 1 }];
+                          }
+                        });
                       }
                     }}
                     style={{
@@ -2979,7 +2989,43 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
               </div>
             );
           })}
-        </div>
+              </div>
+            </div>
+
+            {/* Coluna 2: Modelos salvos */}
+            <div>
+              <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:8}}>📋 Modelos salvos</div>
+              {modelos.length===0?(
+                <div style={{padding:16,border:"1px dashed "+BORDER,borderRadius:8,color:"#9A8060",fontSize:11,textAlign:"center"}}>Nenhum modelo salvo</div>
+              ):(
+                <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:300,overflowY:"auto"}}>
+                  {modelos.map(m=>(
+                    <div key={m.id} style={{padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:8,background:CREAM,cursor:"pointer"}} onClick={async()=>{
+                      try{
+                        if(m.itens){
+                          const novosItens=(itens||[]).map(it=>({...it,ativo:false}));
+                          m.itens.forEach(mi=>{
+                            const idx2=novosItens.findIndex(x=>x.id===mi.id);
+                            if(idx2>=0) novosItens[idx2]={...novosItens[idx2],...mi,ativo:true};
+                            else if(mi.id&&mi.id.startsWith("custom_")){
+                              const ec=(customProcs||[]).findIndex(c=>c.id===mi.id);
+                              if(ec>=0) setCustomProcs(prev=>prev.map((c,i)=>i===ec?{...c,...mi,ativo:true}:c));
+                              else setCustomProcs(prev=>[...prev,{...mi,ativo:true,_permanente:true}]);
+                            }
+                          });
+                          setItens(novosItens);
+                        }
+                        if(m.p3Config&&setP3) setP3(m.p3Config);
+                      }catch(e){alert("Erro: "+e.message);}
+                    }}>
+                      <div style={{fontSize:12,fontWeight:600,color:PURPLE}}>{m.nome}</div>
+                      <div style={{fontSize:9,color:"#9A8060",marginTop:2}}>{(m.itens||[]).length} proc. · {m.criadoEm?new Date(m.criadoEm).toLocaleDateString("pt-BR"):""}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
         {/* Formulário adicionar — simplificado: apenas título + destino */}
         {mostrarForm && <div style={{ background: "#fff", border: "1px solid " + GOLD, borderRadius: 8, padding: 18, marginBottom: 14 }}>
@@ -3047,6 +3093,25 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginTop: 4 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#1C1410", letterSpacing: 1 }}>TOTAL</span>
                 <span style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: GOLD_DARK }}>{fmt(totalGeral)}</span>
+              </div>
+              {/* Toggle modo de apresentação */}
+              <div style={{marginTop:14,paddingTop:12,borderTop:"1px solid "+BORDER}}>
+                <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Modo de apresentação no relatório</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {[["soma","Soma tudo"],["separado","Separado"],["ambos","Ambos"]].map(([k,l])=>(
+                    <div key={k} onClick={()=>{if(setP3)setP3({modoRel:k});}} style={{padding:"6px 14px",borderRadius:20,fontSize:11,cursor:"pointer",border:"1.5px solid "+((p3?.modoRel||"soma")===k?PURPLE:BORDER),background:(p3?.modoRel||"soma")===k?PURPLE:"#fff",color:(p3?.modoRel||"soma")===k?"#fff":"#5C4A2A",fontWeight:(p3?.modoRel||"soma")===k?700:400}}>{l}</div>
+                  ))}
+                </div>
+                {(p3?.modoRel==="soma"||p3?.modoRel==="ambos")&&(
+                  <div style={{marginTop:8,fontSize:10,color:"#9A8060",padding:"8px 12px",background:"#F3EDF6",borderRadius:6}}>
+                    O orçamento geral (soma de todos) é configurado na aba <strong style={{color:PURPLE}}>Calculadora</strong>.
+                  </div>
+                )}
+                {p3?.modoRel==="separado"&&(
+                  <div style={{marginTop:8,fontSize:10,color:"#9A8060",padding:"8px 12px",background:GOLD_PALE,borderRadius:6}}>
+                    Cada procedimento apresenta seu orçamento individual. Configure clicando em <strong style={{color:GOLD_DARK}}>Proposta individual</strong> em cada procedimento acima.
+                  </div>
+                )}
               </div>
               {/* Salvar como modelo */}
               <div style={{marginTop:12,display:"flex",gap:8,alignItems:"center"}}>
@@ -4635,7 +4700,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
       const dados = await gdriveCarregarArquivo(_driveFileId);
       if(dados._p1) setP1(dados._p1);
       if(dados._p2) setP2(sanitizeP2(dados._p2));
-      if(dados._p3) setP3(prev=>({...prev,...dados._p3}));
+      if(dados._p3) setP3(prev=>({...prev,...dados._p3,ct:false,bt:false}));
       if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
       _lastSyncHash = driveDataHash(dados._p1||p1,dados._p2||p2,dados._p3||p3,dados._p4||p4State);
       setStatus("saved");
@@ -4656,7 +4721,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
   const carregarDoDrive = React.useCallback((dados) => {
     if(dados._p1) setP1(dados._p1);
     if(dados._p2) setP2(sanitizeP2(dados._p2));
-    if(dados._p3) setP3(prev=>({...prev,...dados._p3}));
+    if(dados._p3) setP3(prev=>({...prev,...dados._p3,ct:false,bt:false}));
     if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
   },[setP1,setP2,setP3,setP4State]);
 
@@ -5200,7 +5265,7 @@ function App() {
       {showGlobalPasta&&<DrivePastaModal onClose={()=>setShowGlobalPasta(false)} onCarregar={(dados)=>{
         if(dados._p1) setP1(dados._p1);
         if(dados._p2) setP2(sanitizeP2(dados._p2));
-        if(dados._p3) setP3(prev=>({...prev,...dados._p3}));
+        if(dados._p3) setP3(prev=>({...prev,...dados._p3,ct:false,bt:false}));
         if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=null; setP4State(p4r); }
         setShowGlobalPasta(false);
       }}/>}
