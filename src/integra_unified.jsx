@@ -1382,7 +1382,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                 </div>
                 <div style={{marginBottom:10}}>
                   <div style={{fontSize:9,color:"#9A8060",marginBottom:4}}>Mostrar apenas parcelas específicas (separar por vírgula, vazio = todas)</div>
-                  <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} value={bpSel||""} onChange={e=>setBpSel(e.target.value.replace(/[^0-9,]/g,""))} placeholder="Ex: 6,12,18"/>
+                  <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} defaultValue={bpSel||""} onBlur={e=>setBpSel(e.target.value.replace(/[^0-9,]/g,""))} onKeyDown={e=>{if(e.key==="Enter"){e.target.blur();}}} placeholder="Ex: 6,12,18"/>
                 </div>
                 <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Modalidade</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
@@ -1501,7 +1501,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               </div>
               <div style={{marginBottom:10}}>
                 <div style={{fontSize:9,color:"#9A8060",marginBottom:4}}>Mostrar apenas parcelas específicas no relatório (separar por vírgula, vazio = todas)</div>
-                <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} value={cpSel||""} onChange={e=>setCpSel(e.target.value.replace(/[^0-9,]/g,""))} placeholder="Ex: 1,6,12"/>
+                <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} defaultValue={cpSel||""} onBlur={e=>setCpSel(e.target.value.replace(/[^0-9,]/g,""))} onKeyDown={e=>{if(e.key==="Enter"){e.target.blur();}}} placeholder="Ex: 1,6,12"/>
               </div>
 
               {/* Tabela */}
@@ -2735,18 +2735,25 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
 
   const adicionarCustom = (permanente=true) => {
     if (!novoNome.trim()) return;
-    setCustomProcs(prev => [...prev, {
-      id: "custom_" + Date.now(),
-      nome: novoNome.trim(),
-      modo: novoModo,
-      ativo: true,
-      valor: novoValor || "0",
-      obs: novoObs.trim(),
-      dentes: [],
-      regiao: novoModo === "regiao" ? "boca" : null,
-      qtd: 1,
-      _permanente: permanente,
-    }]);
+    const novoId = "custom_" + Date.now();
+    // Verificar se já existe procedimento com mesmo nome
+    const existente = customProcs.find(c => c.nome.toLowerCase() === novoNome.trim().toLowerCase());
+    if(existente) {
+      setCustomProcs(prev => prev.map(c => c.id === existente.id ? {...c, ativo: true} : c));
+    } else {
+      setCustomProcs(prev => [...prev, {
+        id: novoId,
+        nome: novoNome.trim(),
+        modo: novoModo,
+        ativo: true,
+        valor: novoValor || "0",
+        obs: novoObs.trim(),
+        dentes: [],
+        regiao: novoModo === "regiao" ? "boca" : null,
+        qtd: 1,
+        _permanente: permanente,
+      }]);
+    }
     setNovoNome("");
     setNovoValor("");
     setNovoObs("");
@@ -3010,7 +3017,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                             else if(mi.id&&mi.id.startsWith("custom_")){
                               const ec=(customProcs||[]).findIndex(c=>c.id===mi.id);
                               if(ec>=0) setCustomProcs(prev=>prev.map((c,i)=>i===ec?{...c,...mi,ativo:true}:c));
-                              else setCustomProcs(prev=>[...prev,{...mi,ativo:true,_permanente:true}]);
+                              else setCustomProcs(prev=>{if(prev.some(c=>c.id===mi.id))return prev.map(c=>c.id===mi.id?{...c,...mi,ativo:true}:c);return[...prev,{...mi,ativo:true,_permanente:true}];});
                             }
                           });
                           setItens(novosItens);
@@ -3196,7 +3203,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                                 if(isC){
                                   const ec=(customProcs||[]).findIndex(c=>c.id===mi.id);
                                   if(ec>=0) setCustomProcs(prev=>prev.map((c,i)=>i===ec?{...c,...mi,ativo:true}:c));
-                                  else setCustomProcs(prev=>[...prev,{...mi,ativo:true,_permanente:true}]);
+                                  else setCustomProcs(prev=>{if(prev.some(c=>c.id===mi.id))return prev.map(c=>c.id===mi.id?{...c,...mi,ativo:true}:c);return[...prev,{...mi,ativo:true,_permanente:true}];});
                                 }
                               }
                             });
