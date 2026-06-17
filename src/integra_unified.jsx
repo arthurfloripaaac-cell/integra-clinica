@@ -1382,7 +1382,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                 </div>
                 <div style={{marginBottom:10}}>
                   <div style={{fontSize:9,color:"#9A8060",marginBottom:4}}>Mostrar apenas parcelas específicas (separar por vírgula, vazio = todas)</div>
-                  <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} value={p3.bpSel||""} onChange={e=>setBpSel?setBpSel(e.target.value.replace(/[^0-9,]/g,"")):null} placeholder="Ex: 6,12,18"/>
+                  <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} value={bpSel||""} onChange={e=>setBpSel(e.target.value.replace(/[^0-9,]/g,""))} placeholder="Ex: 6,12,18"/>
                 </div>
                 <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Modalidade</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
@@ -1413,7 +1413,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                 {/* Toggle ocultar total boleto */}
                 <div style={{marginTop:10,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
                   <span style={{fontSize:11,color:"#5C4A2A"}}>Mostrar total no relatório</span>
-                  <div onClick={()=>setBt&&setBt(!bt)} style={{width:36,height:20,borderRadius:10,background:bt?GOLD:"#ccc",cursor:"pointer",position:"relative",transition:"all 0.2s"}}>
+                  <div onClick={()=>setBt(!bt)} style={{width:36,height:20,borderRadius:10,background:bt?GOLD:"#ccc",cursor:"pointer",position:"relative",transition:"all 0.2s"}}>
                     <div style={{position:"absolute",top:2,left:bt?16:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"all 0.2s"}}/>
                   </div>
                 </div>
@@ -1501,7 +1501,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               </div>
               <div style={{marginBottom:10}}>
                 <div style={{fontSize:9,color:"#9A8060",marginBottom:4}}>Mostrar apenas parcelas específicas no relatório (separar por vírgula, vazio = todas)</div>
-                <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} value={cpSel||""} onChange={e=>setCpSel?setCpSel(e.target.value.replace(/[^0-9,]/g,"")):null} placeholder="Ex: 1,6,12"/>
+                <input style={{...inp,width:"100%",padding:"6px 10px",fontSize:11}} value={cpSel||""} onChange={e=>setCpSel(e.target.value.replace(/[^0-9,]/g,""))} placeholder="Ex: 1,6,12"/>
               </div>
 
               {/* Tabela */}
@@ -3437,7 +3437,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                         <div key={idx} style={{marginBottom:10,border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                           <div style={{padding:"8px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                             <span style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{idx+1}. {proc.nome}</span>
-                            {!propEntrada&&<span style={{fontSize:12,color:GOLD_DARK}}>{fmt2(vf2)}{dp2>0?" ("+dp2+"% desc.)":""}</span>}
+                            {!propEntrada&&<span style={{fontSize:12,color:GOLD_DARK}}>{dp2>0?fmt2(vb2)+" → ":""}{fmt2(vf2)}{dp2>0?" ("+dp2+"% desc.)":""}</span>}
                           </div>
                           {/* Entrada individual */}
                           {propEntrada&&propEntradaValor>0&&(
@@ -3523,7 +3523,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   <div style={{padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                        <span style={{fontSize:14,color:GOLD_DARK}}>{fmt2(vF)}</span>
+                        <span style={{fontSize:14,color:GOLD_DARK}}>{dp>0?fmt2(vB)+" → ":""}{fmt2(vF)}</span>
                         {dp>0&&<span style={{fontSize:11,color:"#9A8060"}}>({dp}% de desconto)</span>}
                       </div>
                       {lb&&<span style={{fontSize:12,color:GOLD_DARK,flexShrink:0}}>{lb}</span>}
