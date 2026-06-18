@@ -2887,7 +2887,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
           </div>
 
           {/* Modelos de Orçamento — seção principal */}
-          <div style={{marginBottom:14}}>
+          <div style={{marginBottom:6}}>
             <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:10}}>📋 Modelos de Orçamento</div>
             {modelos.length===0?(
               <div style={{padding:20,border:"1px dashed "+BORDER,borderRadius:8,color:"#9A8060",fontSize:12,textAlign:"center"}}>Nenhum modelo salvo. Configure procedimentos e salve como modelo no Resumo.</div>
@@ -2931,21 +2931,26 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
           </div>
 
           {/* Procedimentos — campo compacto para adicionar */}
-          <div style={{marginBottom:14}}>
+          <div style={{marginBottom:6}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
               <span style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700}}>Procedimentos</span>
-              <div onClick={()=>setMostrarForm(!mostrarForm)} style={{fontSize:10,color:GOLD_DARK,cursor:"pointer",padding:"3px 10px",border:"1px solid "+GOLD,borderRadius:20,fontWeight:600}}>
-                {mostrarForm?"✕ Fechar":"+ Adicionar"}
-              </div>
             </div>
-            {/* Chips apenas dos procedimentos ATIVOS e CUSTOMIZADOS */}
+            {/* Campo inline para adicionar procedimento */}
+            <div style={{display:"flex",gap:6,marginBottom:8}}>
+              <input
+                style={{flex:1,padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:6,fontSize:13,fontFamily:"inherit",outline:"none"}}
+                value={novoNome} onChange={e=>setNovoNome(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&novoNome.trim()){adicionarCustom(true);e.target.blur();}}}
+                placeholder="Digite o nome do procedimento..."
+              />
+              {novoNome.trim()&&<div onClick={()=>adicionarCustom(true)} style={{padding:"8px 14px",background:GOLD,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>+ Adicionar</div>}
+            </div>
+            {/* Chips apenas dos procedimentos CUSTOMIZADOS adicionados */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {[...procsBase, ...customProcs.map(c => ({...c, isCustom: true}))].map((proc, idx) => {
-              const isCustom = proc.isCustom;
-              const itemIdx = isCustom ? -1 : itens.findIndex(it => it.id === proc.id);
-              const item = isCustom
-                ? customProcs.find(c => c.id === proc.id)
-                : (itens[itemIdx] || { id: proc.id, ativo: false, valor: String(proc.valorPadrao||0).replace(".", ","), dentes: [], subtipos: {}, regiao: null, qtd: 1 });
+            {[...customProcs.map(c => ({...c, isCustom: true}))].map((proc, idx) => {
+              const isCustom = true;
+              const itemIdx = -1;
+              const item = customProcs.find(c => c.id === proc.id);
               const ativo = item?.ativo || false;
               const customIdx = isCustom ? customProcs.findIndex(c => c.id === proc.id) : -1;
               return (
@@ -3224,6 +3229,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                 </div>
               </div>
               <div style={{padding:"12px 20px",overflowY:"auto",flex:1}}>
+                <datalist id="cat-list-modal">{[...new Set(modelos.map(m=>m.categoria||"Geral"))].map(c=><option key={c} value={c}/>)}</datalist>
                 {modelos.length===0?(
                   <div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:13}}>Nenhum modelo salvo. Adicione procedimentos e clique em "Salvar como modelo".</div>
                 ):modelos.map(m=>(
@@ -3233,6 +3239,23 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                       <div style={{flex:1}}>
                         <div style={{fontSize:14,fontWeight:700,color:PURPLE}}>{m.nome}</div>
                         <div style={{fontSize:10,color:"#9A8060"}}>{m.criadoEm?new Date(m.criadoEm).toLocaleDateString("pt-BR"):""} · {(m.itens||[]).length} procedimento(s)</div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}>
+                        <span style={{fontSize:9,color:"#9A8060"}}>Pasta:</span>
+                        <input
+                          style={{width:100,padding:"3px 6px",border:"1px solid "+BORDER,borderRadius:4,fontSize:10,fontFamily:"inherit",outline:"none"}}
+                          defaultValue={m.categoria||"Geral"}
+                          list="cat-list-modal"
+                          onBlur={async(e)=>{
+                            const newCat=e.target.value.trim()||"Geral";
+                            if(newCat!==(m.categoria||"Geral")){
+                              const novos=modelos.map(mx=>mx.id===m.id?{...mx,categoria:newCat}:mx);
+                              try{localStorage.setItem("integra_modelos_v1",JSON.stringify(novos));}catch(ex){}
+                              fbSalvarModelos(novos).catch(()=>{});gdriveSalvarModelos(novos);
+                              setModelos(novos);
+                            }
+                          }}
+                        />
                       </div>
                     </div>
                     <div style={{display:"flex",gap:6}}>
