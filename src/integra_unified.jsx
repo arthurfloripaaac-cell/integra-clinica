@@ -2712,7 +2712,17 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
   const itens = p4State.itens || defaultItens;
   const setItens = (val) => setP4State(prev => ({ ...prev, itens: typeof val === "function" ? val(prev.itens || defaultItens) : val }));
   const customProcs = p4State.customProcs || [];
-  const setCustomProcs = (val) => setP4State(prev => ({ ...prev, customProcs: typeof val === "function" ? val(prev.customProcs || []) : val }));
+  const setCustomProcs = (val) => setP4State(prev => {
+    const raw = typeof val === "function" ? val(prev.customProcs || []) : val;
+    // Deduplicar por ID (manter o último)
+    const seen = new Set();
+    const deduped = [];
+    for(let i = raw.length - 1; i >= 0; i--) {
+      const key = raw[i].id;
+      if(!seen.has(key)) { seen.add(key); deduped.unshift(raw[i]); }
+    }
+    return { ...prev, customProcs: deduped };
+  });
 
   // Procedimentos customizados de base (editáveis, como achados clínicos)
   const procsBase = p4State.procsBase || PROC_BASE.map(p => ({...p}));
@@ -3022,7 +3032,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                             else if(mi.id&&mi.id.startsWith("custom_")){
                               const ec=(customProcs||[]).findIndex(c=>c.id===mi.id);
                               if(ec>=0) setCustomProcs(prev=>prev.map((c,i)=>i===ec?{...c,...mi,ativo:true}:c));
-                              else setCustomProcs(prev=>{if(prev.some(c=>c.id===mi.id))return prev.map(c=>c.id===mi.id?{...c,...mi,ativo:true}:c);return[...prev,{...mi,ativo:true,_permanente:true}];});
+                              else setCustomProcs(prev=>{const byId=prev.findIndex(c=>c.id===mi.id);if(byId>=0)return prev.map((c,i)=>i===byId?{...c,...mi,ativo:true}:c);const byName=prev.findIndex(c=>c.nome&&mi.nome&&c.nome.toLowerCase()===mi.nome.toLowerCase());if(byName>=0)return prev.map((c,i)=>i===byName?{...c,...mi,ativo:true,id:c.id}:c);return[...prev,{...mi,ativo:true,_permanente:true}];});
                             }
                           });
                           setItens(novosItens);
@@ -3208,7 +3218,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                                 if(isC){
                                   const ec=(customProcs||[]).findIndex(c=>c.id===mi.id);
                                   if(ec>=0) setCustomProcs(prev=>prev.map((c,i)=>i===ec?{...c,...mi,ativo:true}:c));
-                                  else setCustomProcs(prev=>{if(prev.some(c=>c.id===mi.id))return prev.map(c=>c.id===mi.id?{...c,...mi,ativo:true}:c);return[...prev,{...mi,ativo:true,_permanente:true}];});
+                                  else setCustomProcs(prev=>{const byId=prev.findIndex(c=>c.id===mi.id);if(byId>=0)return prev.map((c,i)=>i===byId?{...c,...mi,ativo:true}:c);const byName=prev.findIndex(c=>c.nome&&mi.nome&&c.nome.toLowerCase()===mi.nome.toLowerCase());if(byName>=0)return prev.map((c,i)=>i===byName?{...c,...mi,ativo:true,id:c.id}:c);return[...prev,{...mi,ativo:true,_permanente:true}];});
                                 }
                               }
                             });
@@ -5158,7 +5168,7 @@ function App() {
     return {
       ...p4Initial,
       procsBase: saved.procsBase || null,
-      customProcs: (saved.customProcs||[]).map(c=>({...c, _permanente:true, ativo:false})),
+      customProcs: (()=>{const all=(saved.customProcs||[]).map(c=>({...c, _permanente:true, ativo:false}));const seen=new Set();return all.filter(c=>{const key=c.id||c.nome;if(seen.has(key))return false;seen.add(key);return true;});})(),
     };
   })();
   const [p4State, setP4State, desfazerP4, podeDesfazerP4] = useUndo(_p4Init);
@@ -5167,7 +5177,7 @@ function App() {
   useEffect(() => {
     savePersisted("integra_p4config", {
       procsBase: p4State.procsBase || null,
-      customProcs: (p4State.customProcs||[]).map(c=>({...c, _permanente:true})),
+      customProcs: (()=>{const all=(p4State.customProcs||[]).map(c=>({...c, _permanente:true}));const seen=new Set();return all.filter(c=>{const key=c.id;if(seen.has(key))return false;seen.add(key);return true;});})(),
     });
   }, [p4State.procsBase, p4State.customProcs]);
 
