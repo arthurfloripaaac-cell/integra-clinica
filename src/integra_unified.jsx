@@ -3076,42 +3076,54 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
           <div style={{ background: "#fff", border: "1px solid " + BORDER, borderRadius: 4, padding: 18 }}>
             <SectionTitle>Resumo do Plano</SectionTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              {itens.filter(it => it.ativo).map((it) => {
-                const proc = procsBase.find(p => p.id === it.id);
-                if (!proc) return null;
-                const sub = calcSubtotal(it, proc);
-                const desc = proc.subtipos
-                  ? Object.keys(it.subtipos||{}).map(id=>proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ")||"—"
-                  : proc.modo === "dente"
-                  ? (it.dentes?.length > 0 ? it.dentes.sort((a,b)=>a-b).join(", ") + (it.dentes.length > 1 ? ` (${it.dentes.length}x)` : "") : "—")
-                  : (it.regiao === "boca" ? "Boca toda" : it.regiao === "sup" ? "Arcada superior" : "Arcada inferior");
-                return (
-                  <div key={it.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid " + BORDER }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#1C1410" }}>{proc.nome}</div>
-                      <div style={{ fontSize: 10, color: "#9A8060", marginTop: 2 }}>{desc}</div>
+              {(()=>{
+                // Combinar itens ativos + customProcs ativos em lista unificada
+                const ativos = [
+                  ...itens.filter(it=>it.ativo).map(it=>{const proc=procsBase.find(p=>p.id===it.id);return proc?{...it,nome:proc.nome,_proc:proc,_tipo:"base"}:null;}).filter(Boolean),
+                  ...customProcs.filter(it=>it.ativo).map(it=>({...it,_proc:null,_tipo:"custom"}))
+                ];
+                // Ordenar por ordemProcs se existir
+                const ordem = p4State?.ordemProcs || [];
+                const ordenados = ordem.length > 0
+                  ? [...ativos].sort((a,b)=>{const ia=ordem.indexOf(a.id);const ib=ordem.indexOf(b.id);if(ia===-1&&ib===-1)return 0;if(ia===-1)return 1;if(ib===-1)return -1;return ia-ib;})
+                  : ativos;
+
+                const mover = (idx, dir) => {
+                  const ids = ordenados.map(x=>x.id);
+                  const ni = idx + dir;
+                  if(ni < 0 || ni >= ids.length) return;
+                  [ids[idx], ids[ni]] = [ids[ni], ids[idx]];
+                  setP4State(prev=>({...prev, ordemProcs: ids}));
+                };
+
+                return ordenados.map((it, idx) => {
+                  const proc = it._proc;
+                  const v = parseMoeda(it.valor);
+                  const sub = proc
+                    ? calcSubtotal(it, proc)
+                    : (it.modo === "dente" ? (it.dentes?.length || 0) * v : v);
+                  const desc = proc
+                    ? (proc.subtipos
+                      ? Object.keys(it.subtipos||{}).map(id=>proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ")||""
+                      : proc.modo === "dente"
+                      ? (it.dentes?.length > 0 ? it.dentes.sort((a,b)=>a-b).join(", ") : "")
+                      : "")
+                    : (it.modo === "livre" ? "" : it.modo === "dente" ? (it.dentes?.length > 0 ? it.dentes.join(", ") : "") : "");
+                  return (
+                    <div key={it.id} style={{ display: "flex", alignItems: "center", padding: "10px 0", borderBottom: "1px solid " + BORDER, gap: 8 }}>
+                      <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                        <div onClick={()=>mover(idx,-1)} style={{cursor:idx>0?"pointer":"default",color:idx>0?GOLD_DARK:"#ddd",fontSize:14,lineHeight:1,userSelect:"none"}}>▲</div>
+                        <div onClick={()=>mover(idx,1)} style={{cursor:idx<ordenados.length-1?"pointer":"default",color:idx<ordenados.length-1?GOLD_DARK:"#ddd",fontSize:14,lineHeight:1,userSelect:"none"}}>▼</div>
+                      </div>
+                      <div style={{flex:1}}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#1C1410" }}>{it.nome}</div>
+                        {desc && <div style={{ fontSize: 10, color: "#9A8060", marginTop: 2 }}>{desc}</div>}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: GOLD_DARK, flexShrink: 0 }}>{fmt(sub)}</div>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: GOLD_DARK, flexShrink: 0, marginLeft: 12 }}>{fmt(sub)}</div>
-                  </div>
-                );
-              })}
-              {customProcs.filter(it => it.ativo).map(it => {
-                const v = parseMoeda(it.valor);
-                const sub = it.modo === "dente" ? (it.dentes?.length || 0) * v : v;
-                const desc = it.modo === "dente"
-                  ? (it.dentes?.length > 0 ? it.dentes.sort((a,b)=>a-b).join(", ") : "—")
-                  : it.modo === "livre" ? ""
-                  : (it.regiao === "boca" ? "Boca toda" : it.regiao === "sup" ? "Arcada superior" : "Arcada inferior");
-                return (
-                  <div key={it.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid " + BORDER }}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#1C1410" }}>{it.nome}</div>
-                      {desc && <div style={{ fontSize: 10, color: "#9A8060", marginTop: 2 }}>{desc}</div>}
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: GOLD_DARK, flexShrink: 0, marginLeft: 12 }}>{fmt(sub)}</div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginTop: 4 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#1C1410", letterSpacing: 1 }}>TOTAL</span>
                 <span style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: GOLD_DARK }}>{fmt(totalGeral)}</span>
@@ -3328,6 +3340,12 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
   const p4Itens = (p4State?.itens || defaultItensRel).filter(it => it.ativo);
   const p4Custom = (p4State?.customProcs || []).filter(it => it.ativo);
   const temPlano = p4Itens.length > 0 || p4Custom.length > 0;
+  const ordemRel = p4State?.ordemProcs || [];
+  // Combinar e ordenar por ordemProcs
+  const todosAtivosRel = [...p4Itens.map(it=>{const p=procsBaseRel.find(pp=>pp.id===it.id);return{...it,nome:p?p.nome:it.id,_proc:p};}), ...p4Custom.map(it=>({...it,_proc:null}))];
+  const todosOrdenados = ordemRel.length > 0
+    ? [...todosAtivosRel].sort((a,b)=>{const ia=ordemRel.indexOf(a.id);const ib=ordemRel.indexOf(b.id);if(ia===-1&&ib===-1)return 0;if(ia===-1)return 1;if(ib===-1)return -1;return ia-ib;})
+    : todosAtivosRel;
 
   // Helper: describe dente set as regions instead of numbers
 
@@ -3453,60 +3471,31 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:0}}>
-              {[...p4Itens.map(it => {
-                const proc = procsBaseRel.find(p=>p.id===it.id) || PROC_BASE.find(p=>p.id===it.id);
-                if(!proc) return null;
+              {todosOrdenados.map(it => {
+                const proc = it._proc || procsBaseRel.find(p=>p.id===it.id) || PROC_BASE.find(p=>p.id===it.id);
                 const v = parseMoeda(it.valor);
-                const sub = proc.subtipos
-                  ? Object.values(it.subtipos||{}).reduce((a,s)=>a+parseMoeda(s.valor||"0"),0)
-                  : proc.modo==="dente"
-                    ? (it.valoresDente&&Object.keys(it.valoresDente).length>0
-                        ? (it.dentes||[]).reduce((a,n)=>a+parseMoeda((it.valoresDente||{})[n]||it.valor),0)
-                        : (it.dentes?.length||0)*v)
-                    : v;
-                const desc = proc.subtipos
-                  ? Object.keys(it.subtipos||{}).map(id=>proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ")||"—"
-                  : proc.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>{const vd=it.valoresDente&&it.valoresDente[n];return nomeDente(n)+(vd&&vd!==it.valor?" — "+fmt2(parseMoeda(vd)):"");}).join("\n"):"—")
-                  :(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":"Arcada inferior");
-                return (<div key={it.id} className="rel-card" style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
-                  <div>
-                    <div style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{proc.nome}</div>
-                    <div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
-                    {it.obs&&<div style={{fontSize:11,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
-                    {(it.subtopicos||[]).length>0&&<div style={{marginTop:4,paddingLeft:8,borderLeft:"2px solid "+BORDER}}>
-                      {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:11,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
-                    </div>}
-
-                  </div>
-                  
-                </div>)
-              }),
-              ...p4Custom.map(it => {
-                const v = parseMoeda(it.valor);
-                const sub = it.modo==="dente" && it.dentes?.length > 0
-                  ? (it.valoresDente&&Object.keys(it.valoresDente).length>0
-                      ? (it.dentes||[]).reduce((a,n)=>a+parseMoeda((it.valoresDente||{})[n]||it.valor),0)
-                      : it.dentes.length*v)
-                  : v;
-                const desc = it.modo==="livre" ? "" : it.modo==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"—"):(it.regiao==="boca"?"Boca toda":it.regiao==="sup"?"Arcada superior":it.regiao==="inf"?"Arcada inferior":"—");
+                const desc = proc?.subtipos
+                  ? Object.keys(it.subtipos||{}).map(id=>proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ")||""
+                  : (proc?.modo||it.modo)==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"")
+                  : (it.modo==="livre"?"":"");
                 return (<div key={it.id} className="rel-card" style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
                   <div>
                     <div style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{it.nome}</div>
-                    <div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>
+                    {desc&&<div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>}
                     {it.obs&&<div style={{fontSize:11,color:"#7A6020",fontStyle:"italic",marginTop:2}}>{it.obs}</div>}
                     {(it.subtopicos||[]).length>0&&<div style={{marginTop:4,paddingLeft:8,borderLeft:"2px solid "+BORDER}}>
                       {(it.subtopicos||[]).map((st,si)=>st.trim()&&<div key={si} style={{fontSize:11,color:"#5C4A2A",marginTop:2}}>{si+1}. {st}</div>)}
                     </div>}
                   </div>
-                  
-                </div>)
-              })].filter(Boolean)}
+                </div>);
+              })}
             </div>
           </>}
 
           {/* Propostas individuais por procedimento */}
           {(()=>{
-            const itensSep = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
+            const itensSep0 = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
+            const itensSep = ordemRel.length>0?[...itensSep0].sort((a,b)=>{const ia=ordemRel.indexOf(a.id);const ib=ordemRel.indexOf(b.id);if(ia===-1&&ib===-1)return 0;if(ia===-1)return 1;if(ib===-1)return -1;return ia-ib;}):itensSep0;
             if(!itensSep.length) return null; if((p3.modoRel||"soma")!=="separado"&&(p3.modoRel||"soma")!=="ambos") return null;
             return(
               <div style={{marginTop:16}}>
@@ -3751,7 +3740,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 const p4Initial = {
   itens: null,
   customProcs: [],
-  procsBase: null, // null = será carregado do localStorage ou PROC_BASE
+  procsBase: null,
+  ordemProcs: [], // IDs na ordem de apresentação
 };
 
 const p3Initial = {vb:"",ds:0,dc:"",fc:[],fa:null,bm:"avista",bp:"6",bj:"sem_juros",bi:"3",ci:"0",cp:null,cpSel:"",bpSel:"",tb:"calc",entrada:false,entradaTipo:"pct",entradaVal:"30",saldoTipo:"parcelado",ct:false,bt:false,quemPaga:"comprador",boletoComDesconto:false,modoRel:"soma"};
@@ -5398,6 +5388,37 @@ function App() {
 }}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State} modelos={modelos} setModelos={setModelos} p3={p3} setP3={v=>setP3(prev=>({...prev,...v}))}/>}
+      {pag==="p4"&&(p3.modoRel==="soma"||p3.modoRel==="ambos")&&(
+        <div style={{maxWidth:620,margin:"0 auto",padding:"0 16px 20px"}}>
+          <div style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:12,marginTop:8}}>Calculadora — Orçamento Geral</div>
+          <P3
+        vb={p3.vb || (p4Total > 0 ? String(p4Total) : "")} setVb={v=>sp3("vb",v)}
+        ds={p3.ds} setDs={v=>sp3("ds",v)}
+        dc={p3.dc} setDc={v=>sp3("dc",v)}
+        fc={p3.fc} setFc={v=>sp3("fc",v)}
+        fa={p3.fa} setFa={v=>sp3("fa",v)}
+        bm={p3.bm} setBm={v=>sp3("bm",v)}
+        bp={p3.bp} setBp={v=>sp3("bp",v)}
+        bj={p3.bj} setBj={v=>sp3("bj",v)}
+        bi={p3.bi} setBi={v=>sp3("bi",v)}
+        ci={p3.ci} setCi={v=>sp3("ci",v)}
+        cp={p3.cp} setCp={v=>sp3("cp",v)}
+        tb={p3.tb} setTb={v=>sp3("tb",v)}
+        entrada={p3.entrada} setEntrada={v=>sp3("entrada",v)}
+        entradaTipo={p3.entradaTipo} setEntradaTipo={v=>sp3("entradaTipo",v)}
+        entradaVal={p3.entradaVal} setEntradaVal={v=>sp3("entradaVal",v)}
+        saldoTipo={p3.saldoTipo} setSaldoTipo={v=>sp3("saldoTipo",v)}
+        ct={!!p3.ct} setCt={v=>sp3("ct",v)} bt={!!p3.bt} setBt={v=>sp3("bt",v)}
+        bpSel={p3.bpSel||""} setBpSel={v=>sp3("bpSel",v)}
+        cpSel={p3.cpSel||""} setCpSel={v=>sp3("cpSel",v)}
+        planoExterno={p3.plano||"dias14"} setPlanoExterno={v=>sp3("plano",v)}
+        p3QuemPaga={p3.quemPaga||"comprador"} setP3QuemPaga={v=>sp3("quemPaga",v)}
+        boletoComDesconto={p3.boletoComDesconto||false} setBoletoComDesconto={v=>sp3("boletoComDesconto",v)}
+        p4State={p4State}
+        modoRel={p3.modoRel||"soma"} setModoRel={v=>sp3("modoRel",v)}
+      />
+        </div>
+      )}
       {pag==="p3"&&<P3
         vb={p3.vb || (p4Total > 0 ? String(p4Total) : "")} setVb={v=>sp3("vb",v)}
         ds={p3.ds} setDs={v=>sp3("ds",v)}
@@ -5522,10 +5543,10 @@ function App() {
           {id:"p1",icon:"1",label:"Paciente"},
           {id:"p2",icon:"2",label:"Avaliação"},
           {id:"p4",icon:"3",label:"Plano"},
-          {id:"p3",icon:"4",label:"Orçamento"},
+          {id:"p3",icon:"4",label:"Orçamento",hidden:true},
           {id:"rel",icon:"5",label:"Relatório"},
           {id:"arq",icon:"📁",label:"Arquivo"},
-        ].map(tab=>(
+        ].filter(tab=>!tab.hidden).map(tab=>(
           <button key={tab.id} style={{flex:1,padding:"8px 2px 10px",border:"none",background:pag===tab.id?GOLD_DARK:"transparent",color:pag===tab.id?"#fff":GOLD_DARK,fontFamily:"inherit",fontSize:11,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag===tab.id?"3px solid "+GOLD:"3px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s"}} onClick={()=>setPag(tab.id)}>
             <span style={{fontSize:tab.icon.length>1?16:15,fontWeight:800,width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:pag===tab.id?"#fff":GOLD_PALE,color:pag===tab.id?GOLD_DARK:GOLD_DARK,boxShadow:pag===tab.id?"0 2px 6px rgba(122,96,32,0.3)":"none"}}>{tab.icon}</span>
             <span style={{fontSize:10}}>{tab.label}</span>
