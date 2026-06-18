@@ -2698,6 +2698,7 @@ function ArquivoDriveSection({onCarregar}) {
 function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, setP3}) {
   const [showModelos, setShowModelos] = useState(false);
   const [nomeModelo, setNomeModelo] = useState("");
+  const [categoriaModelo, setCategoriaModelo] = useState("");
   const [salvandoModelo, setSalvandoModelo] = useState(false);
   const [modelosSel, setModelosSel] = useState(new Set());
   // Force spellCheck on mount
@@ -2885,12 +2886,57 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
             </div>
           </div>
 
-          {/* Layout duas colunas: Procedimentos + Modelos */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-            {/* Coluna 1: Procedimentos */}
+          {/* Layout: Modelos em destaque + Procedimentos compactos */}
+          <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:16,marginBottom:16}}>
+            {/* Coluna 1: MODELOS SALVOS (destaque) */}
+            <div>
+              <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:10}}>📋 Modelos de Orçamento</div>
+              {modelos.length===0?(
+                <div style={{padding:20,border:"1px dashed "+BORDER,borderRadius:8,color:"#9A8060",fontSize:12,textAlign:"center"}}>Nenhum modelo salvo. Configure procedimentos e salve como modelo no Resumo.</div>
+              ):(()=>{
+                // Agrupar por categoria
+                const cats = {};
+                modelos.forEach(m=>{const cat=m.categoria||"Geral";if(!cats[cat])cats[cat]=[];cats[cat].push(m);});
+                return Object.entries(cats).map(([cat,lista])=>(
+                  <div key={cat} style={{marginBottom:10}}>
+                    <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:6,paddingBottom:4,borderBottom:"1px solid "+BORDER}}>{cat}</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      {lista.map(m=>(
+                        <div key={m.id} style={{padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:8,background:CREAM,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}} onClick={async()=>{
+                          try{
+                            if(m.itens){
+                              const novosItens=(itens||[]).map(it=>({...it,ativo:false}));
+                              m.itens.forEach(mi=>{
+                                const idx2=novosItens.findIndex(x=>x.id===mi.id);
+                                if(idx2>=0) novosItens[idx2]={...novosItens[idx2],...mi,ativo:true};
+                                else if(mi.id&&mi.id.startsWith("custom_")){
+                                  const ec=(customProcs||[]).findIndex(c=>c.id===mi.id);
+                                  if(ec>=0) setCustomProcs(prev=>prev.map((c,i)=>i===ec?{...c,...mi,ativo:true}:c));
+                                  else setCustomProcs(prev=>{const byId=prev.findIndex(c=>c.id===mi.id);if(byId>=0)return prev.map((c,i)=>i===byId?{...c,...mi,ativo:true}:c);const byName=prev.findIndex(c=>c.nome&&mi.nome&&c.nome.toLowerCase()===mi.nome.toLowerCase());if(byName>=0)return prev.map((c,i)=>i===byName?{...c,...mi,ativo:true,id:c.id}:c);return[...prev,{...mi,ativo:true,_permanente:true}];});
+                                }
+                              });
+                              setItens(novosItens);
+                            }
+                            if(m.p3Config&&setP3) setP3(m.p3Config);
+                          }catch(e){alert("Erro: "+e.message);}
+                        }}>
+                          <div>
+                            <div style={{fontSize:12,fontWeight:600,color:PURPLE}}>{m.nome}</div>
+                            <div style={{fontSize:9,color:"#9A8060",marginTop:2}}>{(m.itens||[]).length} proc. · {m.criadoEm?new Date(m.criadoEm).toLocaleDateString("pt-BR"):""}</div>
+                          </div>
+                          <div style={{fontSize:10,color:PURPLE,fontWeight:600}}>Aplicar →</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Coluna 2: Procedimentos (compactos) */}
             <div>
               <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Procedimentos</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {[...procsBase, ...customProcs.map(c => ({...c, isCustom: true}))].map((proc, idx) => {
               const isCustom = proc.isCustom;
               const itemIdx = isCustom ? -1 : itens.findIndex(it => it.id === proc.id);
@@ -3013,40 +3059,6 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
           })}
               </div>
             </div>
-
-            {/* Coluna 2: Modelos salvos */}
-            <div>
-              <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:8}}>📋 Modelos salvos</div>
-              {modelos.length===0?(
-                <div style={{padding:16,border:"1px dashed "+BORDER,borderRadius:8,color:"#9A8060",fontSize:11,textAlign:"center"}}>Nenhum modelo salvo</div>
-              ):(
-                <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:300,overflowY:"auto"}}>
-                  {modelos.map(m=>(
-                    <div key={m.id} style={{padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:8,background:CREAM,cursor:"pointer"}} onClick={async()=>{
-                      try{
-                        if(m.itens){
-                          const novosItens=(itens||[]).map(it=>({...it,ativo:false}));
-                          m.itens.forEach(mi=>{
-                            const idx2=novosItens.findIndex(x=>x.id===mi.id);
-                            if(idx2>=0) novosItens[idx2]={...novosItens[idx2],...mi,ativo:true};
-                            else if(mi.id&&mi.id.startsWith("custom_")){
-                              const ec=(customProcs||[]).findIndex(c=>c.id===mi.id);
-                              if(ec>=0) setCustomProcs(prev=>prev.map((c,i)=>i===ec?{...c,...mi,ativo:true}:c));
-                              else setCustomProcs(prev=>{const byId=prev.findIndex(c=>c.id===mi.id);if(byId>=0)return prev.map((c,i)=>i===byId?{...c,...mi,ativo:true}:c);const byName=prev.findIndex(c=>c.nome&&mi.nome&&c.nome.toLowerCase()===mi.nome.toLowerCase());if(byName>=0)return prev.map((c,i)=>i===byName?{...c,...mi,ativo:true,id:c.id}:c);return[...prev,{...mi,ativo:true,_permanente:true}];});
-                            }
-                          });
-                          setItens(novosItens);
-                        }
-                        if(m.p3Config&&setP3) setP3(m.p3Config);
-                      }catch(e){alert("Erro: "+e.message);}
-                    }}>
-                      <div style={{fontSize:12,fontWeight:600,color:PURPLE}}>{m.nome}</div>
-                      <div style={{fontSize:9,color:"#9A8060",marginTop:2}}>{(m.itens||[]).length} proc. · {m.criadoEm?new Date(m.criadoEm).toLocaleDateString("pt-BR"):""}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
         {/* Formulário adicionar — simplificado: apenas título + destino */}
@@ -3148,8 +3160,11 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                 )}
               </div>
               {/* Salvar como modelo */}
-              <div style={{marginTop:12,display:"flex",gap:8,alignItems:"center"}}>
-                <input value={nomeModelo||[...itens.filter(i=>i.ativo).map(i=>{const p=procsBase.find(pp=>pp.id===i.id);return p?p.nome:i.id;}),...customProcs.filter(i=>i.ativo).map(i=>i.nome)].join(" + ")} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo" style={{flex:1,padding:"8px 10px",border:"1px solid "+PURPLE_LIGHT,borderRadius:6,fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+              <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:6}}>
+                <div style={{display:"flex",gap:6}}>
+                  <input value={nomeModelo||[...itens.filter(i=>i.ativo).map(i=>{const p=procsBase.find(pp=>pp.id===i.id);return p?p.nome:i.id;}),...customProcs.filter(i=>i.ativo).map(i=>i.nome)].join(" + ")} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo" style={{flex:2,padding:"8px 10px",border:"1px solid "+PURPLE_LIGHT,borderRadius:6,fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+                  <input value={categoriaModelo} onChange={e=>setCategoriaModelo(e.target.value)} placeholder="Categoria (ex: Ortodontia)" list="categorias-modelos" style={{flex:1,padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:6,fontSize:11,fontFamily:"inherit",outline:"none"}}/>
+                  <datalist id="categorias-modelos">{[...new Set(modelos.map(m=>m.categoria||"Geral"))].map(c=><option key={c} value={c}/>)}</datalist>
                 <div onClick={async()=>{
                   const nomeAuto=[...itens.filter(i=>i.ativo).map(i=>{const p=procsBase.find(pp=>pp.id===i.id);return p?p.nome:i.id;}),...customProcs.filter(i=>i.ativo).map(i=>i.nome)].join(" + ");
                   const nomeFinal=(nomeModelo||nomeAuto).trim();
@@ -3166,7 +3181,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                         const novos=await salvarModeloProcedimento({...existente,itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data,criadoEm:new Date().toISOString()},modelos);
                         setModelos(novos);
                       } else {
-                        const novos=await salvarModeloProcedimento({id:"modelo_"+Date.now(),nome:nomeFinal+" (cópia)",criadoEm:new Date().toISOString(),itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data},modelos);
+                        const novos=await salvarModeloProcedimento({id:"modelo_"+Date.now(),nome:nomeFinal+" (cópia)",categoria:categoriaModelo||"Geral",criadoEm:new Date().toISOString(),itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data},modelos);
                         setModelos(novos);
                       }
                     } else {
@@ -3178,6 +3193,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                   setSalvandoModelo(false);
                 }} style={{padding:"8px 14px",background:PURPLE,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
                   📋 Salvar modelo
+                </div>
                 </div>
               </div>
             </div>
@@ -3409,31 +3425,32 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 
         <div className="rel-content" style={{padding:"22px 24px",flex:1}}>
 
-          {/* Dados do Paciente */}
+          {/* Dados do Paciente — compacto */}
           {temDados && <>
-            <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+            <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Dados do Paciente</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:6}}>
-              {[
-                ["Paciente",nome||"—"],
-                ["CPF",cpf||"—"],
-                ["Telefone",telefone||"—"],
-                ["Data de nascimento",dataNasc?dataFmt(dataNasc)+(idade?" ("+idade+")":""):"—"],
-                ["Responsável clínico",responsavel||"—"],
-                ["Data da consulta",dataFmt(dataConsulta)],
-              ].map(([l,v])=>(
-                <div key={l} style={{padding:"7px 10px",background:CREAM,border:"1px solid "+BORDER,borderRadius:3}}>
-                  <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600,marginBottom:3}}>{l}</div>
-                  <div style={{fontSize:13,color:"#5C4A2A",fontWeight:500}}>{v}</div>
-                </div>
-              ))}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 16px",marginBottom:6,fontSize:12,color:"#5C4A2A"}}>
+              <div><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Paciente</span><div style={{fontWeight:500}}>{nome||"—"}</div></div>
+              <div><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>CPF</span><div>{cpf||"—"}</div></div>
+              <div style={{marginTop:4}}><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Telefone</span><div>{telefone||"—"}</div></div>
+              <div style={{marginTop:4}}><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Nascimento</span><div>{dataNasc?dataFmt(dataNasc)+(idade?" ("+idade+")":""):"—"}</div></div>
+              <div style={{marginTop:4}}><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Responsável clínico</span><div>{responsavel||"—"}</div></div>
+              <div style={{marginTop:4}}><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Consulta</span><div>{dataFmt(dataConsulta)}</div></div>
             </div>
             {isMinor && respNome && (
-              <div style={{padding:"9px 12px",background:"rgba(91,45,142,0.05)",border:"1px solid rgba(91,45,142,0.2)",borderRadius:3,marginBottom:8}}>
-                <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:3}}>Responsável Legal</div>
-                <div style={{fontSize:13,color:"#5C4A2A"}}>{respNome} {respCpf?"· CPF: "+respCpf:""}</div>
+              <div style={{fontSize:12,color:"#5C4A2A",marginBottom:4,paddingLeft:8,borderLeft:"2px solid "+PURPLE}}>
+                <span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:PURPLE,fontWeight:600}}>Responsável Legal</span>
+                <div>{respNome} {respCpf?"· CPF: "+respCpf:""}</div>
+              </div>
+            )}
+            {p1.assinatura && (
+              <div style={{marginTop:8,marginBottom:4}}>
+                <span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Assinatura do paciente</span>
+                <div style={{marginTop:4,border:"1px solid "+BORDER,borderRadius:4,padding:4,display:"inline-block",background:"#fff"}}>
+                  <img src={p1.assinatura} alt="Assinatura" style={{maxWidth:200,maxHeight:60,display:"block"}}/>
+                </div>
               </div>
             )}
           </>}
