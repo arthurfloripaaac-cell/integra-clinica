@@ -3539,7 +3539,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                       const tCprop = (prop.fc&&prop.fc.includes("credito"))
                         ? [1,2,3,4,5,6,7,8,9,10,11,12].map(n=>{const r=calcCreditoPlano(creditoBaseRel,n,propPlano,propQuem);return{n,...r};})
                         : [];
-                      const tCfilt = propCp ? tCprop.filter(r=>r.n===1||r.n<=propCp) : tCprop;
+                      const tCfilt0 = propCp ? tCprop.filter(r=>r.n===1||r.n<=propCp) : tCprop;
+                      const propCpSelArr=(prop.cpSel||"").split(",").map(s=>parseInt(s.trim())).filter(n=>n>0);
+                      const tCfilt = propCpSelArr.length>0?tCfilt0.filter(r=>propCpSelArr.includes(r.n)):tCfilt0;
+                      const propCt=prop.ct===true;
                       // Boleto
                       const propBp = parseInt(prop.bp||"6");
                       const propBj = prop.bj||"sem_juros";
@@ -3553,6 +3556,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                             return{n,p:t/n,sj,t};
                           })
                         : [];
+                      // Filtrar parcelas específicas da proposta individual
+                      const propBpSelArr=(prop.bpSel||"").split(",").map(s=>parseInt(s.trim())).filter(n=>n>0);
+                      const boletoLsFilt=propBpSelArr.length>0?boletoLs.filter(l=>propBpSelArr.includes(l.n)):boletoLs;
+                      const propBt=prop.bt===true;
                       return(
                         <div key={idx} style={{marginBottom:10,border:"1px solid "+BORDER,borderRadius:3,overflow:"hidden"}}>
                           <div style={{padding:"8px 14px",background:"#F5F2EC",borderBottom:"1px solid "+BORDER,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -3568,30 +3575,30 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                           )}
                           {/* À vista / PIX */}
                           {prop.fc&&(prop.fc.includes("pix")||prop.fc.includes("dinheiro"))&&(
-                            <div style={{padding:"6px 14px",fontSize:11,color:"#5C4A2A",borderBottom:tCfilt.length||boletoLs.length?"1px solid "+BORDER:"none"}}>
+                            <div style={{padding:"6px 14px",fontSize:11,color:"#5C4A2A",borderBottom:tCfilt.length||boletoLsFilt.length?"1px solid "+BORDER:"none"}}>
                               {[prop.fc.includes("pix")&&"PIX",prop.fc.includes("dinheiro")&&"Dinheiro"].filter(Boolean).join(" · ")} — {fmt2(propEntrada&&propEntradaValor>0?propSaldo:vf2)}
                             </div>
                           )}
                           {/* Cartão */}
                           {tCfilt.length>0&&(
-                            <div style={{borderBottom:boletoLs.length?"1px solid "+BORDER:"none"}}>
+                            <div style={{borderBottom:boletoLsFilt.length?"1px solid "+BORDER:"none"}}>
                               <div style={{padding:"6px 14px 4px",fontSize:11,fontWeight:700,color:"#5C4A2A",letterSpacing:0.5}}>Cartão de crédito{propCi>0&&<span style={{fontWeight:400,color:"#9A8060",marginLeft:4}}>até {propCi}x sem juros</span>}</div>
                               {(()=>{
                                 const meio=Math.ceil(tCfilt.length/2);
                                 const col1=tCfilt.slice(0,meio),col2=tCfilt.slice(meio);
-                                const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(vb2):fmt2(p)}</span><span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span></div>);};
+                                const rr=(r,i,last)=>{const sj=r.n>1&&r.n<=propCi,p=sj?vf2/r.n:r.parcela,t=sj?vf2:r.total;return(<div key={r.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{r.n===1?"Àvista":r.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{r.n===1?fmt2(vb2):fmt2(p)}</span>{propCt&&<span style={{fontSize:10,color:sj&&r.n>1?GOLD_DARK:"#9A8060"}}>{r.n===1?"":sj?"s/j":"tot "+fmt2(t)}</span>}</div>);};
                                 return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((r,i)=>rr(r,i,i===col1.length-1))}</div><div>{col2.map((r,i)=>rr(r,i,i===col2.length-1))}</div></div>);
                               })()}
                             </div>
                           )}
                           {/* Boleto */}
-                          {boletoLs.length>0&&(
+                          {boletoLsFilt.length>0&&(
                             <div>
                               <div style={{padding:"6px 14px 4px",fontSize:11,fontWeight:700,color:"#5C4A2A"}}>Boleto parcelado</div>
                               {(()=>{
-                                const meio=Math.ceil(boletoLs.length/2);
-                                const col1=boletoLs.slice(0,meio),col2=boletoLs.slice(meio);
-                                const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span><span style={{fontSize:10,color:l.sj?GOLD_DARK:"#9A8060"}}>{l.sj?"s/j":"tot "+fmt2(l.t)}</span></div>);
+                                const meio=Math.ceil(boletoLsFilt.length/2);
+                                const col1=boletoLsFilt.slice(0,meio),col2=boletoLsFilt.slice(meio);
+                                const rb=(l,i,last)=>(<div key={l.n} style={{display:"flex",gap:6,padding:"4px 14px",background:i%2===0?"#fff":CREAM,borderBottom:last?"none":"1px solid "+BORDER}}><span style={{fontSize:11,fontWeight:700,color:"#5C4A2A",minWidth:28}}>{l.n+"x"}</span><span style={{fontSize:11,color:GOLD_DARK,fontWeight:600,flex:1}}>{fmt2(l.p)}</span>{propBt&&<span style={{fontSize:10,color:l.sj?GOLD_DARK:"#9A8060"}}>{l.sj?"s/j":"tot "+fmt2(l.t)}</span>}</div>);
                                 return(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid "+BORDER}}><div style={{borderRight:"1px solid "+BORDER}}>{col1.map((l,i)=>rb(l,i,i===col1.length-1))}</div><div>{col2.map((l,i)=>rb(l,i,i===col2.length-1))}</div></div>);
                               })()}
                             </div>
@@ -4578,7 +4585,8 @@ function MiniOrcamento({valor, procNome, propostaInicial, onSave, onClose}) {
     entradaTipo: init.entradaTipo||"pct",
     entradaVal: init.entradaVal||"30",
     saldoTipo: init.saldoTipo||"parcelado",
-    ct: true, bt: true,
+    ct: init.ct===true?true:false, bt: init.bt===true?true:false,
+    bpSel: init.bpSel||"", cpSel: init.cpSel||"",
     quemPaga: init.quemPaga||cfg.quemPaga||"comprador",
     plano: init.plano||cfg.plano||"hora",
     boletoComDesconto: init.boletoComDesconto||false,
@@ -4620,6 +4628,8 @@ function MiniOrcamento({valor, procNome, propostaInicial, onSave, onClose}) {
             planoExterno={p3mini.plano} setPlanoExterno={v=>sp("plano",v)}
             p3QuemPaga={p3mini.quemPaga} setP3QuemPaga={v=>sp("quemPaga",v)}
             boletoComDesconto={p3mini.boletoComDesconto} setBoletoComDesconto={v=>sp("boletoComDesconto",v)}
+            bpSel={p3mini.bpSel||""} setBpSel={v=>sp("bpSel",v)}
+            cpSel={p3mini.cpSel||""} setCpSel={v=>sp("cpSel",v)}
           />
         </div>
         {/* Botões */}
