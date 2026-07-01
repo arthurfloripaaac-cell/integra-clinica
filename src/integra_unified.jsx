@@ -376,6 +376,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
   const [showFormRecebidos, setShowFormRecebidos] = React.useState(false);
   const [linkCopiado, setLinkCopiado] = React.useState(false);
   const [formLinkId, setFormLinkId] = React.useState("f"+Date.now().toString(36));
+  const [espLinkForm, setEspLinkForm] = React.useState("geral");
 
   // Carregar equipe persistente
   useEffect(()=>{
@@ -457,8 +458,15 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
               </div>
             </div>
             <div style={{fontSize:11,color:"#5C4A2A",marginBottom:10,lineHeight:1.5}}>O paciente preenche os dados pelo celular e eles aparecem automaticamente aqui.</div>
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#2E7D32",marginBottom:6,letterSpacing:0.5}}>ESPECIALIDADE DA AVALIAÇÃO</div>
+              <div style={{display:"flex",gap:6}}>
+                <div onClick={()=>setEspLinkForm("geral")} style={{flex:1,padding:"8px 10px",background:espLinkForm==="geral"?"#4CAF50":"#fff",border:"1px solid "+(espLinkForm==="geral"?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:espLinkForm==="geral"?"#fff":"#5C4A2A",textAlign:"center"}}>Geral</div>
+                <div onClick={()=>setEspLinkForm("ortho")} style={{flex:1,padding:"8px 10px",background:espLinkForm==="ortho"?"#4CAF50":"#fff",border:"1px solid "+(espLinkForm==="ortho"?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:espLinkForm==="ortho"?"#fff":"#5C4A2A",textAlign:"center"}}>Ortodontia / DTM</div>
+              </div>
+            </div>
             {(()=>{
-              const link = (typeof window!=="undefined"?window.location.origin:"")+"/f/"+formLinkId;
+              const link = (typeof window!=="undefined"?window.location.origin:"")+"/f/"+formLinkId+(espLinkForm==="ortho"?"?esp=ortho":"");
               const msg = "Olá! Segue o link para preencher seu cadastro na Íntegra Clínica Odontológica:\n"+link;
               const waLink = "https://wa.me/?text="+encodeURIComponent(msg);
               return(
@@ -4891,7 +4899,8 @@ function AssinaturaCanvas({value, onChange}) {
   );
 }
 
-function FormularioPaciente({formId}) {
+function FormularioPaciente({formId, especialidade}) {
+  const isOrtho = especialidade === "ortho";
   const [nome, setNome] = React.useState("");
   const [cpf, setCpf] = React.useState("");
   const [telefone, setTelefone] = React.useState("");
@@ -4906,6 +4915,35 @@ function FormularioPaciente({formId}) {
   const [idade, setIdade] = React.useState(null);
   const [isMinor, setIsMinor] = React.useState(false);
   const [usarCalendario, setUsarCalendario] = React.useState(false);
+  const [stepIdx, setStepIdx] = React.useState(0);
+
+  // Anamnese — Fase 1 (universal) + módulo Ortodontia/DTM
+  const [an, setAn] = React.useState({
+    queixa:"", queixaOutro:"",
+    alergia:"", alergiaQual:"",
+    medicamento:"", medicamentoQual:"",
+    condicoes:[], condicoesDetalhe:"",
+    denteAusente:"", denteAusenteQuais:"",
+    gravida:"",
+    comoConheceu:"", comoConheceuOutro:"",
+    relatoLivre:"",
+    bruxismo:"",
+    sintomasDtm:[], sintomasDtmOutro:"",
+    aparelhoAnterior:"", aparelhoTempo:"",
+  });
+  const setA = (k,v) => setAn(p=>({...p,[k]:v}));
+  const toggleMulti = (k,val) => setAn(p=>{
+    const arr = p[k].includes(val) ? p[k].filter(x=>x!==val) : [...p[k], val];
+    return {...p,[k]:arr};
+  });
+
+  const stepOrder = React.useMemo(()=>{
+    const base = ["cadastro","queixa","alergia","medicamento","condicoes","denteAusente","gravida","comoConheceu","relato"];
+    const ortho = isOrtho ? ["bruxismo","sintomasDtm","aparelhoAnterior"] : [];
+    return [...base, ...ortho, "assinatura"];
+  },[isOrtho]);
+  const stepKey = stepOrder[stepIdx];
+  const totalSteps = stepOrder.length;
 
   // Máscara DD/MM/AAAA para data
   const maskData = (v) => {
@@ -4918,7 +4956,6 @@ function FormularioPaciente({formId}) {
   const onDataTexto = (v) => {
     const masked = maskData(v);
     setDataNascTexto(masked);
-    // Converter DD/MM/AAAA para AAAA-MM-DD
     const parts = masked.split("/");
     if(parts.length===3 && parts[2].length===4) {
       const d=parseInt(parts[0]), m=parseInt(parts[1]), y=parseInt(parts[2]);
@@ -4930,7 +4967,6 @@ function FormularioPaciente({formId}) {
 
   const onDataCalendario = (v) => {
     setDataNasc(v);
-    // Converter AAAA-MM-DD para DD/MM/AAAA
     if(v) {
       const p = v.split("-");
       if(p.length===3) setDataNascTexto(p[2]+"/"+p[1]+"/"+p[0]);
@@ -4946,13 +4982,72 @@ function FormularioPaciente({formId}) {
     if(anos>=0&&anos<130) { setIdade(anos); setIsMinor(anos<18); }
   },[dataNasc]);
 
+  const validarStep = () => {
+    switch(stepKey){
+      case "cadastro":
+        if(!nome.trim()) return "Preencha seu nome completo";
+        if(!cpf.trim()) return "Preencha seu CPF";
+        if(!telefone.trim()) return "Preencha seu telefone";
+        if(!dataNasc) return "Preencha sua data de nascimento";
+        if(isMinor && !respNome.trim()) return "Preencha o nome do responsável legal";
+        return "";
+      case "queixa":
+        if(!an.queixa) return "Toque em uma opção para continuar";
+        if(an.queixa==="Outro" && !an.queixaOutro.trim()) return "Conte qual é sua queixa";
+        return "";
+      case "alergia":
+        if(!an.alergia) return "Toque em uma opção para continuar";
+        if(an.alergia==="Sim" && !an.alergiaQual.trim()) return "Informe a qual alergia";
+        return "";
+      case "medicamento":
+        if(!an.medicamento) return "Toque em uma opção para continuar";
+        if(an.medicamento==="Sim" && !an.medicamentoQual.trim()) return "Informe qual medicamento";
+        return "";
+      case "condicoes":
+        return "";
+      case "denteAusente":
+        if(!an.denteAusente) return "Toque em uma opção para continuar";
+        if(an.denteAusente==="Sim" && !an.denteAusenteQuais.trim()) return "Informe quais dentes";
+        return "";
+      case "gravida":
+        if(!an.gravida) return "Toque em uma opção para continuar";
+        return "";
+      case "comoConheceu":
+        if(!an.comoConheceu) return "Toque em uma opção para continuar";
+        if(an.comoConheceu==="Outro" && !an.comoConheceuOutro.trim()) return "Conte como conheceu a clínica";
+        return "";
+      case "relato":
+        return "";
+      case "bruxismo":
+        if(!an.bruxismo) return "Toque em uma opção para continuar";
+        return "";
+      case "sintomasDtm":
+        return "";
+      case "aparelhoAnterior":
+        if(!an.aparelhoAnterior) return "Toque em uma opção para continuar";
+        if(an.aparelhoAnterior==="Sim" && !an.aparelhoTempo) return "Selecione o tempo de uso";
+        return "";
+      case "assinatura":
+        if(!assinatura) return "Assine no campo de assinatura";
+        return "";
+      default: return "";
+    }
+  };
+
+  const proximo = () => {
+    const err = validarStep();
+    if(err){ setErro(err); return; }
+    setErro("");
+    if(stepIdx < totalSteps-1) { setStepIdx(stepIdx+1); window.scrollTo(0,0); }
+  };
+  const voltar = () => {
+    setErro("");
+    if(stepIdx>0) { setStepIdx(stepIdx-1); window.scrollTo(0,0); }
+  };
+
   const enviar = async () => {
-    if(!nome.trim()) { setErro("Preencha seu nome completo"); return; }
-    if(!cpf.trim()) { setErro("Preencha seu CPF"); return; }
-    if(!telefone.trim()) { setErro("Preencha seu telefone"); return; }
-    if(!dataNasc) { setErro("Preencha sua data de nascimento"); return; }
-    if(isMinor && !respNome.trim()) { setErro("Preencha o nome do responsável legal"); return; }
-    if(!assinatura) { setErro("Assine no campo de assinatura"); return; }
+    const err = validarStep();
+    if(err){ setErro(err); return; }
     setErro("");
     setEnviando(true);
     try {
@@ -4968,6 +5063,8 @@ function FormularioPaciente({formId}) {
             respNome: isMinor?respNome.trim():"",
             respCpf: isMinor?respCpf.trim():"",
             assinatura,
+            especialidade: especialidade||"geral",
+            anamnese: an,
             dataEnvio: new Date().toISOString(),
             formId,
             status: "pendente",
@@ -4978,9 +5075,215 @@ function FormularioPaciente({formId}) {
     } catch(e) { setErro("Erro: "+e.message); setEnviando(false); }
   };
 
-  // Estilo de input responsivo e grande para idosos
+  // Estilos responsivos e grandes (idosos frequentes na clínica)
   const inpF = {width:"100%",padding:"20px 22px",border:"2.5px solid "+BORDER,borderRadius:12,fontSize:22,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.4};
   const lblF = {fontSize:16,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,display:"block",marginBottom:10};
+  const pergunta = {fontSize:23,fontWeight:700,color:"#2A1538",lineHeight:1.35,marginBottom:22};
+  const optBtn = (selected) => ({
+    width:"100%",padding:"20px 20px",marginBottom:12,borderRadius:12,
+    border: selected?"3px solid "+PURPLE:"2.5px solid "+BORDER,
+    background: selected?PURPLE:"#fff",
+    color: selected?"#fff":"#2A1538",
+    fontSize:19, fontWeight:selected?700:600, textAlign:"left",
+    cursor:"pointer", boxSizing:"border-box", display:"flex", alignItems:"center", gap:12,
+    boxShadow: selected?"0 2px 10px rgba(91,45,142,0.25)":"none",
+    lineHeight:1.3,
+  });
+  const checkMark = (selected) => (
+    <span style={{width:26,height:26,borderRadius:6,flexShrink:0,border:selected?"2px solid #fff":"2px solid "+BORDER,background:selected?"rgba(255,255,255,0.15)":"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>
+      {selected?"✓":""}
+    </span>
+  );
+
+  // ── Componentes de tela ──
+  const OpcoesUnicas = ({field, opcoes}) => (
+    <div>
+      {opcoes.map(op=>(
+        <div key={op} onClick={()=>setA(field,op)} style={optBtn(an[field]===op)}>
+          {checkMark(an[field]===op)}
+          <span>{op}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  const OpcoesMultiplas = ({field, opcoes}) => (
+    <div>
+      {opcoes.map(op=>(
+        <div key={op} onClick={()=>toggleMulti(field,op)} style={optBtn(an[field].includes(op))}>
+          {checkMark(an[field].includes(op))}
+          <span>{op}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  const CampoTexto = ({value, onChange, placeholder, area}) => area ? (
+    <textarea style={{...inpF,minHeight:110,resize:"vertical",marginTop:6}} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>
+  ) : (
+    <input style={{...inpF,marginTop:6}} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>
+  );
+
+  let stepContent = null;
+
+  if(stepKey==="cadastro") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Vamos começar com seus dados</div>
+        <div style={{display:"flex",flexDirection:"column",gap:18}}>
+          <div>
+            <label style={lblF}>Nome completo *</label>
+            <input style={inpF} value={nome} onChange={e=>setNome(e.target.value)} placeholder="Seu nome completo" name="name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
+          </div>
+          <div>
+            <label style={lblF}>CPF *</label>
+            <input style={inpF} value={cpf} onChange={e=>setCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" name="cpf" inputMode="numeric" autoComplete="off"/>
+          </div>
+          <div>
+            <label style={lblF}>Telefone / WhatsApp *</label>
+            <input style={inpF} value={maskTelefone(telefone)} onChange={e=>setTelefone(e.target.value.replace(/\D/g,""))} placeholder="(48) 99999-9999" name="tel" inputMode="tel" autoComplete="tel"/>
+          </div>
+          <div>
+            <label style={lblF}>Data de nascimento *</label>
+            <input style={inpF} value={dataNascTexto} onChange={e=>onDataTexto(e.target.value)} placeholder="DD/MM/AAAA" inputMode="numeric" autoComplete="bday"/>
+            <div onClick={()=>setUsarCalendario(!usarCalendario)} style={{fontSize:14,color:GOLD_DARK,cursor:"pointer",marginTop:8,textDecoration:"underline"}}>
+              {usarCalendario?"Digitar data":"Usar calendário"}
+            </div>
+            {usarCalendario&&(
+              <input style={{...inpF,marginTop:8}} type="date" value={dataNasc} onChange={e=>onDataCalendario(e.target.value)}/>
+            )}
+          </div>
+          {idade!==null&&(
+            <div style={{fontSize:16,color:isMinor?PURPLE:GOLD_DARK,fontWeight:600,padding:"12px 16px",background:isMinor?"rgba(91,45,142,0.06)":GOLD_PALE,borderRadius:6,border:"1.5px solid "+(isMinor?"rgba(91,45,142,0.2)":GOLD_LIGHT)}}>
+              {isMinor?"⚠️ Menor de idade — preencha o responsável abaixo":idade+" anos"}
+            </div>
+          )}
+          {isMinor&&(
+            <div style={{padding:"18px 18px",background:"rgba(91,45,142,0.05)",border:"1.5px solid rgba(91,45,142,0.2)",borderRadius:8}}>
+              <div style={{fontSize:13,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:14}}>Responsável Legal</div>
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                <div>
+                  <label style={{fontSize:13,color:PURPLE,fontWeight:600,display:"block",marginBottom:6}}>Nome do responsável *</label>
+                  <input style={inpF} value={respNome} onChange={e=>setRespNome(e.target.value)} placeholder="Nome completo do responsável" name="parent-name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
+                </div>
+                <div>
+                  <label style={{fontSize:13,color:PURPLE,fontWeight:600,display:"block",marginBottom:6}}>CPF do responsável</label>
+                  <input style={inpF} value={respCpf} onChange={e=>setRespCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" autoComplete="off"/>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  } else if(stepKey==="queixa") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Qual é sua principal queixa?</div>
+        <OpcoesUnicas field="queixa" opcoes={["Dor","Estética","Limpeza / Prevenção","Função mastigatória","Outro"]}/>
+        {an.queixa==="Outro"&&<CampoTexto value={an.queixaOutro} onChange={v=>setA("queixaOutro",v)} placeholder="Descreva sua queixa"/>}
+      </div>
+    );
+  } else if(stepKey==="alergia") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Tem alergia a algum medicamento ou material?</div>
+        <OpcoesUnicas field="alergia" opcoes={["Não","Sim"]}/>
+        {an.alergia==="Sim"&&<CampoTexto value={an.alergiaQual} onChange={v=>setA("alergiaQual",v)} placeholder="A qual medicamento ou material?"/>}
+      </div>
+    );
+  } else if(stepKey==="medicamento") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Está tomando algum medicamento atualmente?</div>
+        <OpcoesUnicas field="medicamento" opcoes={["Não","Sim"]}/>
+        {an.medicamento==="Sim"&&<CampoTexto value={an.medicamentoQual} onChange={v=>setA("medicamentoQual",v)} placeholder="Qual medicamento?"/>}
+      </div>
+    );
+  } else if(stepKey==="condicoes") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Você tem alguma dessas condições de saúde?</div>
+        <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Pode marcar mais de uma, se for o caso</div>
+        <OpcoesMultiplas field="condicoes" opcoes={["Hipertensão","Diabetes","Cardiopatia","Hepatite"]}/>
+        <label style={{...lblF,marginTop:8}}>Detalhes (opcional)</label>
+        <CampoTexto value={an.condicoesDetalhe} onChange={v=>setA("condicoesDetalhe",v)} placeholder="Alguma observação sobre sua saúde"/>
+      </div>
+    );
+  } else if(stepKey==="denteAusente") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Você tem algum dente ausente? (sem contar os sisos)</div>
+        <OpcoesUnicas field="denteAusente" opcoes={["Não","Sim","Não sei"]}/>
+        {an.denteAusente==="Sim"&&<CampoTexto value={an.denteAusenteQuais} onChange={v=>setA("denteAusenteQuais",v)} placeholder="Quais dentes, se souber"/>}
+      </div>
+    );
+  } else if(stepKey==="gravida") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Está grávida?</div>
+        <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Se não for aplicável, toque em "Não"</div>
+        <OpcoesUnicas field="gravida" opcoes={["Não","Sim"]}/>
+      </div>
+    );
+  } else if(stepKey==="comoConheceu") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Como você conheceu a Íntegra Clínica?</div>
+        <OpcoesUnicas field="comoConheceu" opcoes={["Indicação","Instagram","Google","Convênio","Já sou paciente","Outro"]}/>
+        {an.comoConheceu==="Outro"&&<CampoTexto value={an.comoConheceuOutro} onChange={v=>setA("comoConheceuOutro",v)} placeholder="Como você conheceu?"/>}
+      </div>
+    );
+  } else if(stepKey==="relato") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Quer relatar mais alguma coisa?</div>
+        <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Campo opcional — pode deixar em branco</div>
+        <CampoTexto value={an.relatoLivre} onChange={v=>setA("relatoLivre",v)} placeholder="Escreva aqui, se quiser" area/>
+      </div>
+    );
+  } else if(stepKey==="bruxismo") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Você aperta ou range os dentes?</div>
+        <OpcoesUnicas field="bruxismo" opcoes={["Não","Sim","Às vezes","Não sei"]}/>
+      </div>
+    );
+  } else if(stepKey==="sintomasDtm") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Sente algum desses sintomas?</div>
+        <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Pode marcar mais de um</div>
+        <OpcoesMultiplas field="sintomasDtm" opcoes={["Dor de cabeça frequente","Estalos ou ruídos ao abrir a boca","Dificuldade para abrir a boca","Dor no ouvido","Cansaço no rosto ao mastigar","Não sei localizar, mas sinto desconforto"]}/>
+        <label style={{...lblF,marginTop:8}}>Outro (opcional)</label>
+        <CampoTexto value={an.sintomasDtmOutro} onChange={v=>setA("sintomasDtmOutro",v)} placeholder="Algum outro sintoma"/>
+      </div>
+    );
+  } else if(stepKey==="aparelhoAnterior") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Você já usou aparelho ortodôntico?</div>
+        <OpcoesUnicas field="aparelhoAnterior" opcoes={["Nunca","Sim"]}/>
+        {an.aparelhoAnterior==="Sim"&&(
+          <div style={{marginTop:10}}>
+            <label style={lblF}>Há quanto tempo?</label>
+            <OpcoesUnicas field="aparelhoTempo" opcoes={["Menos de 1 ano","1 a 2 anos","2 a 3 anos","Mais de 3 anos","Não lembro"]}/>
+          </div>
+        )}
+      </div>
+    );
+  } else if(stepKey==="assinatura") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Para finalizar, sua assinatura</div>
+        <div style={{fontSize:14,color:"#9A8060",marginBottom:10}}>Desenhe sua assinatura com o dedo no campo abaixo</div>
+        <AssinaturaCanvas value={assinatura} onChange={setAssinatura}/>
+        <div style={{fontSize:13,color:"#9A8060",lineHeight:1.6,padding:"14px 16px",background:"#FAFAF8",borderRadius:6,border:"1px solid "+BORDER,marginTop:20}}>
+          Ao enviar este formulário, declaro que as informações prestadas são verdadeiras e autorizo a Íntegra Clínica Odontológica a utilizar estes dados para fins de atendimento odontológico.
+        </div>
+      </div>
+    );
+  }
 
   if(enviado) return (
     <div style={{minHeight:"100vh",background:CREAM,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
@@ -4992,6 +5295,9 @@ function FormularioPaciente({formId}) {
       </div>
     </div>
   );
+
+  const isLastStep = stepIdx === totalSteps-1;
+  const progressPct = Math.round(((stepIdx+1)/totalSteps)*100);
 
   return (
     <div style={{minHeight:"100vh",background:CREAM,padding:"0 0 40px"}}>
@@ -5007,72 +5313,36 @@ function FormularioPaciente({formId}) {
         </div>
       </div>
 
-      <div style={{maxWidth:540,margin:"0 auto",padding:"24px 12px"}}>
+      {/* Barra de progresso */}
+      <div style={{padding:"14px 20px 0",maxWidth:540,margin:"0 auto",boxSizing:"border-box"}}>
+        <div style={{fontSize:13,color:GOLD_DARK,fontWeight:700,marginBottom:6}}>Etapa {stepIdx+1} de {totalSteps}</div>
+        <div style={{width:"100%",height:8,background:"#EFE6D2",borderRadius:4,overflow:"hidden"}}>
+          <div style={{width:progressPct+"%",height:"100%",background:GOLD,borderRadius:4,transition:"width 0.25s ease"}}/>
+        </div>
+      </div>
+
+      <div style={{maxWidth:540,margin:"0 auto",padding:"20px 12px"}}>
         <div style={{background:"#fff",border:"2px solid "+BORDER,borderRadius:12,padding:"28px 18px",boxShadow:"0 2px 16px rgba(0,0,0,0.06)"}}>
-          <div style={{fontSize:20,fontWeight:700,color:GOLD_DARK,marginBottom:6}}>Cadastro do Paciente</div>
-          <div style={{fontSize:15,color:"#9A8060",marginBottom:24,lineHeight:1.5}}>Preencha seus dados para agilizar seu atendimento.</div>
+          {stepContent}
 
-          <div style={{display:"flex",flexDirection:"column",gap:18}}>
-            <div>
-              <label style={lblF}>Nome completo *</label>
-              <input style={inpF} value={nome} onChange={e=>setNome(e.target.value)} placeholder="Seu nome completo" name="name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
-            </div>
-            <div>
-              <label style={lblF}>CPF *</label>
-              <input style={inpF} value={cpf} onChange={e=>setCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" name="cpf" inputMode="numeric" autoComplete="off"/>
-            </div>
-            <div>
-              <label style={lblF}>Telefone / WhatsApp *</label>
-              <input style={inpF} value={maskTelefone(telefone)} onChange={e=>setTelefone(e.target.value.replace(/\D/g,""))} placeholder="(48) 99999-9999" name="tel" inputMode="tel" autoComplete="tel"/>
-            </div>
-            <div>
-              <label style={lblF}>Data de nascimento *</label>
-              <input style={inpF} value={dataNascTexto} onChange={e=>onDataTexto(e.target.value)} placeholder="DD/MM/AAAA" inputMode="numeric" autoComplete="bday"/>
-              <div onClick={()=>setUsarCalendario(!usarCalendario)} style={{fontSize:12,color:GOLD_DARK,cursor:"pointer",marginTop:6,textDecoration:"underline"}}>
-                {usarCalendario?"Digitar data":"Usar calendário"}
-              </div>
-              {usarCalendario&&(
-                <input style={{...inpF,marginTop:8}} type="date" value={dataNasc} onChange={e=>onDataCalendario(e.target.value)}/>
-              )}
-            </div>
-            {idade!==null&&(
-              <div style={{fontSize:16,color:isMinor?PURPLE:GOLD_DARK,fontWeight:600,padding:"12px 16px",background:isMinor?"rgba(91,45,142,0.06)":GOLD_PALE,borderRadius:6,border:"1.5px solid "+(isMinor?"rgba(91,45,142,0.2)":GOLD_LIGHT)}}>
-                {isMinor?"⚠️ Menor de idade — preencha o responsável abaixo":idade+" anos"}
+          {erro&&<div style={{fontSize:15,color:"#C62828",padding:"12px 16px",background:"#FFF0F0",border:"1.5px solid #E57373",borderRadius:6,marginTop:18}}>{erro}</div>}
+
+          <div style={{display:"flex",gap:10,marginTop:26}}>
+            {stepIdx>0&&(
+              <div onClick={voltar} style={{padding:"18px 20px",background:"#fff",border:"2px solid "+BORDER,color:"#5C4A2A",borderRadius:10,cursor:"pointer",fontSize:18,fontWeight:700,textAlign:"center"}}>
+                ← Voltar
               </div>
             )}
-            {isMinor&&(
-              <div style={{padding:"18px 18px",background:"rgba(91,45,142,0.05)",border:"1.5px solid rgba(91,45,142,0.2)",borderRadius:8}}>
-                <div style={{fontSize:13,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:14}}>Responsável Legal</div>
-                <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                  <div>
-                    <label style={{fontSize:13,color:PURPLE,fontWeight:600,display:"block",marginBottom:6}}>Nome do responsável *</label>
-                    <input style={inpF} value={respNome} onChange={e=>setRespNome(e.target.value)} placeholder="Nome completo do responsável" name="parent-name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
-                  </div>
-                  <div>
-                    <label style={{fontSize:13,color:PURPLE,fontWeight:600,display:"block",marginBottom:6}}>CPF do responsável</label>
-                    <input style={inpF} value={respCpf} onChange={e=>setRespCpf(formatCpf(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" autoComplete="off"/>
-                  </div>
-                </div>
+            {!isLastStep&&(
+              <div onClick={proximo} style={{flex:1,padding:"18px",background:GOLD_DARK,color:"#fff",borderRadius:10,cursor:"pointer",fontSize:18,fontWeight:700,textAlign:"center",letterSpacing:0.5}}>
+                Próximo →
               </div>
             )}
-
-            {/* Assinatura */}
-            <div>
-              <label style={lblF}>Assinatura digital *</label>
-              <div style={{fontSize:14,color:"#9A8060",marginBottom:10}}>Desenhe sua assinatura com o dedo no campo abaixo</div>
-              <AssinaturaCanvas value={assinatura} onChange={setAssinatura}/>
-            </div>
-
-            {/* Termo */}
-            <div style={{fontSize:13,color:"#9A8060",lineHeight:1.6,padding:"14px 16px",background:"#FAFAF8",borderRadius:6,border:"1px solid "+BORDER}}>
-              Ao enviar este formulário, declaro que as informações prestadas são verdadeiras e autorizo a Íntegra Clínica Odontológica a utilizar estes dados para fins de atendimento odontológico.
-            </div>
-
-            {erro&&<div style={{fontSize:15,color:"#C62828",padding:"12px 16px",background:"#FFF0F0",border:"1.5px solid #E57373",borderRadius:6}}>{erro}</div>}
-
-            <div onClick={enviando?null:enviar} style={{padding:"18px",background:enviando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:8,cursor:enviando?"default":"pointer",fontSize:18,fontWeight:700,textAlign:"center",letterSpacing:0.5}}>
-              {enviando?"Enviando...":"Enviar dados"}
-            </div>
+            {isLastStep&&(
+              <div onClick={enviando?null:enviar} style={{flex:1,padding:"18px",background:enviando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:10,cursor:enviando?"default":"pointer",fontSize:18,fontWeight:700,textAlign:"center",letterSpacing:0.5}}>
+                {enviando?"Enviando...":"Enviar dados"}
+              </div>
+            )}
           </div>
         </div>
 
@@ -5152,7 +5422,8 @@ function App() {
   const urlPath = typeof window !== "undefined" ? window.location.pathname : "";
   const formMatch = urlPath.match(/\/f\/([a-zA-Z0-9_-]+)/);
   if(formMatch) {
-    return <FormularioPaciente formId={formMatch[1]}/>;
+    const espParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("esp") : "";
+    return <FormularioPaciente formId={formMatch[1]} especialidade={espParam||"geral"}/>;
   }
 
   const [pag, setPag] = useState("p1");
