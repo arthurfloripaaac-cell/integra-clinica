@@ -37,11 +37,12 @@ if(typeof document !== "undefined") {
 }
 
 function sanitizeP2(p2r) {
-  if(!p2r) return {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{}};
+  if(!p2r) return {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{},notasInternas:""};
   if(!p2r.achadosDente) p2r.achadosDente={};
   if(!p2r.obsAchados) p2r.obsAchados={};
   if(!p2r.achados) p2r.achados=null;
   if(!p2r.obsTexto) p2r.obsTexto="";
+  if(p2r.notasInternas===undefined) p2r.notasInternas="";
   if(!p2r.obsCorrigido) p2r.obsCorrigido="";
   if(p2r.achadoAtivo===undefined) p2r.achadoAtivo=null;
   if(p2r.segAtivo===undefined) p2r.segAtivo=null;
@@ -367,6 +368,7 @@ function formatCpf(v) {
 
 // ─── ANAMNESE — utilitário compartilhado (Dados do Paciente + Relatório) ──
 const ANAMNESE_LABELS = {
+  genero: "Gênero",
   queixa: "Queixa principal",
   alergia: "Alergia a medicamento/material",
   medicamento: "Uso de medicamento atual",
@@ -389,7 +391,7 @@ function formatarAnamnese(an) {
     if(detalheCampo && an[detalheCampo]) v += " — " + an[detalheCampo];
     add(label, v);
   };
-  comDetalhe("queixa","queixaOutro",ANAMNESE_LABELS.queixa);
+  if(an.queixa&&an.queixa.length) add(ANAMNESE_LABELS.queixa, an.queixa.join(", ")+(an.queixaOutro?" — "+an.queixaOutro:""));
   comDetalhe("alergia","alergiaQual",ANAMNESE_LABELS.alergia);
   comDetalhe("medicamento","medicamentoQual",ANAMNESE_LABELS.medicamento);
   if(an.condicoes&&an.condicoes.length) add(ANAMNESE_LABELS.condicoes, an.condicoes.join(", ")+(an.condicoesDetalhe?" — "+an.condicoesDetalhe:""));
@@ -402,16 +404,19 @@ function formatarAnamnese(an) {
   if(an.aparelhoAnterior) add(ANAMNESE_LABELS.aparelhoAnterior, an.aparelhoAnterior+(an.aparelhoTempo?" — "+an.aparelhoTempo:""));
   return linhas;
 }
-// Exibição compacta: uma linha por resposta, sem cards grandes — pensada para
-// não pesar no espaço da página conforme a anamnese cresce.
+// Exibição compacta reaproveitando o padrão já usado no cabeçalho do relatório
+// (rótulo pequeno em caixa alta acima, valor abaixo). Grid auto-preenchível:
+// respostas curtas (Sim/Não) ocupam pouco espaço e ficam lado a lado; respostas
+// longas naturalmente ocupam sua própria célula sem esticar a página.
 function AnamneseCompacta({anamnese}) {
   const linhas = formatarAnamnese(anamnese);
   if(!linhas.length) return null;
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))",columnGap:20,rowGap:10}}>
       {linhas.map((l,i)=>(
-        <div key={i} style={{fontSize:11,lineHeight:1.5,color:"#5C4A2A"}}>
-          <span style={{fontWeight:700,color:GOLD_DARK}}>{l.label}:</span> {l.valor}
+        <div key={i} style={{minWidth:0}}>
+          <div style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:2}}>{l.label}</div>
+          <div style={{fontSize:12,color:"#5C4A2A",lineHeight:1.35,wordBreak:"break-word"}}>{l.valor}</div>
         </div>
       ))}
     </div>
@@ -691,7 +696,7 @@ function Dente({numero, achadoAtivo, achadosDente, onClick, achados}) {
 }
 
 function P2({data, setData}) {
-  const {achadosDente={}, achadoAtivo=null, segAtivo=null, arcadaAtiva=null, obsTexto="", obsCorrigido=""} = data;
+  const {achadosDente={}, achadoAtivo=null, segAtivo=null, arcadaAtiva=null, obsTexto="", obsCorrigido="", notasInternas=""} = data;
   const ACHADOS = data.achados || ACHADOS_DEFAULT;
   const [editandoAchados, setEditandoAchados] = useState(false);
   const [novoAchado, setNovoAchado] = useState({label:"", cor:"#4CAF50"});
@@ -914,6 +919,17 @@ function P2({data, setData}) {
       <Card>
         <SectionTitle>Informações Clínicas</SectionTitle>
         <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={obsTexto} onChange={e=>set("obsTexto",e.target.value)} placeholder="Queixa principal do paciente, histórico clínico, sinais e sintomas..." style={{width:"100%",padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:2,fontSize:13,color:"#1C1410",background:"#fff",fontFamily:"inherit",minHeight:90,resize:"vertical",lineHeight:1.6}}/>
+        <div style={{fontSize:10,color:"#9A8060",marginTop:6}}>Este campo aparece no relatório do paciente.</div>
+      </Card>
+
+      {/* Notas internas — NUNCA aparecem no relatório, uso exclusivo da equipe */}
+      <Card>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+          <span style={{fontSize:13}}>🔒</span>
+          <span style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:"#7A6020",fontWeight:700}}>Notas internas</span>
+        </div>
+        <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={notasInternas} onChange={e=>set("notasInternas",e.target.value)} placeholder="Anotações da equipe: ex. orçamento ainda não apresentado, pendências internas, observações que não devem ir para o paciente..." style={{width:"100%",padding:"10px 12px",border:"1px solid "+GOLD,borderRadius:2,fontSize:13,color:"#1C1410",background:GOLD_PALE,fontFamily:"inherit",minHeight:70,resize:"vertical",lineHeight:1.6}}/>
+        <div style={{fontSize:10,color:GOLD_DARK,marginTop:6,fontWeight:600}}>🔒 Este campo NÃO aparece no relatório — fica só no sistema.</div>
       </Card>
     </div>
   );
@@ -2102,7 +2118,7 @@ function getAchadosInicial() {
     return saved ? JSON.parse(saved) : ACHADOS_DEFAULT;
   } catch(e) { return ACHADOS_DEFAULT; }
 }
-const p2Initial = {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{}};
+const p2Initial = {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{},notasInternas:""};
 
 
 
@@ -3536,12 +3552,12 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             <div style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:6}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:20,fontWeight:800,color:"#2A1538",lineHeight:1.15,marginBottom:5,wordBreak:"break-word"}}>{nome||"—"}</div>
-                <div style={{display:"flex",flexWrap:"wrap",columnGap:16,rowGap:2,fontSize:10.5,color:"#5C4A2A"}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",columnGap:28,rowGap:4,fontSize:10.5,color:"#5C4A2A"}}>
                   <span><span style={{color:GOLD_DARK,fontWeight:700}}>CPF</span> {cpf||"—"}</span>
                   <span><span style={{color:GOLD_DARK,fontWeight:700}}>Tel</span> {telefone||"—"}</span>
                   <span><span style={{color:GOLD_DARK,fontWeight:700}}>Nasc.</span> {dataNasc?dataFmt(dataNasc)+(idade?" ("+idade+")":""):"—"}</span>
                   <span><span style={{color:GOLD_DARK,fontWeight:700}}>Consulta</span> {dataFmt(dataConsulta)}</span>
-                  <span><span style={{color:GOLD_DARK,fontWeight:700}}>Resp. clínico</span> {responsavel||"—"}</span>
+                  <span style={{gridColumn:"span 2"}}><span style={{color:GOLD_DARK,fontWeight:700}}>Resp. clínico</span> {responsavel||"—"}</span>
                 </div>
                 {isMinor && respNome && (
                   <div style={{fontSize:10.5,color:"#5C4A2A",marginTop:3}}>
@@ -3561,7 +3577,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               )}
             </div>
             {p1.anamnese && (
-              <div className="rel-card" style={{marginTop:2,paddingTop:8,borderTop:"1px dashed "+BORDER}}>
+              <div className="rel-card" style={{marginTop:10}}>
                 <div style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:5}}>Anamnese</div>
                 <AnamneseCompacta anamnese={p1.anamnese}/>
               </div>
@@ -4780,7 +4796,7 @@ let _driveFileId = null;
 let _driveFileName = null;
 
 function driveDataHash(p1,p2,p3,p4) {
-  return JSON.stringify({p1:p1.nome+p1.cpf+p1.telefone+p1.dataNasc+p1.dataConsulta+p1.responsavel,p2k:Object.keys(p2.achadosDente||{}).length,p2o:(p2.obsTexto||"").length,p3v:p3.vb,p4a:((p4?.itens||[]).filter(i=>i.ativo).length)});
+  return JSON.stringify({p1:p1.nome+p1.cpf+p1.telefone+p1.dataNasc+p1.dataConsulta+p1.responsavel,p2k:Object.keys(p2.achadosDente||{}).length,p2o:(p2.obsTexto||"").length,p2n:(p2.notasInternas||"").length,p3v:p3.vb,p4a:((p4?.itens||[]).filter(i=>i.ativo).length)});
 }
 
 function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
@@ -5049,7 +5065,8 @@ function FormularioPaciente({formId, especialidade}) {
 
   // Anamnese — Fase 1 (universal) + módulo Ortodontia/DTM
   const [an, setAn] = React.useState({
-    queixa:"", queixaOutro:"",
+    genero:"",
+    queixa:[], queixaOutro:"",
     alergia:"", alergiaQual:"",
     medicamento:"", medicamentoQual:"",
     condicoes:[], condicoesDetalhe:"",
@@ -5066,12 +5083,24 @@ function FormularioPaciente({formId, especialidade}) {
     const arr = p[k].includes(val) ? p[k].filter(x=>x!==val) : [...p[k], val];
     return {...p,[k]:arr};
   });
+  // Condições de saúde: "Nenhuma dessas" é excludente com as demais opções
+  const toggleCondicao = (k,val) => setAn(p=>{
+    const atual = p[k];
+    if(val==="Nenhuma dessas") {
+      return {...p,[k]: atual.includes("Nenhuma dessas") ? [] : ["Nenhuma dessas"]};
+    }
+    const semNenhuma = atual.filter(x=>x!=="Nenhuma dessas");
+    const arr = semNenhuma.includes(val) ? semNenhuma.filter(x=>x!==val) : [...semNenhuma, val];
+    return {...p,[k]:arr};
+  });
 
   const stepOrder = React.useMemo(()=>{
-    const base = ["cadastro","queixa","alergia","medicamento","condicoes","denteAusente","gravida","comoConheceu","relato"];
+    const base = ["cadastro","genero","queixa","alergia","medicamento","condicoes","denteAusente"];
+    const gravidaStep = an.genero==="Masculino" ? [] : ["gravida"]; // não exibir se paciente informou gênero masculino
+    const meio = ["comoConheceu","relato"];
     const ortho = isOrtho ? ["bruxismo","sintomasDtm","aparelhoAnterior"] : [];
-    return [...base, ...ortho, "assinatura"];
-  },[isOrtho]);
+    return [...base, ...gravidaStep, ...meio, ...ortho, "assinatura"];
+  },[isOrtho, an.genero]);
   const stepKey = stepOrder[stepIdx];
   const totalSteps = stepOrder.length;
 
@@ -5121,9 +5150,12 @@ function FormularioPaciente({formId, especialidade}) {
         if(!dataNasc) return "Preencha sua data de nascimento";
         if(isMinor && !respNome.trim()) return "Preencha o nome do responsável legal";
         return "";
+      case "genero":
+        if(!an.genero) return "Toque em uma opção para continuar";
+        return "";
       case "queixa":
-        if(!an.queixa) return "Toque em uma opção para continuar";
-        if(an.queixa==="Outro" && !an.queixaOutro.trim()) return "Conte qual é sua queixa";
+        if(!an.queixa.length) return "Toque em ao menos uma opção para continuar";
+        if(an.queixa.includes("Outro") && !an.queixaOutro.trim()) return "Conte qual é sua queixa";
         return "";
       case "alergia":
         if(!an.alergia) return "Toque em uma opção para continuar";
@@ -5262,12 +5294,20 @@ function FormularioPaciente({formId, especialidade}) {
         </div>
       </div>
     );
+  } else if(stepKey==="genero") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Qual seu gênero?</div>
+        <OpcoesUnicas an={an} setA={setA} field="genero" opcoes={["Feminino","Masculino","Prefiro não informar"]}/>
+      </div>
+    );
   } else if(stepKey==="queixa") {
     stepContent = (
       <div>
         <div style={pergunta}>Qual é sua principal queixa?</div>
-        <OpcoesUnicas an={an} setA={setA} field="queixa" opcoes={["Dor","Estética","Limpeza / Prevenção","Função mastigatória","Outro"]}/>
-        {an.queixa==="Outro"&&<CampoTexto value={an.queixaOutro} onChange={v=>setA("queixaOutro",v)} placeholder="Descreva sua queixa"/>}
+        <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Pode marcar mais de uma opção</div>
+        <OpcoesMultiplas an={an} toggleMulti={toggleMulti} field="queixa" opcoes={["Dor","Estética","Limpeza / Prevenção","Função mastigatória","Outro"]}/>
+        {an.queixa.includes("Outro")&&<CampoTexto value={an.queixaOutro} onChange={v=>setA("queixaOutro",v)} placeholder="Descreva sua queixa"/>}
       </div>
     );
   } else if(stepKey==="alergia") {
@@ -5291,7 +5331,7 @@ function FormularioPaciente({formId, especialidade}) {
       <div>
         <div style={pergunta}>Você tem alguma dessas condições de saúde?</div>
         <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Pode marcar mais de uma, se for o caso</div>
-        <OpcoesMultiplas an={an} toggleMulti={toggleMulti} field="condicoes" opcoes={["Hipertensão","Diabetes","Cardiopatia","Hepatite"]}/>
+        <OpcoesMultiplas an={an} toggleMulti={toggleCondicao} field="condicoes" opcoes={["Hipertensão","Diabetes","Cardiopatia","Hepatite","Nenhuma dessas"]}/>
         <label style={{...lblF,marginTop:8}}>Detalhes (opcional)</label>
         <CampoTexto value={an.condicoesDetalhe} onChange={v=>setA("condicoesDetalhe",v)} placeholder="Alguma observação sobre sua saúde"/>
       </div>
@@ -5608,7 +5648,7 @@ function App() {
     const isTextoDigitado = typeof val !== "function" &&
       val !== null && typeof val === "object" &&
       Object.keys(val).length <= 2 &&
-      (val.obsTexto !== undefined || val.obsCorrigido !== undefined || val.obsAchados !== undefined);
+      (val.obsTexto !== undefined || val.obsCorrigido !== undefined || val.obsAchados !== undefined || val.notasInternas !== undefined);
     if(!isTextoDigitado) {
       setP2Hist(h => { const nh=[...h.slice(0,p2HIdx+1),novo]; setP2HIdx(nh.length-1); return nh.slice(-20); });
     }
