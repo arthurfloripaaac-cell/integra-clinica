@@ -365,6 +365,59 @@ function formatCpf(v) {
   return d.replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2");
 }
 
+// ─── ANAMNESE — utilitário compartilhado (Dados do Paciente + Relatório) ──
+const ANAMNESE_LABELS = {
+  queixa: "Queixa principal",
+  alergia: "Alergia a medicamento/material",
+  medicamento: "Uso de medicamento atual",
+  condicoes: "Condições de saúde",
+  denteAusente: "Dente(s) ausente(s)",
+  gravida: "Gestante",
+  comoConheceu: "Como conheceu a clínica",
+  relatoLivre: "Relato livre",
+  bruxismo: "Bruxismo",
+  sintomasDtm: "Sintomas de DTM",
+  aparelhoAnterior: "Uso de aparelho anterior",
+};
+function formatarAnamnese(an) {
+  if(!an) return [];
+  const linhas = [];
+  const add = (label, valor) => { if(valor && String(valor).trim()) linhas.push({label, valor:String(valor).trim()}); };
+  const comDetalhe = (campo, detalheCampo, label) => {
+    let v = an[campo];
+    if(!v) return;
+    if(detalheCampo && an[detalheCampo]) v += " — " + an[detalheCampo];
+    add(label, v);
+  };
+  comDetalhe("queixa","queixaOutro",ANAMNESE_LABELS.queixa);
+  comDetalhe("alergia","alergiaQual",ANAMNESE_LABELS.alergia);
+  comDetalhe("medicamento","medicamentoQual",ANAMNESE_LABELS.medicamento);
+  if(an.condicoes&&an.condicoes.length) add(ANAMNESE_LABELS.condicoes, an.condicoes.join(", ")+(an.condicoesDetalhe?" — "+an.condicoesDetalhe:""));
+  comDetalhe("denteAusente","denteAusenteQuais",ANAMNESE_LABELS.denteAusente);
+  add(ANAMNESE_LABELS.gravida, an.gravida);
+  comDetalhe("comoConheceu","comoConheceuOutro",ANAMNESE_LABELS.comoConheceu);
+  add(ANAMNESE_LABELS.relatoLivre, an.relatoLivre);
+  add(ANAMNESE_LABELS.bruxismo, an.bruxismo);
+  if(an.sintomasDtm&&an.sintomasDtm.length) add(ANAMNESE_LABELS.sintomasDtm, an.sintomasDtm.join(", ")+(an.sintomasDtmOutro?" — "+an.sintomasDtmOutro:""));
+  if(an.aparelhoAnterior) add(ANAMNESE_LABELS.aparelhoAnterior, an.aparelhoAnterior+(an.aparelhoTempo?" — "+an.aparelhoTempo:""));
+  return linhas;
+}
+// Exibição compacta: uma linha por resposta, sem cards grandes — pensada para
+// não pesar no espaço da página conforme a anamnese cresce.
+function AnamneseCompacta({anamnese}) {
+  const linhas = formatarAnamnese(anamnese);
+  if(!linhas.length) return null;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+      {linhas.map((l,i)=>(
+        <div key={i} style={{fontSize:11,lineHeight:1.5,color:"#5C4A2A"}}>
+          <span style={{fontWeight:700,color:GOLD_DARK}}>{l.label}:</span> {l.valor}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
   const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = data;
 
@@ -374,6 +427,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
   const [adicionandoMembro, setAdicionandoMembro] = React.useState(false);
   const [showEnviarForm, setShowEnviarForm] = React.useState(false);
   const [showFormRecebidos, setShowFormRecebidos] = React.useState(false);
+  const [showAnamnese, setShowAnamnese] = React.useState(false);
   const [linkCopiado, setLinkCopiado] = React.useState(false);
   const [formLinkId, setFormLinkId] = React.useState("f"+Date.now().toString(36));
   const [espLinkForm, setEspLinkForm] = React.useState("geral");
@@ -530,6 +584,21 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
             <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Assinatura Digital</div>
             <img src={data.assinatura} alt="Assinatura" style={{maxWidth:280,height:"auto",border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/>
             <div style={{fontSize:9,color:"#9A8060",marginTop:4}}>Assinatura coletada via formulário digital</div>
+          </div>
+        )}
+        {/* Anamnese recebida via formulário — compacta e retrátil para não pesar na tela */}
+        {data.anamnese && (
+          <div style={{marginBottom:14}}>
+            <div onClick={()=>setShowAnamnese(!showAnamnese)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"8px 12px",background:showAnamnese?GOLD_PALE:"#fff",border:"1px solid "+(showAnamnese?GOLD:BORDER),borderRadius:4}}>
+              <span style={{fontSize:14}}>📋</span>
+              <span style={{fontSize:11,fontWeight:700,color:GOLD_DARK,flex:1}}>Anamnese do paciente</span>
+              <span style={{fontSize:12,color:"#9A8060"}}>{showAnamnese?"▲":"▼"}</span>
+            </div>
+            {showAnamnese&&(
+              <div style={{marginTop:8,padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:4,background:"#fff"}}>
+                <AnamneseCompacta anamnese={data.anamnese}/>
+              </div>
+            )}
           </div>
         )}
         <div style={{borderTop:"1px solid "+BORDER, marginTop:4, paddingTop:16}}>
@@ -2013,6 +2082,8 @@ const p1Initial = {
   dataConsulta:new Date().toISOString().split("T")[0],
   responsavel:"Dr. Arthur A. Cheade",
   assinatura:"",
+  anamnese:null,
+  anamneseEspecialidade:"",
 };
 const ACHADOS_DEFAULT = [
   {id:"gengivite",      label:"Gengivite",          cor:"#E57373"},
@@ -2709,8 +2780,6 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
   const [categoriaModelo, setCategoriaModelo] = useState("");
   const [salvandoModelo, setSalvandoModelo] = useState(false);
   const [modelosSel, setModelosSel] = useState(new Set());
-  // Force spellCheck on mount
-  React.useEffect(()=>{try{document.querySelectorAll("textarea").forEach(t=>{t.setAttribute("spellcheck","true");t.setAttribute("lang","pt-BR");});}catch(e){}},[]);
   const defaultItens = PROC_BASE.map(p => ({
     id: p.id, ativo: false,
     valor: String(p.valorPadrao).replace(".", ","),
@@ -3486,6 +3555,12 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               <div style={{fontSize:12,color:"#5C4A2A",marginBottom:4,paddingLeft:8,borderLeft:"2px solid "+PURPLE}}>
                 <span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:PURPLE,fontWeight:600}}>Responsável Legal</span>
                 <div>{respNome} {respCpf?"· CPF: "+respCpf:""}</div>
+              </div>
+            )}
+            {p1.anamnese && (
+              <div className="rel-card" style={{marginTop:8,paddingTop:8,borderTop:"1px dashed "+BORDER}}>
+                <div style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:5}}>Anamnese</div>
+                <AnamneseCompacta anamnese={p1.anamnese}/>
               </div>
             )}
           </>}
@@ -4899,6 +4974,58 @@ function AssinaturaCanvas({value, onChange}) {
   );
 }
 
+// ── Estilos e componentes da anamnese (fora do componente de formulário) ──
+// IMPORTANTE: estes componentes ficam FORA de FormularioPaciente de propósito.
+// Se ficassem dentro, o React recriaria a função a cada nova tecla digitada,
+// desmontando o campo e fazendo o foco (e o cursor) sumir a cada letra.
+const ANAM_INPUT_STYLE = {width:"100%",padding:"20px 22px",border:"2.5px solid "+BORDER,borderRadius:12,fontSize:22,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.4};
+const anamOptBtn = (selected) => ({
+  width:"100%",padding:"20px 20px",marginBottom:12,borderRadius:12,
+  border: selected?"3px solid "+PURPLE:"2.5px solid "+BORDER,
+  background: selected?PURPLE:"#fff",
+  color: selected?"#fff":"#2A1538",
+  fontSize:19, fontWeight:selected?700:600, textAlign:"left",
+  cursor:"pointer", boxSizing:"border-box", display:"flex", alignItems:"center", gap:12,
+  boxShadow: selected?"0 2px 10px rgba(91,45,142,0.25)":"none",
+  lineHeight:1.3,
+});
+const anamCheckMark = (selected) => (
+  <span style={{width:26,height:26,borderRadius:6,flexShrink:0,border:selected?"2px solid #fff":"2px solid "+BORDER,background:selected?"rgba(255,255,255,0.15)":"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>
+    {selected?"✓":""}
+  </span>
+);
+function OpcoesUnicas({field, opcoes, an, setA}) {
+  return (
+    <div>
+      {opcoes.map(op=>(
+        <div key={op} onClick={()=>setA(field,op)} style={anamOptBtn(an[field]===op)}>
+          {anamCheckMark(an[field]===op)}
+          <span>{op}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+function OpcoesMultiplas({field, opcoes, an, toggleMulti}) {
+  return (
+    <div>
+      {opcoes.map(op=>(
+        <div key={op} onClick={()=>toggleMulti(field,op)} style={anamOptBtn(an[field].includes(op))}>
+          {anamCheckMark(an[field].includes(op))}
+          <span>{op}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+function CampoTexto({value, onChange, placeholder, area}) {
+  return area ? (
+    <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" style={{...ANAM_INPUT_STYLE,minHeight:110,resize:"vertical",marginTop:6}} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>
+  ) : (
+    <input spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" style={{...ANAM_INPUT_STYLE,marginTop:6}} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>
+  );
+}
+
 function FormularioPaciente({formId, especialidade}) {
   const isOrtho = especialidade === "ortho";
   const [nome, setNome] = React.useState("");
@@ -5079,50 +5206,6 @@ function FormularioPaciente({formId, especialidade}) {
   const inpF = {width:"100%",padding:"20px 22px",border:"2.5px solid "+BORDER,borderRadius:12,fontSize:22,color:"#1C1410",background:"#fff",outline:"none",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.4};
   const lblF = {fontSize:16,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,display:"block",marginBottom:10};
   const pergunta = {fontSize:23,fontWeight:700,color:"#2A1538",lineHeight:1.35,marginBottom:22};
-  const optBtn = (selected) => ({
-    width:"100%",padding:"20px 20px",marginBottom:12,borderRadius:12,
-    border: selected?"3px solid "+PURPLE:"2.5px solid "+BORDER,
-    background: selected?PURPLE:"#fff",
-    color: selected?"#fff":"#2A1538",
-    fontSize:19, fontWeight:selected?700:600, textAlign:"left",
-    cursor:"pointer", boxSizing:"border-box", display:"flex", alignItems:"center", gap:12,
-    boxShadow: selected?"0 2px 10px rgba(91,45,142,0.25)":"none",
-    lineHeight:1.3,
-  });
-  const checkMark = (selected) => (
-    <span style={{width:26,height:26,borderRadius:6,flexShrink:0,border:selected?"2px solid #fff":"2px solid "+BORDER,background:selected?"rgba(255,255,255,0.15)":"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>
-      {selected?"✓":""}
-    </span>
-  );
-
-  // ── Componentes de tela ──
-  const OpcoesUnicas = ({field, opcoes}) => (
-    <div>
-      {opcoes.map(op=>(
-        <div key={op} onClick={()=>setA(field,op)} style={optBtn(an[field]===op)}>
-          {checkMark(an[field]===op)}
-          <span>{op}</span>
-        </div>
-      ))}
-    </div>
-  );
-
-  const OpcoesMultiplas = ({field, opcoes}) => (
-    <div>
-      {opcoes.map(op=>(
-        <div key={op} onClick={()=>toggleMulti(field,op)} style={optBtn(an[field].includes(op))}>
-          {checkMark(an[field].includes(op))}
-          <span>{op}</span>
-        </div>
-      ))}
-    </div>
-  );
-
-  const CampoTexto = ({value, onChange, placeholder, area}) => area ? (
-    <textarea style={{...inpF,minHeight:110,resize:"vertical",marginTop:6}} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>
-  ) : (
-    <input style={{...inpF,marginTop:6}} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>
-  );
 
   let stepContent = null;
 
@@ -5180,7 +5263,7 @@ function FormularioPaciente({formId, especialidade}) {
     stepContent = (
       <div>
         <div style={pergunta}>Qual é sua principal queixa?</div>
-        <OpcoesUnicas field="queixa" opcoes={["Dor","Estética","Limpeza / Prevenção","Função mastigatória","Outro"]}/>
+        <OpcoesUnicas an={an} setA={setA} field="queixa" opcoes={["Dor","Estética","Limpeza / Prevenção","Função mastigatória","Outro"]}/>
         {an.queixa==="Outro"&&<CampoTexto value={an.queixaOutro} onChange={v=>setA("queixaOutro",v)} placeholder="Descreva sua queixa"/>}
       </div>
     );
@@ -5188,7 +5271,7 @@ function FormularioPaciente({formId, especialidade}) {
     stepContent = (
       <div>
         <div style={pergunta}>Tem alergia a algum medicamento ou material?</div>
-        <OpcoesUnicas field="alergia" opcoes={["Não","Sim"]}/>
+        <OpcoesUnicas an={an} setA={setA} field="alergia" opcoes={["Não","Sim"]}/>
         {an.alergia==="Sim"&&<CampoTexto value={an.alergiaQual} onChange={v=>setA("alergiaQual",v)} placeholder="A qual medicamento ou material?"/>}
       </div>
     );
@@ -5196,7 +5279,7 @@ function FormularioPaciente({formId, especialidade}) {
     stepContent = (
       <div>
         <div style={pergunta}>Está tomando algum medicamento atualmente?</div>
-        <OpcoesUnicas field="medicamento" opcoes={["Não","Sim"]}/>
+        <OpcoesUnicas an={an} setA={setA} field="medicamento" opcoes={["Não","Sim"]}/>
         {an.medicamento==="Sim"&&<CampoTexto value={an.medicamentoQual} onChange={v=>setA("medicamentoQual",v)} placeholder="Qual medicamento?"/>}
       </div>
     );
@@ -5205,7 +5288,7 @@ function FormularioPaciente({formId, especialidade}) {
       <div>
         <div style={pergunta}>Você tem alguma dessas condições de saúde?</div>
         <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Pode marcar mais de uma, se for o caso</div>
-        <OpcoesMultiplas field="condicoes" opcoes={["Hipertensão","Diabetes","Cardiopatia","Hepatite"]}/>
+        <OpcoesMultiplas an={an} toggleMulti={toggleMulti} field="condicoes" opcoes={["Hipertensão","Diabetes","Cardiopatia","Hepatite"]}/>
         <label style={{...lblF,marginTop:8}}>Detalhes (opcional)</label>
         <CampoTexto value={an.condicoesDetalhe} onChange={v=>setA("condicoesDetalhe",v)} placeholder="Alguma observação sobre sua saúde"/>
       </div>
@@ -5214,7 +5297,7 @@ function FormularioPaciente({formId, especialidade}) {
     stepContent = (
       <div>
         <div style={pergunta}>Você tem algum dente ausente? (sem contar os sisos)</div>
-        <OpcoesUnicas field="denteAusente" opcoes={["Não","Sim","Não sei"]}/>
+        <OpcoesUnicas an={an} setA={setA} field="denteAusente" opcoes={["Não","Sim","Não sei"]}/>
         {an.denteAusente==="Sim"&&<CampoTexto value={an.denteAusenteQuais} onChange={v=>setA("denteAusenteQuais",v)} placeholder="Quais dentes, se souber"/>}
       </div>
     );
@@ -5223,14 +5306,14 @@ function FormularioPaciente({formId, especialidade}) {
       <div>
         <div style={pergunta}>Está grávida?</div>
         <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Se não for aplicável, toque em "Não"</div>
-        <OpcoesUnicas field="gravida" opcoes={["Não","Sim"]}/>
+        <OpcoesUnicas an={an} setA={setA} field="gravida" opcoes={["Não","Sim"]}/>
       </div>
     );
   } else if(stepKey==="comoConheceu") {
     stepContent = (
       <div>
         <div style={pergunta}>Como você conheceu a Íntegra Clínica?</div>
-        <OpcoesUnicas field="comoConheceu" opcoes={["Indicação","Instagram","Google","Convênio","Já sou paciente","Outro"]}/>
+        <OpcoesUnicas an={an} setA={setA} field="comoConheceu" opcoes={["Indicação","Instagram","Google","Convênio","Já sou paciente","Outro"]}/>
         {an.comoConheceu==="Outro"&&<CampoTexto value={an.comoConheceuOutro} onChange={v=>setA("comoConheceuOutro",v)} placeholder="Como você conheceu?"/>}
       </div>
     );
@@ -5246,7 +5329,7 @@ function FormularioPaciente({formId, especialidade}) {
     stepContent = (
       <div>
         <div style={pergunta}>Você aperta ou range os dentes?</div>
-        <OpcoesUnicas field="bruxismo" opcoes={["Não","Sim","Às vezes","Não sei"]}/>
+        <OpcoesUnicas an={an} setA={setA} field="bruxismo" opcoes={["Não","Sim","Às vezes","Não sei"]}/>
       </div>
     );
   } else if(stepKey==="sintomasDtm") {
@@ -5254,7 +5337,7 @@ function FormularioPaciente({formId, especialidade}) {
       <div>
         <div style={pergunta}>Sente algum desses sintomas?</div>
         <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Pode marcar mais de um</div>
-        <OpcoesMultiplas field="sintomasDtm" opcoes={["Dor de cabeça frequente","Estalos ou ruídos ao abrir a boca","Dificuldade para abrir a boca","Dor no ouvido","Cansaço no rosto ao mastigar","Não sei localizar, mas sinto desconforto"]}/>
+        <OpcoesMultiplas an={an} toggleMulti={toggleMulti} field="sintomasDtm" opcoes={["Dor de cabeça frequente","Estalos ou ruídos ao abrir a boca","Dificuldade para abrir a boca","Dor no ouvido","Cansaço no rosto ao mastigar","Não sei localizar, mas sinto desconforto"]}/>
         <label style={{...lblF,marginTop:8}}>Outro (opcional)</label>
         <CampoTexto value={an.sintomasDtmOutro} onChange={v=>setA("sintomasDtmOutro",v)} placeholder="Algum outro sintoma"/>
       </div>
@@ -5263,11 +5346,11 @@ function FormularioPaciente({formId, especialidade}) {
     stepContent = (
       <div>
         <div style={pergunta}>Você já usou aparelho ortodôntico?</div>
-        <OpcoesUnicas field="aparelhoAnterior" opcoes={["Nunca","Sim"]}/>
+        <OpcoesUnicas an={an} setA={setA} field="aparelhoAnterior" opcoes={["Nunca","Sim"]}/>
         {an.aparelhoAnterior==="Sim"&&(
           <div style={{marginTop:10}}>
             <label style={lblF}>Há quanto tempo?</label>
-            <OpcoesUnicas field="aparelhoTempo" opcoes={["Menos de 1 ano","1 a 2 anos","2 a 3 anos","Mais de 3 anos","Não lembro"]}/>
+            <OpcoesUnicas an={an} setA={setA} field="aparelhoTempo" opcoes={["Menos de 1 ano","1 a 2 anos","2 a 3 anos","Mais de 3 anos","Não lembro"]}/>
           </div>
         )}
       </div>
@@ -5382,8 +5465,12 @@ function FormulariosRecebidos({onImportar}) {
       respNome: f.respNome||"",
       respCpf: f.respCpf||"",
       assinatura: f.assinatura||"",
+      anamnese: f.anamnese||null,
+      anamneseEspecialidade: f.especialidade||"",
     });
     _fbDb.ref("formularios/"+f._key+"/status").set("importado");
+    showToast("Formulário de "+f.nome+" aberto — dados carregados na aba Paciente");
+    window.scrollTo({top:0,behavior:"smooth"});
   };
 
   const excluir = (f) => {
@@ -5417,7 +5504,80 @@ function FormulariosRecebidos({onImportar}) {
   );
 }
 
+// ─── CORRETOR ORTOGRÁFICO GLOBAL ─────────────────
+// Em vez de ligar spellcheck campo por campo (frágil — sempre falta algum
+// quando um campo novo é criado), este hook varre o sistema inteiro uma vez
+// e passa a observar o DOM: qualquer <input> ou <textarea> que apareça depois
+// (novo achado, novo procedimento, etc.) recebe o corretor automaticamente.
+// Campos que já têm spellCheck={false} de propósito (nome, CPF, telefone,
+// campos de código) são respeitados e ficam de fora.
+function useCorretorOrtografico() {
+  React.useEffect(()=>{
+    const TIPOS_SEM_CORRETOR = new Set(["tel","number","email","password","date","checkbox","radio","file","hidden","range","color","month","week","time"]);
+    const aplicar = (el) => {
+      if(!el || !el.tagName) return;
+      const tag = el.tagName.toLowerCase();
+      if(tag!=="textarea" && tag!=="input") return;
+      if(tag==="input" && TIPOS_SEM_CORRETOR.has((el.type||"text").toLowerCase())) return;
+      if(el.getAttribute("spellcheck")==="false") return;
+      if(el.hasAttribute("data-nospell")) return;
+      el.setAttribute("spellcheck","true");
+      el.setAttribute("lang","pt-BR");
+      el.setAttribute("autocorrect","on");
+    };
+    const varrer = (root) => {
+      try {
+        if(root.nodeType===1 && (root.tagName==="INPUT"||root.tagName==="TEXTAREA")) aplicar(root);
+        if(root.querySelectorAll) root.querySelectorAll("input,textarea").forEach(aplicar);
+      } catch(e){}
+    };
+    varrer(document);
+    const obs = new MutationObserver((mutations)=>{
+      for(const m of mutations){
+        if(m.addedNodes) m.addedNodes.forEach(n=>{ if(n.nodeType===1) varrer(n); });
+      }
+    });
+    obs.observe(document.body,{childList:true,subtree:true});
+    return ()=>obs.disconnect();
+  },[]);
+}
+
+// ─── TOAST GLOBAL (feedback visual de ações) ─────────────────
+let _toastListeners = [];
+function showToast(msg, type) {
+  _toastListeners.forEach(fn=>fn(msg, type||"success"));
+}
+function ToastContainer() {
+  const [toasts, setToasts] = React.useState([]);
+  React.useEffect(()=>{
+    const listener = (msg, type) => {
+      const id = Date.now()+"_"+Math.random();
+      setToasts(prev=>[...prev, {id, msg, type}]);
+      setTimeout(()=>{ setToasts(prev=>prev.filter(t=>t.id!==id)); }, 2400);
+    };
+    _toastListeners.push(listener);
+    return ()=>{ _toastListeners = _toastListeners.filter(l=>l!==listener); };
+  },[]);
+  if(!toasts.length) return null;
+  return (
+    <div className="no-print" style={{position:"fixed",bottom:22,left:"50%",transform:"translateX(-50%)",zIndex:99999,display:"flex",flexDirection:"column",gap:8,alignItems:"center",pointerEvents:"none"}}>
+      {toasts.map(t=>(
+        <div key={t.id} style={{
+          background: t.type==="error"?"#C62828":"#2E7D32",
+          color:"#fff",padding:"10px 18px",borderRadius:24,fontSize:13,fontWeight:600,
+          boxShadow:"0 4px 18px rgba(0,0,0,0.28)",display:"flex",alignItems:"center",gap:8,
+          maxWidth:"88vw",textAlign:"center",
+        }}>
+          <span>{t.type==="error"?"⚠":"✓"}</span>
+          <span>{t.msg}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function App() {
+  useCorretorOrtografico();
   // Detectar URL de formulário público /f/xxxxx
   const urlPath = typeof window !== "undefined" ? window.location.pathname : "";
   const formMatch = urlPath.match(/\/f\/([a-zA-Z0-9_-]+)/);
@@ -5533,6 +5693,7 @@ function App() {
   return (
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
       {pag!=="rel"&&<Header/>}
+      <ToastContainer/>
       <DriveAutoSync p1={p1} p2={p2} p3={p3} p4State={p4State} setP1={setP1} setP2={setP2} setP3={setP3} setP4State={setP4State}/>
 
       {/* Barra de ações globais — fixa em TODAS as abas */}
@@ -5547,7 +5708,7 @@ function App() {
 
           {/* Salvar no Drive */}
           {driveLogado&&(
-            <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now()+Math.floor(Math.random()*1000),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,false);if(res&&res.precisaConfirmar){setModalSalvar({msg:"Já existe um arquivo para "+(p1.nome||"este paciente")+" no Google Drive.",onSobrepor:async()=>{setModalSalvar(null);try{await gdriveSalvarAtendimento(rel,true);}catch(e2){alert("Erro: "+e2.message);}},onDuplicar:async()=>{setModalSalvar(null);try{await gdriveSalvarAtendimento(rel,"novo");}catch(e2){alert("Erro: "+e2.message);}},onCancelar:()=>setModalSalvar(null)});}}catch(e){alert("Erro: "+e.message);}}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
+            <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now()+Math.floor(Math.random()*1000),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,false);if(res&&res.precisaConfirmar){setModalSalvar({msg:"Já existe um arquivo para "+(p1.nome||"este paciente")+" no Google Drive.",onSobrepor:async()=>{setModalSalvar(null);try{await gdriveSalvarAtendimento(rel,true);showToast("Salvo na nuvem");}catch(e2){showToast("Erro ao salvar: "+e2.message,"error");}},onDuplicar:async()=>{setModalSalvar(null);try{await gdriveSalvarAtendimento(rel,"novo");showToast("Salvo na nuvem como novo arquivo");}catch(e2){showToast("Erro ao salvar: "+e2.message,"error");}},onCancelar:()=>setModalSalvar(null)});}else{showToast("Salvo na nuvem");}}catch(e){showToast("Erro ao salvar: "+e.message,"error");}}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
               ☁ Salvar
             </div>
           )}
@@ -5699,7 +5860,7 @@ function App() {
   setP4State(prev=>({...p4Initial, procsBase:prev.procsBase, customProcs:(prev.customProcs||[]).map(c=>({...c,ativo:false,dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}))}));
   _driveFileId=null; _driveFileName=null; _lastSyncHash="";
 }} onImportarFormulario={(f)=>{
-  setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||""}));
+  setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||"", anamnese:f.anamnese||null, anamneseEspecialidade:f.anamneseEspecialidade||""}));
 }}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State} modelos={modelos} setModelos={setModelos} p3={p3} setP3={v=>setP3(prev=>({...prev,...v}))}/>}
