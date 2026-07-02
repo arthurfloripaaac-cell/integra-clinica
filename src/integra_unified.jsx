@@ -3533,11 +3533,24 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Dados do Paciente</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:p1.assinatura?"1fr 1fr auto":"1fr 1fr",gap:"3px 16px",marginBottom:6,fontSize:12,color:"#5C4A2A"}}>
-              <div><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Paciente</span><div style={{fontWeight:500}}>{nome||"—"}</div></div>
-              <div><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>CPF</span><div>{cpf||"—"}</div></div>
+            <div style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:6}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:20,fontWeight:800,color:"#2A1538",lineHeight:1.15,marginBottom:5,wordBreak:"break-word"}}>{nome||"—"}</div>
+                <div style={{display:"flex",flexWrap:"wrap",columnGap:16,rowGap:2,fontSize:10.5,color:"#5C4A2A"}}>
+                  <span><span style={{color:GOLD_DARK,fontWeight:700}}>CPF</span> {cpf||"—"}</span>
+                  <span><span style={{color:GOLD_DARK,fontWeight:700}}>Tel</span> {telefone||"—"}</span>
+                  <span><span style={{color:GOLD_DARK,fontWeight:700}}>Nasc.</span> {dataNasc?dataFmt(dataNasc)+(idade?" ("+idade+")":""):"—"}</span>
+                  <span><span style={{color:GOLD_DARK,fontWeight:700}}>Consulta</span> {dataFmt(dataConsulta)}</span>
+                  <span><span style={{color:GOLD_DARK,fontWeight:700}}>Resp. clínico</span> {responsavel||"—"}</span>
+                </div>
+                {isMinor && respNome && (
+                  <div style={{fontSize:10.5,color:"#5C4A2A",marginTop:3}}>
+                    <span style={{color:PURPLE,fontWeight:700}}>Responsável legal</span> {respNome}{respCpf?" · CPF "+respCpf:""}
+                  </div>
+                )}
+              </div>
               {p1.assinatura && (
-                <div style={{gridRow:"1 / 5",gridColumn:3,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",paddingLeft:16,borderLeft:"1px solid "+BORDER}}>
+                <div style={{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",paddingLeft:16,borderLeft:"1px solid "+BORDER}}>
                   <span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:4}}>{isMinor&&respNome?"Assinatura do responsável":"Assinatura do paciente"}</span>
                   {isMinor&&respNome&&<div style={{fontSize:11,fontWeight:600,color:"#5C4A2A",marginBottom:4}}>{respNome}</div>}
                   {!isMinor&&<div style={{fontSize:11,fontWeight:600,color:"#5C4A2A",marginBottom:4}}>{nome}</div>}
@@ -3546,19 +3559,9 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   </div>
                 </div>
               )}
-              <div style={{marginTop:4}}><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Telefone</span><div>{telefone||"—"}</div></div>
-              <div style={{marginTop:4}}><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Nascimento</span><div>{dataNasc?dataFmt(dataNasc)+(idade?" ("+idade+")":""):"—"}</div></div>
-              <div style={{marginTop:4}}><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Responsável clínico</span><div>{responsavel||"—"}</div></div>
-              <div style={{marginTop:4}}><span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:600}}>Consulta</span><div>{dataFmt(dataConsulta)}</div></div>
             </div>
-            {isMinor && respNome && !p1.assinatura && (
-              <div style={{fontSize:12,color:"#5C4A2A",marginBottom:4,paddingLeft:8,borderLeft:"2px solid "+PURPLE}}>
-                <span style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:PURPLE,fontWeight:600}}>Responsável Legal</span>
-                <div>{respNome} {respCpf?"· CPF: "+respCpf:""}</div>
-              </div>
-            )}
             {p1.anamnese && (
-              <div className="rel-card" style={{marginTop:8,paddingTop:8,borderTop:"1px dashed "+BORDER}}>
+              <div className="rel-card" style={{marginTop:2,paddingTop:8,borderTop:"1px dashed "+BORDER}}>
                 <div style={{fontSize:9,letterSpacing:1,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:5}}>Anamnese</div>
                 <AnamneseCompacta anamnese={p1.anamnese}/>
               </div>
