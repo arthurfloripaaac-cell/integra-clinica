@@ -372,7 +372,7 @@ const ANAMNESE_LABELS = {
   queixa: "Queixa principal",
   alergia: "Alergia a medicamento/material",
   medicamento: "Uso de medicamento atual",
-  condicoes: "Condições de saúde",
+  condicoes: "Doença pré-existente",
   denteAusente: "Dente(s) ausente(s)",
   gravida: "Gestante",
   comoConheceu: "Como conheceu a clínica",
@@ -394,7 +394,10 @@ function formatarAnamnese(an) {
   if(an.queixa&&an.queixa.length) add(ANAMNESE_LABELS.queixa, an.queixa.join(", ")+(an.queixaOutro?" — "+an.queixaOutro:""));
   comDetalhe("alergia","alergiaQual",ANAMNESE_LABELS.alergia);
   comDetalhe("medicamento","medicamentoQual",ANAMNESE_LABELS.medicamento);
-  if(an.condicoes&&an.condicoes.length) add(ANAMNESE_LABELS.condicoes, an.condicoes.join(", ")+(an.condicoesDetalhe?" — "+an.condicoesDetalhe:""));
+  if(an.condicoes&&an.condicoes.length) {
+    const listaCondicoes = an.condicoes.length===1 && an.condicoes[0]==="Nenhuma dessas" ? "Nenhuma" : an.condicoes.join(", ");
+    add(ANAMNESE_LABELS.condicoes, listaCondicoes+(an.condicoesDetalhe?" — "+an.condicoesDetalhe:""));
+  }
   comDetalhe("denteAusente","denteAusenteQuais",ANAMNESE_LABELS.denteAusente);
   add(ANAMNESE_LABELS.gravida, an.gravida);
   comDetalhe("comoConheceu","comoConheceuOutro",ANAMNESE_LABELS.comoConheceu);
