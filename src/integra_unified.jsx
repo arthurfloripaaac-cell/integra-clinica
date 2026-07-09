@@ -1182,7 +1182,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               const proc=(p4State?.procsBase||[]).find(p=>p.id===it.id)||{nome:it.nome||it.id};
               const prop=it.proposta;
               const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
-              const dp2=prop.ds||0;
+              const dp2=prop.ds===-1?(parseFloat(prop.dc)||0):(prop.ds||0);
               const vf2=dp2>0?vb2*(1-dp2/100):vb2;
               // Entrada individual
               const propEntrada=prop.entrada||false;
@@ -1679,7 +1679,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                     const proc=(p4State?.procsBase||[]).find(p=>p.id===it.id)||{nome:it.nome||it.id};
                     const prop=it.proposta;
                     const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
-                    const dp2=prop.ds||0;
+                    const dp2=prop.ds===-1?(parseFloat(prop.dc)||0):(prop.ds||0);
                     const vf2=dp2>0?vb2*(1-dp2/100):vb2;
                     const propPlano=prop.plano||"hora";
                     const propQuem=prop.quemPaga||"comprador";
@@ -2389,7 +2389,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                       {(()=>{
                         const prop=item.proposta;
                         const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
-                        const dp2=prop.ds||0;
+                        const dp2=prop.ds===-1?(parseFloat(prop.dc)||0):(prop.ds||0);
                         const vf2=dp2>0?vb2*(1-dp2/100):vb2;
                         const entVal=prop.entrada?((prop.entradaTipo||"pct")==="pct"?vb2*(parseFloat(prop.entradaVal||0)/100):parseFloat(prop.entradaVal||0)):0;
                         const saldo=prop.entrada?Math.max(0,vb2-entVal):vf2;
@@ -3675,7 +3675,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   const proc=(p4State?.procsBase||PROC_BASE).find(p=>p.id===it.id)||{nome:it.nome||it.id};
                   const prop=it.proposta;
                   const vb2=parseFloat(String(prop.vb||0).replace(",","."))||0;
-                  const dp2=prop.ds||0;
+                  const dp2=prop.ds===-1?(parseFloat(prop.dc)||0):(prop.ds||0);
                   const vf2=dp2>0?vb2*(1-dp2/100):vb2;
                   // Entrada individual
                   const propEntrada=prop.entrada||false;
@@ -4735,7 +4735,7 @@ function MiniOrcamento({valor, procNome, propostaInicial, onSave, onClose}) {
   const [p3mini, setP3mini] = React.useState({
     vb: valorStr,
     ds: init.ds||cfg.descontoPadrao||0,
-    dc: "", fc: init.fc||[], fa: null,
+    dc: init.dc||"", fc: init.fc||[], fa: null,
     bm: init.bm||"avista", bp: init.bp||"6",
     bj: init.bj||"sem_juros", bi: "3", ci: cfg.parcelasIsentas||"0",
     cp: null, tb: "calc",
