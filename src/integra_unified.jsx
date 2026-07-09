@@ -37,12 +37,13 @@ if(typeof document !== "undefined") {
 }
 
 function sanitizeP2(p2r) {
-  if(!p2r) return {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{},notasInternas:""};
+  if(!p2r) return {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{},notasInternas:"",faltouConsulta:false};
   if(!p2r.achadosDente) p2r.achadosDente={};
   if(!p2r.obsAchados) p2r.obsAchados={};
   if(!p2r.achados) p2r.achados=null;
   if(!p2r.obsTexto) p2r.obsTexto="";
   if(p2r.notasInternas===undefined) p2r.notasInternas="";
+  if(p2r.faltouConsulta===undefined) p2r.faltouConsulta=false;
   if(!p2r.obsCorrigido) p2r.obsCorrigido="";
   if(p2r.achadoAtivo===undefined) p2r.achadoAtivo=null;
   if(p2r.segAtivo===undefined) p2r.segAtivo=null;
@@ -427,7 +428,7 @@ function AnamneseCompacta({anamnese}) {
 }
 
 function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
-  const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = data;
+  const {nome,cpf,telefone,email,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = data;
 
   const [equipe, setEquipe] = React.useState(EQUIPE);
   const [gerenciandoEquipe, setGerenciandoEquipe] = React.useState(false);
@@ -570,6 +571,9 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
           <Field label="Telefone / WhatsApp"><input style={inp} value={maskTelefone(telefone)} onChange={e=>set("telefone",e.target.value.replace(/\D/g,""))} placeholder="(048) 99999-9999"/></Field>
         </div>
         <div style={{marginBottom:12}}>
+          <Field label="E-mail"><input style={inp} type="email" spellCheck={false} value={email||""} onChange={e=>set("email",e.target.value)} placeholder="paciente@email.com"/></Field>
+        </div>
+        <div style={{marginBottom:12}}>
           <Field label="Data de nascimento"><input style={inp} type="date" value={dataNasc} onChange={e=>set("dataNasc",e.target.value)}/></Field>
         </div>
         {dataNasc && idade && (
@@ -699,7 +703,7 @@ function Dente({numero, achadoAtivo, achadosDente, onClick, achados}) {
 }
 
 function P2({data, setData}) {
-  const {achadosDente={}, achadoAtivo=null, segAtivo=null, arcadaAtiva=null, obsTexto="", obsCorrigido="", notasInternas=""} = data;
+  const {achadosDente={}, achadoAtivo=null, segAtivo=null, arcadaAtiva=null, obsTexto="", obsCorrigido="", notasInternas="", faltouConsulta=false} = data;
   const ACHADOS = data.achados || ACHADOS_DEFAULT;
   const [editandoAchados, setEditandoAchados] = useState(false);
   const [novoAchado, setNovoAchado] = useState({label:"", cor:"#4CAF50"});
@@ -923,6 +927,19 @@ function P2({data, setData}) {
         <SectionTitle>Informações Clínicas</SectionTitle>
         <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={obsTexto} onChange={e=>set("obsTexto",e.target.value)} placeholder="Queixa principal do paciente, histórico clínico, sinais e sintomas..." style={{width:"100%",padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:2,fontSize:13,color:"#1C1410",background:"#fff",fontFamily:"inherit",minHeight:90,resize:"vertical",lineHeight:1.6}}/>
         <div style={{fontSize:10,color:"#9A8060",marginTop:6}}>Este campo aparece no relatório do paciente.</div>
+      </Card>
+
+      {/* Falta de consulta — marcador estruturado, uso interno (prontuário digital) */}
+      <Card>
+        <div onClick={()=>set("faltouConsulta",!faltouConsulta)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 4px"}}>
+          <div style={{width:20,height:20,borderRadius:4,border:"2px solid "+(faltouConsulta?"#C62828":BORDER),background:faltouConsulta?"#C62828":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            {faltouConsulta&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✕</span>}
+          </div>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:faltouConsulta?"#C62828":"#2A1538"}}>Paciente não compareceu à consulta</div>
+            <div style={{fontSize:10,color:"#9A8060"}}>Marcação interna — não aparece no relatório. Evita confundir formulário preenchido com presença confirmada.</div>
+          </div>
+        </div>
       </Card>
 
       {/* Notas internas — NUNCA aparecem no relatório, uso exclusivo da equipe */}
@@ -2093,6 +2110,7 @@ const p1Initial = {
   nome:"",
   cpf:"",
   telefone:"",
+  email:"",
   dataNasc:"",
   idade:"",
   isMinor:false,
@@ -2121,7 +2139,7 @@ function getAchadosInicial() {
     return saved ? JSON.parse(saved) : ACHADOS_DEFAULT;
   } catch(e) { return ACHADOS_DEFAULT; }
 }
-const p2Initial = {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{},notasInternas:""};
+const p2Initial = {achadosDente:{},achadoAtivo:null,segAtivo:null,arcadaAtiva:null,obsTexto:"",obsCorrigido:"",achados:null,obsAchados:{},notasInternas:"",faltouConsulta:false};
 
 
 
@@ -3450,7 +3468,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
     valorTotal: parseFloat(p3.vb)||0,
     _p1:p1, _p2:p2, _p3:p3, _p4:p4State,
   }),[p1,p2,p3,p4State]);
-  const {nome,cpf,telefone,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
+  const {nome,cpf,telefone,email,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = p1;
   const {achadosDente={},obsTexto=""} = p2;
   const {vb,ds,dc,fc,bm,bp,bj,bi,ci,entrada=false,entradaTipo="pct",entradaVal="0",saldoTipo="parcelado",ct=false,bt=false,plano="dias14",quemPaga="comprador",boletoComDesconto=false} = p3;
   const dp = ds===-1?(parseFloat(dc)||0):ds;
@@ -3559,8 +3577,9 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                   <span><span style={{color:GOLD_DARK,fontWeight:700}}>CPF</span> {cpf||"—"}</span>
                   <span><span style={{color:GOLD_DARK,fontWeight:700}}>Tel</span> {telefone||"—"}</span>
                   <span><span style={{color:GOLD_DARK,fontWeight:700}}>Nasc.</span> {dataNasc?dataFmt(dataNasc)+(idade?" ("+idade+")":""):"—"}</span>
+                  <span style={{gridColumn:"span 2"}}><span style={{color:GOLD_DARK,fontWeight:700}}>E-mail</span> {email||"—"}</span>
                   <span><span style={{color:GOLD_DARK,fontWeight:700}}>Consulta</span> {dataFmt(dataConsulta)}</span>
-                  <span style={{gridColumn:"span 2"}}><span style={{color:GOLD_DARK,fontWeight:700}}>Resp. clínico</span> {responsavel||"—"}</span>
+                  <span style={{gridColumn:"span 3"}}><span style={{color:GOLD_DARK,fontWeight:700}}>Resp. clínico</span> {responsavel||"—"}</span>
                 </div>
                 {isMinor && respNome && (
                   <div style={{fontSize:10.5,color:"#5C4A2A",marginTop:3}}>
@@ -4799,13 +4818,16 @@ let _driveFileId = null;
 let _driveFileName = null;
 
 function driveDataHash(p1,p2,p3,p4) {
-  return JSON.stringify({p1:p1.nome+p1.cpf+p1.telefone+p1.dataNasc+p1.dataConsulta+p1.responsavel,p2k:Object.keys(p2.achadosDente||{}).length,p2o:(p2.obsTexto||"").length,p2n:(p2.notasInternas||"").length,p3v:p3.vb,p4a:((p4?.itens||[]).filter(i=>i.ativo).length)});
+  return JSON.stringify({p1:p1.nome+p1.cpf+p1.telefone+p1.dataNasc+p1.dataConsulta+p1.responsavel,p2k:Object.keys(p2.achadosDente||{}).length,p2o:(p2.obsTexto||"").length,p2n:(p2.notasInternas||"").length,p2f:p2.faltouConsulta?1:0,p3v:p3.vb,p4a:((p4?.itens||[]).filter(i=>i.ativo).length)});
 }
 
 function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
   const [status, setStatus] = React.useState("idle");
   const [lastSaved, setLastSaved] = React.useState(null);
-  const [autoOn, setAutoOn] = React.useState(false);
+  const [autoOn, setAutoOnState] = React.useState(()=>{
+    try { const saved = localStorage.getItem("integra_autosave_on"); return saved===null ? true : saved==="true"; } catch(e) { return true; }
+  });
+  const setAutoOn = (v) => { setAutoOnState(v); try{localStorage.setItem("integra_autosave_on", v?"true":"false");}catch(e){} };
   const logado = useDriveLogado();
 
   const temDados = p1.nome && p1.nome !== "João da Silva" && p1.nome.trim().length > 2;
@@ -5053,6 +5075,7 @@ function FormularioPaciente({formId, especialidade}) {
   const [nome, setNome] = React.useState("");
   const [cpf, setCpf] = React.useState("");
   const [telefone, setTelefone] = React.useState("");
+  const [email, setEmail] = React.useState("");
   const [dataNasc, setDataNasc] = React.useState("");
   const [dataNascTexto, setDataNascTexto] = React.useState("");
   const [respNome, setRespNome] = React.useState("");
@@ -5150,6 +5173,8 @@ function FormularioPaciente({formId, especialidade}) {
         if(!nome.trim()) return "Preencha seu nome completo";
         if(!cpf.trim()) return "Preencha seu CPF";
         if(!telefone.trim()) return "Preencha seu telefone";
+        if(!email.trim()) return "Preencha seu e-mail";
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Digite um e-mail válido";
         if(!dataNasc) return "Preencha sua data de nascimento";
         if(isMinor && !respNome.trim()) return "Preencha o nome do responsável legal";
         return "";
@@ -5222,6 +5247,7 @@ function FormularioPaciente({formId, especialidade}) {
             nome: nome.trim(),
             cpf: cpf.trim(),
             telefone: telefone.replace(/\D/g,""),
+            email: email.trim(),
             dataNasc,
             idade: idade+" anos",
             isMinor,
@@ -5263,6 +5289,10 @@ function FormularioPaciente({formId, especialidade}) {
           <div>
             <label style={lblF}>Telefone / WhatsApp *</label>
             <input style={inpF} value={maskTelefone(telefone)} onChange={e=>setTelefone(e.target.value.replace(/\D/g,""))} placeholder="(48) 99999-9999" name="tel" inputMode="tel" autoComplete="tel"/>
+          </div>
+          <div>
+            <label style={lblF}>E-mail *</label>
+            <input style={inpF} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="seuemail@exemplo.com" name="email" inputMode="email" autoComplete="email" spellCheck={false}/>
           </div>
           <div>
             <label style={lblF}>Data de nascimento *</label>
@@ -5505,6 +5535,7 @@ function FormulariosRecebidos({onImportar}) {
       nome: f.nome||"",
       cpf: f.cpf||"",
       telefone: f.telefone||"",
+      email: f.email||"",
       dataNasc: f.dataNasc||"",
       idade: f.idade||"",
       isMinor: f.isMinor||false,
@@ -5530,7 +5561,7 @@ function FormulariosRecebidos({onImportar}) {
   if(!formularios.length) return <div style={{fontSize:11,color:"#9A8060",padding:12,textAlign:"center"}}>Nenhum formulário recebido ainda.</div>;
 
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+    <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:560,overflowY:"auto",paddingRight:4}}>
       {formularios.map(f=>(
         <div key={f._key} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",border:"1px solid "+(f.status==="importado"?BORDER:GOLD),borderRadius:4,background:f.status==="importado"?"#FAFAF8":"#FFF"}}>
           <div style={{width:4,height:36,background:f.status==="importado"?"#9A8060":GOLD,borderRadius:2,flexShrink:0}}/>
@@ -5719,9 +5750,20 @@ function App() {
   const [modalSalvar, setModalSalvar] = useState(null); // {msg, onSobrepor, onDuplicar, onCancelar}
   const [modelos, setModelos] = useState([]); // modelos de procedimentos salvos
 
-  // Carregar modelos ao iniciar
+  // Modelos de procedimentos: pintura instantânea com cache local + sincronização
+  // em tempo real com o Firebase (mesmo padrão já usado nos formulários recebidos).
+  // Isso resolve a lista não atualizar entre computadores diferentes.
   useEffect(() => {
-    carregarModelosProcedimentos().then(m => { if(m && m.length) setModelos(m); }).catch(()=>{});
+    try { const local = JSON.parse(localStorage.getItem("integra_modelos_v1")||"[]"); if(local.length) setModelos(local); } catch(e){}
+    onFirebaseReady(()=>{
+      _fbDb.ref(MODELOS_FB_PATH).on("value",(snap)=>{
+        const data = snap.val();
+        const lista = !data ? [] : (Array.isArray(data) ? data : Object.values(data));
+        setModelos(lista);
+        try{localStorage.setItem("integra_modelos_v1",JSON.stringify(lista));}catch(e){}
+      });
+    });
+    return ()=>{ if(_fbDb) _fbDb.ref(MODELOS_FB_PATH).off(); };
   }, []);
 
   // Auto-conectar Firebase na sessão "1" ao iniciar
@@ -5906,7 +5948,7 @@ function App() {
   setP4State(prev=>({...p4Initial, procsBase:prev.procsBase, customProcs:(prev.customProcs||[]).map(c=>({...c,ativo:false,dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}))}));
   _driveFileId=null; _driveFileName=null; _lastSyncHash="";
 }} onImportarFormulario={(f)=>{
-  setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||"", anamnese:f.anamnese||null, anamneseEspecialidade:f.anamneseEspecialidade||""}));
+  setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, email:f.email||"", dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||"", anamnese:f.anamnese||null, anamneseEspecialidade:f.anamneseEspecialidade||""}));
 }}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State} modelos={modelos} setModelos={setModelos} p3={p3} setP3={v=>setP3(prev=>({...prev,...v}))}/>}
