@@ -5018,6 +5018,203 @@ function AssinaturaCanvas({value, onChange}) {
   );
 }
 
+// ─── PRONTUÁRIO CLÍNICO ───────────────────────────────────────────────────
+// Registro de rotina de cada visita (independente do Plano/Procedimentos).
+// Uma entrada por dia de atendimento: data + descrição livre (pensada pra
+// ditado por voz) + assinatura do dentista (feita na hora, a cada entrada)
+// + assinatura do paciente (na hora OU depois via link, mesmo mecanismo
+// técnico do link de anamnese via WhatsApp).
+const PRONTUARIO_FB_PATH = "prontuario_visitas";
+
+function Prontuario({p1}) {
+  const cpfPaciente = (p1.cpf||"").replace(/\D/g,"");
+  const [todasEntradas, setTodasEntradas] = React.useState(null);
+  const [showNova, setShowNova] = React.useState(false);
+  const [novaData, setNovaData] = React.useState(()=>new Date().toISOString().split("T")[0]);
+  const [novaDescricao, setNovaDescricao] = React.useState("");
+  const [assDentista, setAssDentista] = React.useState("");
+  const [assPaciente, setAssPaciente] = React.useState("");
+  const [modoAssPaciente, setModoAssPaciente] = React.useState("presencial");
+  const [salvando, setSalvando] = React.useState(false);
+
+  const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
+
+  React.useEffect(()=>{
+    onFirebaseReady(()=>{
+      _fbDb.ref(PRONTUARIO_FB_PATH).on("value",(snap)=>{
+        const data = snap.val();
+        setTodasEntradas(!data ? [] : Object.entries(data).map(([key,v])=>({...v,_key:key})));
+      });
+    });
+    return ()=>{ if(_fbDb) _fbDb.ref(PRONTUARIO_FB_PATH).off(); };
+  },[]);
+
+  const entradas = React.useMemo(()=>{
+    if(!todasEntradas) return null;
+    return todasEntradas.filter(e=>e.cpfPaciente===cpfPaciente)
+      .sort((a,b)=>(b.data||"").localeCompare(a.data||"")||(b.criadoEm||"").localeCompare(a.criadoEm||""));
+  },[todasEntradas,cpfPaciente]);
+
+  const resetForm = () => {
+    setNovaData(new Date().toISOString().split("T")[0]);
+    setNovaDescricao(""); setAssDentista(""); setAssPaciente(""); setModoAssPaciente("presencial");
+  };
+
+  const salvarEntrada = () => {
+    if(!cpfPaciente) { showToast("Preencha o CPF do paciente na aba Paciente antes de registrar.","error"); return; }
+    if(!novaDescricao.trim()) { showToast("Descreva o que foi feito nesta visita.","error"); return; }
+    if(!assDentista) { showToast("Assine como dentista antes de salvar.","error"); return; }
+    if(modoAssPaciente==="presencial" && !assPaciente) { showToast("Colete a assinatura do paciente, ou escolha \"Enviar link depois\".","error"); return; }
+    if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
+    setSalvando(true);
+    const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
+    const entrada = {
+      cpfPaciente, nomePaciente: p1.nome||"", data: novaData, descricao: novaDescricao.trim(),
+      assinaturaDentista: assDentista, assinaturaPaciente: modoAssPaciente==="presencial" ? assPaciente : "",
+      statusPaciente: modoAssPaciente==="presencial" ? "assinado" : "pendente",
+      criadoEm: new Date().toISOString(),
+    };
+    _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).set(entrada).then(()=>{
+      setSalvando(false); setShowNova(false); resetForm();
+      showToast(modoAssPaciente==="presencial" ? "Entrada registrada no prontuário" : "Entrada salva — copie o link para o paciente assinar");
+    }).catch(e=>{ setSalvando(false); showToast("Erro ao salvar: "+e.message,"error"); });
+  };
+
+  const linkVisita = (key) => (typeof window!=="undefined"?window.location.origin:"")+"/v/"+key;
+  const copiarLink = (key) => {
+    const link = linkVisita(key);
+    if(navigator.clipboard) navigator.clipboard.writeText(link).then(()=>showToast("Link copiado! Envie pelo WhatsApp para o paciente.")).catch(()=>showToast("Não foi possível copiar o link","error"));
+  };
+
+  return (
+    <div style={{padding:"16px 16px 90px",maxWidth:640,margin:"0 auto"}}>
+      <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:6,padding:"16px 18px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Prontuário Clínico</div>
+          <div style={{fontSize:15,fontWeight:700,color:"#2A1538",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p1.nome||"Paciente sem nome"}</div>
+        </div>
+        <div onClick={()=>setShowNova(true)} style={{padding:"8px 16px",background:GOLD_DARK,color:"#fff",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>+ Nova entrada</div>
+      </div>
+
+      {!cpfPaciente && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Preencha o CPF do paciente na aba Paciente para ver o histórico de visitas.</div>}
+      {cpfPaciente && entradas===null && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Carregando histórico...</div>}
+      {cpfPaciente && entradas && entradas.length===0 && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Nenhuma visita registrada ainda.</div>}
+
+      {cpfPaciente && entradas && entradas.map(e=>(
+        <div key={e._key} style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:6,padding:"14px 16px",marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,gap:8}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#2A1538"}}>{dataFmt(e.data)}</div>
+            <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:e.statusPaciente==="assinado"?"#E8F5E9":GOLD_PALE,color:e.statusPaciente==="assinado"?"#2E7D32":GOLD_DARK}}>
+              {e.statusPaciente==="assinado"?"✓ Assinado":"Aguardando assinatura"}
+            </div>
+          </div>
+          <div style={{fontSize:12.5,color:"#5C4A2A",lineHeight:1.5,whiteSpace:"pre-wrap",marginBottom:8}}>{e.descricao}</div>
+          <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+            {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Dentista</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+            {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+          </div>
+          {e.statusPaciente!=="assinado" && (
+            <div onClick={()=>copiarLink(e._key)} style={{marginTop:8,fontSize:11,color:PURPLE,fontWeight:600,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
+          )}
+        </div>
+      ))}
+
+      {showNova && (
+        <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"20px 12px"}}>
+          <div style={{background:"#fff",borderRadius:8,padding:20,maxWidth:480,width:"100%",marginTop:20,marginBottom:20}}>
+            <div style={{fontSize:15,fontWeight:700,color:"#2A1538",marginBottom:14}}>Nova entrada — {p1.nome||"paciente sem nome"}</div>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Data</label>
+            <input type="date" value={novaData} onChange={e=>setNovaData(e.target.value)} style={{width:"100%",padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,marginTop:4,marginBottom:12,fontFamily:"inherit",boxSizing:"border-box"}}/>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>O que foi feito</label>
+            <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={novaDescricao} onChange={e=>setNovaDescricao(e.target.value)} placeholder="Descreva ou dite pelo teclado do celular..." style={{width:"100%",padding:"10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,minHeight:90,marginTop:4,marginBottom:14,resize:"vertical",fontFamily:"inherit",boxSizing:"border-box"}}/>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do dentista</label>
+            <div style={{marginTop:4,marginBottom:14}}><AssinaturaCanvas value={assDentista} onChange={setAssDentista}/></div>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do paciente</label>
+            <div style={{display:"flex",gap:8,marginTop:6,marginBottom:10}}>
+              <div onClick={()=>setModoAssPaciente("presencial")} style={{flex:1,textAlign:"center",padding:"7px",borderRadius:4,fontSize:11,fontWeight:700,cursor:"pointer",background:modoAssPaciente==="presencial"?PURPLE:"#F3EDF6",color:modoAssPaciente==="presencial"?"#fff":PURPLE}}>Assinar agora</div>
+              <div onClick={()=>setModoAssPaciente("link")} style={{flex:1,textAlign:"center",padding:"7px",borderRadius:4,fontSize:11,fontWeight:700,cursor:"pointer",background:modoAssPaciente==="link"?PURPLE:"#F3EDF6",color:modoAssPaciente==="link"?"#fff":PURPLE}}>Enviar link depois</div>
+            </div>
+            {modoAssPaciente==="presencial" ? (
+              <div style={{marginBottom:14}}><AssinaturaCanvas value={assPaciente} onChange={setAssPaciente}/></div>
+            ) : (
+              <div style={{fontSize:11,color:"#9A8060",marginBottom:14,lineHeight:1.5}}>Depois de salvar, você poderá copiar um link e mandar pelo WhatsApp pro paciente assinar. Fica marcado como "Aguardando assinatura" até ele confirmar.</div>
+            )}
+
+            <div style={{display:"flex",gap:10}}>
+              <div onClick={()=>{setShowNova(false);resetForm();}} style={{flex:1,padding:"11px",textAlign:"center",border:"1px solid "+BORDER,borderRadius:4,fontSize:12,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>Cancelar</div>
+              <div onClick={salvarEntrada} style={{flex:1,padding:"11px",textAlign:"center",background:salvando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:4,fontSize:12,fontWeight:700,cursor:salvando?"default":"pointer"}}>{salvando?"Salvando...":"Salvar entrada"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Página pública /v/[id] — o paciente assina pelo celular, sem login.
+function AssinaturaVisitaPublica({visitaId}) {
+  const [entrada, setEntrada] = React.useState(undefined); // undefined=carregando, null=não encontrado
+  const [assinatura, setAssinatura] = React.useState("");
+  const [enviando, setEnviando] = React.useState(false);
+  const [enviado, setEnviado] = React.useState(false);
+  const [erro, setErro] = React.useState("");
+
+  const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
+
+  React.useEffect(()=>{
+    onFirebaseReady(()=>{
+      _fbDb.ref(PRONTUARIO_FB_PATH+"/"+visitaId).once("value").then(snap=>{
+        setEntrada(snap.val());
+      }).catch(()=>setEntrada(null));
+    });
+  },[visitaId]);
+
+  const enviar = () => {
+    if(!assinatura) { setErro("Assine no campo acima antes de enviar."); return; }
+    setErro("");
+    setEnviando(true);
+    _fbDb.ref(PRONTUARIO_FB_PATH+"/"+visitaId).update({assinaturaPaciente:assinatura, statusPaciente:"assinado"}).then(()=>{
+      setEnviando(false); setEnviado(true);
+    }).catch(e=>{ setEnviando(false); setErro("Erro ao enviar: "+e.message); });
+  };
+
+  if(entrada===undefined) return <div style={{padding:40,textAlign:"center",fontFamily:"inherit"}}>Carregando...</div>;
+  if(entrada===null) return <div style={{padding:40,textAlign:"center",fontFamily:"inherit"}}>Link não encontrado ou expirado.</div>;
+
+  if(enviado || entrada.statusPaciente==="assinado") {
+    return (
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:CREAM,padding:20,fontFamily:"inherit"}}>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:40,marginBottom:10}}>✓</div>
+          <div style={{fontSize:16,fontWeight:700,color:"#2A1538"}}>Assinatura confirmada!</div>
+          <div style={{fontSize:13,color:"#9A8060",marginTop:6}}>Obrigado, {entrada.nomePaciente}.</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{minHeight:"100vh",background:CREAM,padding:"24px 16px",fontFamily:"inherit"}}>
+      <div style={{maxWidth:420,margin:"0 auto",background:"#fff",borderRadius:8,padding:22,border:"1px solid "+BORDER}}>
+        <div style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:4}}>Íntegra Clínica Odontológica</div>
+        <div style={{fontSize:17,fontWeight:700,color:"#2A1538",marginBottom:14}}>Confirmação de atendimento</div>
+        <div style={{fontSize:13,color:"#5C4A2A",marginBottom:4}}><b>Paciente:</b> {entrada.nomePaciente}</div>
+        <div style={{fontSize:13,color:"#5C4A2A",marginBottom:14}}><b>Data:</b> {dataFmt(entrada.data)}</div>
+        <div style={{fontSize:11,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase",marginBottom:6}}>Hoje foram realizados:</div>
+        <div style={{fontSize:13,color:"#2A1538",background:GOLD_PALE,padding:"10px 12px",borderRadius:4,marginBottom:18,whiteSpace:"pre-wrap"}}>{entrada.descricao}</div>
+        <div style={{fontSize:12,color:"#5C4A2A",marginBottom:8}}>Confirme com sua assinatura abaixo:</div>
+        <AssinaturaCanvas value={assinatura} onChange={setAssinatura}/>
+        {erro && <div style={{fontSize:11,color:"#C62828",marginTop:8}}>{erro}</div>}
+        <div onClick={enviar} style={{marginTop:16,padding:"12px",textAlign:"center",background:enviando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:enviando?"default":"pointer"}}>{enviando?"Enviando...":"Confirmar assinatura"}</div>
+      </div>
+    </div>
+  );
+}
+
 // ── Estilos e componentes da anamnese (fora do componente de formulário) ──
 // IMPORTANTE: estes componentes ficam FORA de FormularioPaciente de propósito.
 // Se ficassem dentro, o React recriaria a função a cada nova tecla digitada,
@@ -5662,6 +5859,10 @@ function App() {
     const espParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("esp") : "";
     return <FormularioPaciente formId={formMatch[1]} especialidade={espParam||"geral"}/>;
   }
+  const visitaMatch = urlPath.match(/\/v\/([a-zA-Z0-9_-]+)/);
+  if(visitaMatch) {
+    return <AssinaturaVisitaPublica visitaId={visitaMatch[1]}/>;
+  }
 
   const [pag, setPag] = useState("p1");
   const [showConfigs, setShowConfigs] = useState(false);
@@ -6029,6 +6230,7 @@ function App() {
   if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
   setPag("p1");
 }}/>}
+      {pag==="p5"&&<Prontuario p1={p1}/>}
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
         if(r._p2) setP2(sanitizeP2(r._p2));
@@ -6106,9 +6308,10 @@ function App() {
         {[
           {id:"p1",icon:"1",label:"Paciente"},
           {id:"p2",icon:"2",label:"Avaliação"},
-          {id:"p4",icon:"3",label:"Plano"},
-          {id:"p3",icon:"4",label:"Orçamento",hidden:true},
-          {id:"rel",icon:"5",label:"Relatório"},
+          {id:"p4",icon:"3",label:"Procedimentos/Orçamento"},
+          {id:"p3",icon:"",label:"Orçamento",hidden:true},
+          {id:"rel",icon:"4",label:"Relatório"},
+          {id:"p5",icon:"5",label:"Prontuário Clínico"},
           {id:"arq",icon:"📁",label:"Arquivo"},
         ].filter(tab=>!tab.hidden).map(tab=>(
           <button key={tab.id} style={{flex:1,padding:"8px 2px 10px",border:"none",background:pag===tab.id?GOLD_DARK:"transparent",color:pag===tab.id?"#fff":GOLD_DARK,fontFamily:"inherit",fontSize:11,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag===tab.id?"3px solid "+GOLD:"3px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s"}} onClick={()=>setPag(tab.id)}>
