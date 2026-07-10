@@ -1376,10 +1376,12 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
           <div key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:20,fontSize:11,cursor:"pointer",background:tab===t?GOLD:"#fff",color:tab===t?"#fff":GOLD_DARK,border:"1.5px solid "+(tab===t?GOLD_DARK:BORDER),fontWeight:tab===t?700:400}}>{l}</div>
         ))}
       </div>
-      <div style={{fontSize:12,color:PURPLE,marginBottom:14,padding:"14px 18px",background:"#F3EDF6",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:10,lineHeight:1.7}}>
-        <div style={{fontWeight:700,marginBottom:4,fontSize:13}}>ℹ️ Orçamento Geral</div>
-        Esta calculadora configura o orçamento que soma todos os procedimentos selecionados. Para criar orçamentos individuais por procedimento, acesse a aba <strong>Plano de Tratamento</strong> e clique em <strong>"Proposta individual"</strong> no procedimento desejado.
-      </div>
+      {p4State && (
+        <div style={{fontSize:12,color:PURPLE,marginBottom:14,padding:"14px 18px",background:"#F3EDF6",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:10,lineHeight:1.7}}>
+          <div style={{fontWeight:700,marginBottom:4,fontSize:13}}>ℹ️ Orçamento Geral</div>
+          Esta calculadora configura o orçamento que soma todos os procedimentos selecionados. Para criar orçamentos individuais por procedimento, acesse a aba <strong>Plano de Tratamento</strong> e clique em <strong>"Proposta individual"</strong> no procedimento desejado.
+        </div>
+      )}
       {tab==="calc"&&<>
         <Card>
           <SectionTitle>Valor do Tratamento</SectionTitle>
@@ -1820,6 +1822,7 @@ function Arquivo({onCarregar}) {
   const [filtroValor, setFiltroValor] = useState({min:"", max:""});
   const [expandido, setExpandido] = useState(null);
   const [confirmExcluir, setConfirmExcluir] = useState(null);
+  const [showLocalAvancado, setShowLocalAvancado] = useState(false);
 
   useEffect(()=>{ setLista(carregarRelatorios()); }, []);
 
@@ -1922,22 +1925,48 @@ function Arquivo({onCarregar}) {
   );
 
   if (lista.length === 0) return (
-    <div style={{maxWidth:640,margin:"0 auto",padding:"20px 16px 40px"}}>
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
-        <BotaoImportar/>
-      </div>
+    <div style={{maxWidth:680,margin:"0 auto",padding:"20px 16px 40px"}}>
+      <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:4}}>Pacientes na Nuvem</div>
+      <div style={{fontSize:11,color:"#9A8060",marginBottom:16}}>Todos os atendimentos salvos na nuvem (Google Drive) ficam aqui — é a fonte principal pra resgatar o prontuário de qualquer paciente.</div>
       <Card>
-        <div style={{textAlign:"center",padding:"40px 0",color:"#9A8060"}}>
-          <div style={{fontSize:32,marginBottom:12}}>📁</div>
-          <div style={{fontSize:13,fontWeight:600,marginBottom:6}}>Nenhum relatório arquivado</div>
-          <div style={{fontSize:11}}>Salve um atendimento pelo Relatório para aparecer aqui.</div>
-        </div>
+        <ArquivoDriveSection onCarregar={onCarregar}/>
       </Card>
+
+      <div onClick={()=>setShowLocalAvancado(!showLocalAvancado)} style={{marginTop:20,display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"8px 4px"}}>
+        <span style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"#9A8060",fontWeight:700}}>Avançado — arquivos salvos só neste computador</span>
+        <span style={{fontSize:11,color:"#9A8060"}}>{showLocalAvancado?"▲":"▼"}</span>
+      </div>
+      {showLocalAvancado && (
+        <div style={{marginTop:10}}>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+            <BotaoImportar/>
+          </div>
+          <Card>
+            <div style={{textAlign:"center",padding:"40px 0",color:"#9A8060"}}>
+              <div style={{fontSize:32,marginBottom:12}}>📁</div>
+              <div style={{fontSize:13,fontWeight:600,marginBottom:6}}>Nenhum registro local neste computador</div>
+              <div style={{fontSize:11}}>Isso é normal — o Google Drive acima é o método recomendado.</div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 
   return (
     <div style={{maxWidth:680,margin:"0 auto",padding:"20px 16px 40px"}}>
+
+      <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:4}}>Pacientes na Nuvem</div>
+      <div style={{fontSize:11,color:"#9A8060",marginBottom:16}}>Todos os atendimentos salvos na nuvem (Google Drive) ficam aqui — é a fonte principal pra resgatar o prontuário de qualquer paciente.</div>
+      <Card>
+        <ArquivoDriveSection onCarregar={onCarregar}/>
+      </Card>
+
+      <div onClick={()=>setShowLocalAvancado(!showLocalAvancado)} style={{marginTop:24,marginBottom:showLocalAvancado?10:0,display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"8px 4px"}}>
+        <span style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"#9A8060",fontWeight:700}}>Avançado — arquivos salvos só neste computador</span>
+        <span style={{fontSize:11,color:"#9A8060"}}>{showLocalAvancado?"▲":"▼"}</span>
+      </div>
+      {showLocalAvancado && (<>
 
       {/* Cabeçalho com importar */}
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
@@ -2095,11 +2124,7 @@ function Arquivo({onCarregar}) {
         </div>
       )}
 
-      {/* Seção Google Drive */}
-      <Card style={{marginTop:16}}>
-        <SectionTitle>Google Drive</SectionTitle>
-        <ArquivoDriveSection onCarregar={onCarregar}/>
-      </Card>
+      </>)}
 
     </div>
   );
@@ -2782,29 +2807,30 @@ function ArquivoDriveSection({onCarregar}) {
 
   return (
     <div>
-      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
-        <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"7px 10px",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,outline:"none"}}/>
-        {filtrados.length>0&&<div onClick={()=>{if(selecionados.size===filtrados.length)setSelecionados(new Set());else setSelecionados(new Set(filtrados.map(a=>a.id)));}} style={{padding:"5px 8px",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:9,color:"#9A8060"}}>{selecionados.size===filtrados.length?"Desmarcar":"Sel. tudo"}</div>}
-        <div onClick={listar} style={{padding:"7px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:10,color:"#9A8060"}}>↻</div>
-        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>Sair</div>
+      <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}>
+        <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"12px 14px",border:"1px solid "+BORDER,borderRadius:5,fontSize:14,outline:"none"}}/>
+        {filtrados.length>0&&<div onClick={()=>{if(selecionados.size===filtrados.length)setSelecionados(new Set());else setSelecionados(new Set(filtrados.map(a=>a.id)));}} style={{padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:5,cursor:"pointer",fontSize:11,color:"#9A8060",whiteSpace:"nowrap"}}>{selecionados.size===filtrados.length?"Desmarcar":"Sel. tudo"}</div>}
+        <div onClick={listar} style={{padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:5,cursor:"pointer",fontSize:13,color:"#9A8060"}}>↻</div>
+        <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:11,color:"#9A8060",cursor:"pointer",whiteSpace:"nowrap"}}>Sair</div>
       </div>
-      {selecionados.size>0&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,padding:"6px 10px",background:"#FFF0F0",border:"1px solid #E57373",borderRadius:3}}>
-        <span style={{fontSize:11,color:"#C62828",flex:1}}>{selecionados.size} selecionado(s)</span>
-        <div onClick={excluirSelecionados} style={{padding:"4px 10px",background:"#C62828",color:"#fff",borderRadius:3,cursor:excluindo?"default":"pointer",fontSize:10,fontWeight:600}}>{excluindo?"Excluindo...":"🗑 Excluir"}</div>
-        <div onClick={()=>setSelecionados(new Set())} style={{fontSize:10,color:"#9A8060",cursor:"pointer"}}>✕</div>
+      {selecionados.size>0&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"8px 12px",background:"#FFF0F0",border:"1px solid #E57373",borderRadius:5}}>
+        <span style={{fontSize:12,color:"#C62828",flex:1}}>{selecionados.size} selecionado(s)</span>
+        <div onClick={excluirSelecionados} style={{padding:"6px 12px",background:"#C62828",color:"#fff",borderRadius:4,cursor:excluindo?"default":"pointer",fontSize:11,fontWeight:600}}>{excluindo?"Excluindo...":"🗑 Excluir"}</div>
+        <div onClick={()=>setSelecionados(new Set())} style={{fontSize:11,color:"#9A8060",cursor:"pointer"}}>✕</div>
       </div>}
-      {erro&&<div style={{fontSize:11,color:"#C62828",marginBottom:8}}>{erro}</div>}
-      {!arquivos&&<div style={{textAlign:"center",padding:20,color:"#9A8060",fontSize:11}}>Carregando...</div>}
-      {arquivos&&<div style={{fontSize:10,color:"#9A8060",marginBottom:6}}>{arquivos.length} arquivo(s) na pasta</div>}
-      {arquivos&&filtrados.length===0&&<div style={{textAlign:"center",padding:14,color:"#9A8060",fontSize:11}}>Nenhum arquivo encontrado</div>}
+      {erro&&<div style={{fontSize:12,color:"#C62828",marginBottom:10}}>{erro}</div>}
+      {!arquivos&&<div style={{textAlign:"center",padding:30,color:"#9A8060",fontSize:12}}>Carregando...</div>}
+      {arquivos&&<div style={{fontSize:11,color:"#9A8060",marginBottom:8}}>{arquivos.length} arquivo(s) na pasta</div>}
+      {arquivos&&filtrados.length===0&&<div style={{textAlign:"center",padding:20,color:"#9A8060",fontSize:12}}>Nenhum arquivo encontrado</div>}
       {filtrados.map(arq=>{const sel=selecionados.has(arq.id);return(
-        <div key={arq.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+BORDER,background:sel?"#FFF8F0":"transparent"}}>
-          <div onClick={()=>toggleSel(arq.id)} style={{width:18,height:18,borderRadius:3,border:"2px solid "+(sel?GOLD_DARK:BORDER),background:sel?GOLD:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{sel&&<span style={{fontSize:9,color:"#fff",fontWeight:900}}>✓</span>}</div>
+        <div key={arq.id} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 4px",borderBottom:"1px solid "+BORDER,background:sel?"#FFF8F0":"transparent"}}>
+          <div onClick={()=>toggleSel(arq.id)} style={{width:22,height:22,borderRadius:4,border:"2px solid "+(sel?GOLD_DARK:BORDER),background:sel?GOLD:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{sel&&<span style={{fontSize:11,color:"#fff",fontWeight:900}}>✓</span>}</div>
           <div onClick={()=>carregar(arq)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
-            <div style={{fontSize:12,fontWeight:600,color:"#5C4A2A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{extrairNome(arq.name)}</div>
-            <div style={{fontSize:9,color:"#9A8060",marginTop:1}}>{fmtData(arq.modifiedTime)}</div>
+            <div style={{fontSize:15,fontWeight:700,color:"#2A1538",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{extrairNome(arq.name)}</div>
+            <div style={{fontSize:11,color:"#9A8060",marginTop:2}}>{fmtData(arq.modifiedTime)}</div>
           </div>
-          <div onClick={()=>excluirUnico(arq.id)} style={{padding:"4px 8px",border:"1px solid #E57373",borderRadius:3,cursor:"pointer",fontSize:10,color:"#C62828",flexShrink:0}}>🗑</div>
+          {carregando===arq.id && <div style={{fontSize:11,color:PURPLE}}>Abrindo...</div>}
+          <div onClick={()=>excluirUnico(arq.id)} style={{padding:"6px 10px",border:"1px solid #E57373",borderRadius:4,cursor:"pointer",fontSize:12,color:"#C62828",flexShrink:0}}>🗑</div>
         </div>
       );})}
     </div>
@@ -2815,6 +2841,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
   const [showModelos, setShowModelos] = useState(false);
   const [nomeModelo, setNomeModelo] = useState("");
   const [categoriaModelo, setCategoriaModelo] = useState("");
+  const [modeloEditandoId, setModeloEditandoId] = useState(null);
   const [salvandoModelo, setSalvandoModelo] = useState(false);
   const [modelosSel, setModelosSel] = useState(new Set());
   const defaultItens = PROC_BASE.map(p => ({
@@ -3029,6 +3056,9 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                             setItens(novosItens);
                           }
                           if(m.p3Config&&setP3) setP3(m.p3Config);
+                          setModeloEditandoId(m.id);
+                          setNomeModelo(m.nome||"");
+                          setCategoriaModelo(m.categoria||"");
                         }catch(e){alert("Erro: "+e.message);}
                       }}>
                         <div>
@@ -3282,6 +3312,12 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
               </div>
               {/* Salvar como modelo */}
               <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:6}}>
+                {modeloEditandoId && (
+                  <div style={{display:"flex",alignItems:"center",gap:8,fontSize:11,color:PURPLE,background:"#F3EDF6",padding:"6px 10px",borderRadius:6}}>
+                    <span>✎ Editando o modelo salvo — mudar o nome vai <strong>renomear</strong> este modelo, não criar outro</span>
+                    <span onClick={()=>{setModeloEditandoId(null);setNomeModelo("");setCategoriaModelo("");}} style={{marginLeft:"auto",cursor:"pointer",fontWeight:700}}>✕</span>
+                  </div>
+                )}
                 <div style={{display:"flex",gap:6}}>
                   <input value={nomeModelo||[...itens.filter(i=>i.ativo).map(i=>{const p=procsBase.find(pp=>pp.id===i.id);return p?p.nome:i.id;}),...customProcs.filter(i=>i.ativo).map(i=>i.nome)].join(" + ")} onChange={e=>setNomeModelo(e.target.value)} placeholder="Nome do modelo" style={{flex:2,padding:"8px 10px",border:"1px solid "+PURPLE_LIGHT,borderRadius:6,fontSize:12,fontFamily:"inherit",outline:"none"}}/>
                   <input value={categoriaModelo} onChange={e=>setCategoriaModelo(e.target.value)} placeholder="Categoria (ex: Ortodontia)" list="categorias-modelos" style={{flex:1,padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:6,fontSize:11,fontFamily:"inherit",outline:"none"}}/>
@@ -3290,26 +3326,33 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                   const nomeAuto=[...itens.filter(i=>i.ativo).map(i=>{const p=procsBase.find(pp=>pp.id===i.id);return p?p.nome:i.id;}),...customProcs.filter(i=>i.ativo).map(i=>i.nome)].join(" + ");
                   const nomeFinal=(nomeModelo||nomeAuto).trim();
                   if(!nomeFinal) return;
-                  const existente=modelos.find(m=>m.nome.toLowerCase()===nomeFinal.toLowerCase());
+                  // Prioriza o modelo que está sendo editado (por ID) em vez de comparar só pelo nome —
+                  // assim, renomear um modelo já salvo atualiza ele mesmo, em vez de criar uma cópia nova.
+                  const editandoModelo = modeloEditandoId ? modelos.find(m=>m.id===modeloEditandoId) : null;
+                  const conflitoOutroNome = modelos.find(m=>m.nome.toLowerCase()===nomeFinal.toLowerCase() && m.id!==modeloEditandoId);
                   setSalvandoModelo(true);
                   try{
                     const ativos=[...itens.filter(i=>i.ativo),...customProcs.filter(i=>i.ativo)];
                     const p3Data=p3?JSON.parse(JSON.stringify({vb:p3.vb,ds:p3.ds,dc:p3.dc,fc:p3.fc,entrada:p3.entrada,entradaTipo:p3.entradaTipo,entradaVal:p3.entradaVal,saldoTipo:p3.saldoTipo,cp:p3.cp,ci:p3.ci,bp:p3.bp,bj:p3.bj,bi:p3.bi,quemPaga:p3.quemPaga,boletoComDesconto:p3.boletoComDesconto,plano:p3.plano,modoRel:p3.modoRel})):null;
-                    if(existente){
+                    if(editandoModelo && !conflitoOutroNome){
+                      // Atualiza o próprio modelo em edição — inclusive se o nome mudou (renomear de verdade)
+                      const novos=await salvarModeloProcedimento({...editandoModelo,nome:nomeFinal,categoria:categoriaModelo||"Geral",itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data,criadoEm:new Date().toISOString()},modelos);
+                      setModelos(novos);
+                    } else if(conflitoOutroNome){
                       const escolha=prompt("Modelo \""+nomeFinal+"\" já existe.\n1 = Sobrepor\n2 = Duplicar\n3 = Cancelar");
                       if(!escolha||escolha==="3"){setSalvandoModelo(false);return;}
                       if(escolha==="1"){
-                        const novos=await salvarModeloProcedimento({...existente,itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data,criadoEm:new Date().toISOString()},modelos);
+                        const novos=await salvarModeloProcedimento({...conflitoOutroNome,itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data,criadoEm:new Date().toISOString()},modelos);
                         setModelos(novos);
                       } else {
                         const novos=await salvarModeloProcedimento({id:"modelo_"+Date.now(),nome:nomeFinal+" (cópia)",categoria:categoriaModelo||"Geral",criadoEm:new Date().toISOString(),itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data},modelos);
                         setModelos(novos);
                       }
                     } else {
-                      const novos=await salvarModeloProcedimento({id:"modelo_"+Date.now(),nome:nomeFinal,criadoEm:new Date().toISOString(),itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data},modelos);
+                      const novos=await salvarModeloProcedimento({id:"modelo_"+Date.now(),nome:nomeFinal,categoria:categoriaModelo||"Geral",criadoEm:new Date().toISOString(),itens:JSON.parse(JSON.stringify(ativos)),p3Config:p3Data},modelos);
                       setModelos(novos);
                     }
-                    setNomeModelo("");
+                    setNomeModelo(""); setCategoriaModelo(""); setModeloEditandoId(null);
                   }catch(e){alert("Erro: "+e.message);}
                   setSalvandoModelo(false);
                 }} style={{padding:"8px 14px",background:PURPLE,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
@@ -3392,6 +3435,9 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                             setItens(novosItens);
                           }
                           if(m.p3Config&&setP3) setP3(m.p3Config);
+                          setModeloEditandoId(m.id);
+                          setNomeModelo(m.nome||"");
+                          setCategoriaModelo(m.categoria||"");
                           setShowModelos(false);setModelosSel(new Set());
                         }catch(e){alert("Erro ao aplicar: "+e.message);}
                       }} style={{flex:1,padding:"8px",background:PURPLE,color:"#fff",borderRadius:6,cursor:"pointer",fontSize:11,fontWeight:600,textAlign:"center"}}>
