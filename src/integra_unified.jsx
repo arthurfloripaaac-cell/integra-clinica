@@ -3639,14 +3639,14 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:0}}>
-              {todosOrdenados.map(it => {
+              {todosOrdenados.map((it,idxPlano) => {
                 const proc = it._proc || procsBaseRel.find(p=>p.id===it.id) || PROC_BASE.find(p=>p.id===it.id);
                 const v = parseMoeda(it.valor);
                 const desc = proc?.subtipos
                   ? Object.keys(it.subtipos||{}).map(id=>proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ")||""
                   : (proc?.modo||it.modo)==="dente"?(it.dentes?.length>0?it.dentes.sort((a,b)=>a-b).map(n=>nomeDente(n)).join("\n"):"")
                   : (it.modo==="livre"?"":"");
-                return (<div key={it.id} className="rel-card" style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+BORDER}}>
+                return (<div key={it.id} className="rel-card" style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:idxPlano<todosOrdenados.length-1?"1px solid "+BORDER:"none"}}>
                   <div>
                     <div style={{fontSize:13,fontWeight:600,color:"#5C4A2A"}}>{it.nome}</div>
                     {desc&&<div style={{fontSize:11,color:"#9A8060",marginTop:1,whiteSpace:"pre-line"}}>{desc}</div>}
@@ -3792,12 +3792,12 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             );
 
             return (<>
+            {((p3.modoRel||"soma")==="soma"||(p3.modoRel||"soma")==="ambos")&&<>
             <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
             </div>
 
-            {((p3.modoRel||"soma")==="soma"||(p3.modoRel||"soma")==="ambos")&&<>
             {/* ALTERNATIVA 1 — À vista com valor e desconto incorporados */}
             {temAVista && (()=>{
               const lb = [...formasAv,...(bolAv?["boleto"]:[])].map(id=>nomes[id]).join(" · ");
@@ -5032,10 +5032,12 @@ function Prontuario({p1}) {
   const [showNova, setShowNova] = React.useState(false);
   const [novaData, setNovaData] = React.useState(()=>new Date().toISOString().split("T")[0]);
   const [novaDescricao, setNovaDescricao] = React.useState("");
+  const [novaObsInterna, setNovaObsInterna] = React.useState("");
   const [assDentista, setAssDentista] = React.useState("");
   const [assPaciente, setAssPaciente] = React.useState("");
   const [modoAssPaciente, setModoAssPaciente] = React.useState("presencial");
   const [salvando, setSalvando] = React.useState(false);
+  const [obsAbertas, setObsAbertas] = React.useState({});
 
   const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
 
@@ -5057,7 +5059,7 @@ function Prontuario({p1}) {
 
   const resetForm = () => {
     setNovaData(new Date().toISOString().split("T")[0]);
-    setNovaDescricao(""); setAssDentista(""); setAssPaciente(""); setModoAssPaciente("presencial");
+    setNovaDescricao(""); setNovaObsInterna(""); setAssDentista(""); setAssPaciente(""); setModoAssPaciente("presencial");
   };
 
   const salvarEntrada = () => {
@@ -5070,6 +5072,7 @@ function Prontuario({p1}) {
     const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
     const entrada = {
       cpfPaciente, nomePaciente: p1.nome||"", data: novaData, descricao: novaDescricao.trim(),
+      obsInterna: novaObsInterna.trim(),
       assinaturaDentista: assDentista, assinaturaPaciente: modoAssPaciente==="presencial" ? assPaciente : "",
       statusPaciente: modoAssPaciente==="presencial" ? "assinado" : "pendente",
       criadoEm: new Date().toISOString(),
@@ -5116,6 +5119,14 @@ function Prontuario({p1}) {
           {e.statusPaciente!=="assinado" && (
             <div onClick={()=>copiarLink(e._key)} style={{marginTop:8,fontSize:11,color:PURPLE,fontWeight:600,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
           )}
+          {e.obsInterna && (
+            <div style={{marginTop:8}}>
+              <div onClick={()=>setObsAbertas(prev=>({...prev,[e._key]:!prev[e._key]}))} style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:11,fontWeight:700,color:GOLD_DARK}}>
+                <span>🔒 Observação interna</span><span style={{fontSize:10}}>{obsAbertas[e._key]?"▲":"▼"}</span>
+              </div>
+              {obsAbertas[e._key] && <div style={{marginTop:6,padding:"8px 10px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:4,fontSize:12,color:"#5C4A2A",whiteSpace:"pre-wrap"}}>{e.obsInterna}</div>}
+            </div>
+          )}
         </div>
       ))}
 
@@ -5125,28 +5136,31 @@ function Prontuario({p1}) {
             <div style={{fontSize:15,fontWeight:700,color:"#2A1538",marginBottom:14}}>Nova entrada — {p1.nome||"paciente sem nome"}</div>
 
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Data</label>
-            <input type="date" value={novaData} onChange={e=>setNovaData(e.target.value)} style={{width:"100%",padding:"8px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,marginTop:4,marginBottom:12,fontFamily:"inherit",boxSizing:"border-box"}}/>
+            <input type="date" value={novaData} onChange={e=>setNovaData(e.target.value)} style={{width:"100%",padding:"12px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:16,marginTop:4,marginBottom:14,fontFamily:"inherit",boxSizing:"border-box"}}/>
 
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>O que foi feito</label>
-            <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={novaDescricao} onChange={e=>setNovaDescricao(e.target.value)} placeholder="Descreva ou dite pelo teclado do celular..." style={{width:"100%",padding:"10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,minHeight:90,marginTop:4,marginBottom:14,resize:"vertical",fontFamily:"inherit",boxSizing:"border-box"}}/>
+            <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={novaDescricao} onChange={e=>setNovaDescricao(e.target.value)} placeholder="Descreva ou dite pelo teclado do celular..." style={{width:"100%",padding:"12px",border:"1px solid "+BORDER,borderRadius:4,fontSize:16,minHeight:100,marginTop:4,marginBottom:16,resize:"vertical",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.5}}/>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase",display:"flex",alignItems:"center",gap:5}}><span>🔒</span> Observação interna (não aparece pro paciente)</label>
+            <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={novaObsInterna} onChange={e=>setNovaObsInterna(e.target.value)} placeholder="Ex: revisar oclusão no próximo atendimento..." style={{width:"100%",padding:"12px",border:"1px solid "+GOLD,borderRadius:4,fontSize:16,minHeight:70,marginTop:4,marginBottom:16,resize:"vertical",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.5,background:GOLD_PALE}}/>
 
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do dentista</label>
-            <div style={{marginTop:4,marginBottom:14}}><AssinaturaCanvas value={assDentista} onChange={setAssDentista}/></div>
+            <div style={{marginTop:4,marginBottom:16}}><AssinaturaCanvas value={assDentista} onChange={setAssDentista}/></div>
 
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do paciente</label>
-            <div style={{display:"flex",gap:8,marginTop:6,marginBottom:10}}>
-              <div onClick={()=>setModoAssPaciente("presencial")} style={{flex:1,textAlign:"center",padding:"7px",borderRadius:4,fontSize:11,fontWeight:700,cursor:"pointer",background:modoAssPaciente==="presencial"?PURPLE:"#F3EDF6",color:modoAssPaciente==="presencial"?"#fff":PURPLE}}>Assinar agora</div>
-              <div onClick={()=>setModoAssPaciente("link")} style={{flex:1,textAlign:"center",padding:"7px",borderRadius:4,fontSize:11,fontWeight:700,cursor:"pointer",background:modoAssPaciente==="link"?PURPLE:"#F3EDF6",color:modoAssPaciente==="link"?"#fff":PURPLE}}>Enviar link depois</div>
+            <div style={{display:"flex",gap:8,marginTop:6,marginBottom:12}}>
+              <div onClick={()=>setModoAssPaciente("presencial")} style={{flex:1,textAlign:"center",padding:"10px 7px",borderRadius:4,fontSize:12,fontWeight:700,cursor:"pointer",background:modoAssPaciente==="presencial"?PURPLE:"#F3EDF6",color:modoAssPaciente==="presencial"?"#fff":PURPLE}}>Assinar agora</div>
+              <div onClick={()=>setModoAssPaciente("link")} style={{flex:1,textAlign:"center",padding:"10px 7px",borderRadius:4,fontSize:12,fontWeight:700,cursor:"pointer",background:modoAssPaciente==="link"?PURPLE:"#F3EDF6",color:modoAssPaciente==="link"?"#fff":PURPLE}}>Enviar link depois</div>
             </div>
             {modoAssPaciente==="presencial" ? (
-              <div style={{marginBottom:14}}><AssinaturaCanvas value={assPaciente} onChange={setAssPaciente}/></div>
+              <div style={{marginBottom:16}}><AssinaturaCanvas value={assPaciente} onChange={setAssPaciente}/></div>
             ) : (
-              <div style={{fontSize:11,color:"#9A8060",marginBottom:14,lineHeight:1.5}}>Depois de salvar, você poderá copiar um link e mandar pelo WhatsApp pro paciente assinar. Fica marcado como "Aguardando assinatura" até ele confirmar.</div>
+              <div style={{fontSize:12,color:"#9A8060",marginBottom:16,lineHeight:1.5}}>Depois de salvar, você poderá copiar um link e mandar pelo WhatsApp pro paciente assinar. Fica marcado como "Aguardando assinatura" até ele confirmar.</div>
             )}
 
             <div style={{display:"flex",gap:10}}>
-              <div onClick={()=>{setShowNova(false);resetForm();}} style={{flex:1,padding:"11px",textAlign:"center",border:"1px solid "+BORDER,borderRadius:4,fontSize:12,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>Cancelar</div>
-              <div onClick={salvarEntrada} style={{flex:1,padding:"11px",textAlign:"center",background:salvando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:4,fontSize:12,fontWeight:700,cursor:salvando?"default":"pointer"}}>{salvando?"Salvando...":"Salvar entrada"}</div>
+              <div onClick={()=>{setShowNova(false);resetForm();}} style={{flex:1,padding:"14px",textAlign:"center",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>Cancelar</div>
+              <div onClick={salvarEntrada} style={{flex:1,padding:"14px",textAlign:"center",background:salvando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:salvando?"default":"pointer"}}>{salvando?"Salvando...":"Salvar entrada"}</div>
             </div>
           </div>
         </div>
