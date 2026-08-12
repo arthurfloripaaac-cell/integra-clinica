@@ -6371,14 +6371,21 @@ function App() {
           {id:"p4",icon:"3",label:"Procedimentos/Orçamento"},
           {id:"p3",icon:"",label:"Orçamento",hidden:true},
           {id:"rel",icon:"4",label:"Relatório"},
-          {id:"p5",icon:"5",label:"Prontuário Clínico"},
-          {id:"arq",icon:"📁",label:"Arquivo"},
-        ].filter(tab=>!tab.hidden).map(tab=>(
-          <button key={tab.id} style={{flex:1,padding:"8px 2px 10px",border:"none",background:pag===tab.id?GOLD_DARK:"transparent",color:pag===tab.id?"#fff":GOLD_DARK,fontFamily:"inherit",fontSize:11,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase",cursor:"pointer",borderTop:pag===tab.id?"3px solid "+GOLD:"3px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s"}} onClick={()=>setPag(tab.id)}>
-            <span style={{fontSize:tab.icon.length>1?16:15,fontWeight:800,width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:pag===tab.id?"#fff":GOLD_PALE,color:pag===tab.id?GOLD_DARK:GOLD_DARK,boxShadow:pag===tab.id?"0 2px 6px rgba(122,96,32,0.3)":"none"}}>{tab.icon}</span>
+          {id:"p5",icon:"5",label:"Prontuário Clínico",roxo:true},
+          {id:"arq",icon:"📁",label:"Arquivo",roxo:true},
+        ].filter(tab=>!tab.hidden).map((tab,idx,arr)=>{
+          const cor = tab.roxo?PURPLE:GOLD_DARK;
+          const corPale = tab.roxo?PURPLE_BORDER:GOLD_PALE;
+          const ativo = pag===tab.id;
+          const anterior = arr[idx-1];
+          const divisor = tab.roxo&&anterior&&!anterior.roxo;
+          return (
+          <button key={tab.id} style={{flex:1,padding:"8px 2px 10px",border:"none",borderLeft:divisor?"1px solid "+BORDER:"none",background:ativo?cor:"transparent",color:ativo?"#fff":cor,fontFamily:"inherit",fontSize:11,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase",cursor:"pointer",borderTop:ativo?"3px solid "+(tab.roxo?PURPLE_LIGHT:GOLD):"3px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s"}} onClick={()=>setPag(tab.id)}>
+            <span style={{fontSize:tab.icon.length>1?16:15,fontWeight:800,width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:ativo?"#fff":corPale,color:cor,boxShadow:ativo?"0 2px 6px rgba(122,96,32,0.3)":"none"}}>{tab.icon}</span>
             <span style={{fontSize:10}}>{tab.label}</span>
           </button>
-        ))}
+          );
+        })}
         <button style={{padding:"8px 10px 10px",border:"none",background:"transparent",color:GOLD_DARK,fontFamily:"inherit",fontSize:18,cursor:"pointer",borderTop:"3px solid transparent"}} onClick={()=>setShowConfigs(true)}>⚙</button>
       </nav>
       <div className="no-print" style={{textAlign:"center",fontSize:8,color:"#ccc",padding:"2px 0"}}>v9.0</div>
