@@ -293,6 +293,7 @@ function listaDentes(arr) {
 // ─── PALETA ───────────────────────────────────────
 const GOLD = "#B8962E", GOLD_DARK = "#7A6020", GOLD_LIGHT = "#D4B96A";
 const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5B2D6E", PURPLE_LIGHT = "#7B4D8E", PURPLE_BORDER = "#D4C0DE";
+const NEUTRO = "#5C5850", NEUTRO_LIGHT = "#7A7568", NEUTRO_PALE = "#E9E7E1";
 
 const fmt = v => "R$ " + (v||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
 function maskTelefone(v) {
@@ -370,6 +371,7 @@ function formatCpf(v) {
 // ─── ANAMNESE — utilitário compartilhado (Dados do Paciente + Relatório) ──
 const ANAMNESE_LABELS = {
   genero: "Gênero",
+  profissao: "Profissão / Ocupação",
   queixa: "Queixa principal",
   alergia: "Alergia a medicamento/material",
   medicamento: "Uso de medicamento atual",
@@ -393,6 +395,7 @@ function formatarAnamnese(an) {
     add(label, v);
   };
   if(an.queixa&&an.queixa.length) add(ANAMNESE_LABELS.queixa, an.queixa.join(", ")+(an.queixaOutro?" — "+an.queixaOutro:""));
+  add(ANAMNESE_LABELS.profissao, an.profissao);
   comDetalhe("alergia","alergiaQual",ANAMNESE_LABELS.alergia);
   comDetalhe("medicamento","medicamentoQual",ANAMNESE_LABELS.medicamento);
   if(an.condicoes&&an.condicoes.length) {
@@ -440,6 +443,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
   const [linkCopiado, setLinkCopiado] = React.useState(false);
   const [formLinkId, setFormLinkId] = React.useState("f"+Date.now().toString(36));
   const [espLinkForm, setEspLinkForm] = React.useState("geral");
+  const [dentistaLinkForm, setDentistaLinkForm] = React.useState("");
 
   // Carregar equipe persistente
   useEffect(()=>{
@@ -505,7 +509,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
             }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#fff",border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK}}>
               + Novo
             </div>
-            <div onClick={()=>{if(!showEnviarForm)setFormLinkId("f"+Date.now().toString(36));setShowEnviarForm(true);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
+            <div onClick={()=>{if(!showEnviarForm){setFormLinkId("f"+Date.now().toString(36));setDentistaLinkForm("");}setShowEnviarForm(true);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
               📱 WhatsApp
             </div>
           </div>}
@@ -516,7 +520,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <div style={{fontSize:12,fontWeight:700,color:"#2E7D32"}}>Enviar formulário via WhatsApp</div>
               <div style={{display:"flex",gap:6}}>
-                <div onClick={()=>setFormLinkId("f"+Date.now().toString(36))} style={{fontSize:10,color:"#2E7D32",cursor:"pointer",padding:"3px 8px",border:"1px solid #4CAF50",borderRadius:20}}>+ Novo link</div>
+                <div onClick={()=>{setFormLinkId("f"+Date.now().toString(36));setDentistaLinkForm("");}} style={{fontSize:10,color:"#2E7D32",cursor:"pointer",padding:"3px 8px",border:"1px solid #4CAF50",borderRadius:20}}>+ Novo link</div>
                 <div onClick={()=>setShowEnviarForm(false)} style={{fontSize:10,color:"#9A8060",cursor:"pointer",padding:"3px 8px",border:"1px solid "+BORDER,borderRadius:20}}>✕</div>
               </div>
             </div>
@@ -528,18 +532,27 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
                 <div onClick={()=>setEspLinkForm("ortho")} style={{flex:1,padding:"8px 10px",background:espLinkForm==="ortho"?"#4CAF50":"#fff",border:"1px solid "+(espLinkForm==="ortho"?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:espLinkForm==="ortho"?"#fff":"#5C4A2A",textAlign:"center"}}>Ortodontia / DTM</div>
               </div>
             </div>
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#2E7D32",marginBottom:6,letterSpacing:0.5}}>DENTISTA RESPONSÁVEL *</div>
+              <select value={dentistaLinkForm} onChange={e=>{setDentistaLinkForm(e.target.value);set("responsavel",e.target.value);}} style={{width:"100%",padding:"9px 10px",border:"1px solid "+(dentistaLinkForm?"#4CAF50":"#E57373"),borderRadius:4,fontSize:12,fontWeight:600,color:"#5C4A2A",background:"#fff",boxSizing:"border-box"}}>
+                <option value="">Selecione antes de enviar...</option>
+                {equipe.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
+              </select>
+              {!dentistaLinkForm && <div style={{fontSize:10,color:"#E57373",marginTop:4}}>Obrigatório — evita enviar o link com o dentista errado.</div>}
+            </div>
             {(()=>{
               const link = (typeof window!=="undefined"?window.location.origin:"")+"/f/"+formLinkId+(espLinkForm==="ortho"?"?esp=ortho":"");
               const msg = "Olá! Segue o link para preencher seu cadastro na Íntegra Clínica Odontológica:\n"+link;
               const waLink = "https://wa.me/?text="+encodeURIComponent(msg);
+              const liberado = !!dentistaLinkForm;
               return(
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   <div style={{padding:"10px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,wordBreak:"break-all",color:GOLD_DARK,fontWeight:500}}>{link}</div>
-                  <div style={{display:"flex",gap:8}}>
-                    <div onClick={()=>{navigator.clipboard.writeText(link);setLinkCopiado(true);setTimeout(()=>setLinkCopiado(false),2000);}} style={{flex:1,padding:"10px",background:linkCopiado?"#4CAF50":"#fff",border:"1px solid "+(linkCopiado?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:linkCopiado?"#fff":"#5C4A2A",textAlign:"center"}}>
+                  <div style={{display:"flex",gap:8,opacity:liberado?1:0.5,pointerEvents:liberado?"auto":"none"}}>
+                    <div onClick={()=>{if(!liberado)return;navigator.clipboard.writeText(link);setLinkCopiado(true);setTimeout(()=>setLinkCopiado(false),2000);}} style={{flex:1,padding:"10px",background:linkCopiado?"#4CAF50":"#fff",border:"1px solid "+(linkCopiado?"#4CAF50":BORDER),borderRadius:4,cursor:liberado?"pointer":"default",fontSize:11,fontWeight:600,color:linkCopiado?"#fff":"#5C4A2A",textAlign:"center"}}>
                       {linkCopiado?"✓ Copiado!":"📋 Copiar link"}
                     </div>
-                    <a href={waLink} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"10px",background:"#25D366",borderRadius:4,fontSize:11,fontWeight:700,color:"#fff",textAlign:"center",textDecoration:"none",display:"block"}}>
+                    <a href={liberado?waLink:undefined} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"10px",background:"#25D366",borderRadius:4,fontSize:11,fontWeight:700,color:"#fff",textAlign:"center",textDecoration:"none",display:"block"}}>
                       Abrir WhatsApp
                     </a>
                   </div>
@@ -702,41 +715,13 @@ function Dente({numero, achadoAtivo, achadosDente, onClick, achados}) {
   );
 }
 
-function P2({data, setData, p1}) {
+function P2({data, setData}) {
   const {achadosDente={}, achadoAtivo=null, segAtivo=null, arcadaAtiva=null, obsTexto="", obsCorrigido="", notasInternas="", faltouConsulta=false} = data;
   const ACHADOS = data.achados || ACHADOS_DEFAULT;
   const [editandoAchados, setEditandoAchados] = useState(false);
   const [novoAchado, setNovoAchado] = useState({label:"", cor:"#4CAF50"});
   const [adicionando, setAdicionando] = useState(false);
-  const [faltaTipo, setFaltaTipo] = useState(null);
-  const [faltaDentista, setFaltaDentista] = useState("");
-  const [faltaAssinatura, setFaltaAssinatura] = useState("");
-  const [faltaSalvando, setFaltaSalvando] = useState(false);
   const set = (k,v) => setData(p=>({...p,[k]:v}));
-
-  const registrarFalta = () => {
-    if(!faltaDentista) { showToast("Selecione o dentista responsável.","error"); return; }
-    if(!faltaAssinatura) { showToast("Colete a assinatura do dentista.","error"); return; }
-    const cpfPaciente = ((p1&&p1.cpf)||"").replace(/\D/g,"");
-    if(!cpfPaciente) { showToast("Preencha o CPF do paciente na aba Paciente antes de registrar.","error"); return; }
-    if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
-    setFaltaSalvando(true);
-    const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
-    const entrada = {
-      cpfPaciente, nomePaciente: (p1&&p1.nome)||"", data: new Date().toISOString().split("T")[0],
-      descricao: faltaTipo==="agravante" ? "Faltou consulta confirmada previamente." : "Paciente não compareceu à consulta.",
-      tipo:"falta", agravante: faltaTipo==="agravante",
-      dentistaResponsavel: faltaDentista,
-      assinaturaDentista: faltaAssinatura, assinaturaPaciente: "",
-      statusPaciente: "nao_compareceu",
-      criadoEm: new Date().toISOString(),
-    };
-    _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).set(entrada).then(()=>{
-      setFaltaSalvando(false); setFaltaTipo(null); setFaltaDentista(""); setFaltaAssinatura("");
-      set("faltouConsulta", true);
-      showToast("Falta registrada no prontuário.");
-    }).catch(e=>{ setFaltaSalvando(false); showToast("Erro ao salvar: "+e.message,"error"); });
-  };
 
   const toggleDente = n => {
     if(!achadoAtivo) return;
@@ -956,40 +941,6 @@ function P2({data, setData, p1}) {
         <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={obsTexto} onChange={e=>set("obsTexto",e.target.value)} placeholder="Queixa principal do paciente, histórico clínico, sinais e sintomas..." style={{width:"100%",padding:"10px 12px",border:"1px solid "+BORDER,borderRadius:2,fontSize:13,color:"#1C1410",background:"#fff",fontFamily:"inherit",minHeight:90,resize:"vertical",lineHeight:1.6}}/>
         <div style={{fontSize:10,color:"#9A8060",marginTop:6}}>Este campo aparece no relatório do paciente.</div>
       </Card>
-
-      {/* Falta de consulta — cria entrada estruturada no prontuário (dentista responsável + assinatura) */}
-      <Card>
-        <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:"#9A8060",marginBottom:10}}>Falta de consulta</div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <div onClick={()=>setFaltaTipo("simples")} style={{flex:"1 1 160px",padding:"10px 12px",border:"1.5px solid #C62828",borderRadius:4,fontSize:12,fontWeight:700,color:"#C62828",cursor:"pointer",textAlign:"center"}}>Não compareceu</div>
-          <div onClick={()=>setFaltaTipo("agravante")} style={{flex:"1 1 160px",padding:"10px 12px",border:"1.5px solid #C62828",borderRadius:4,fontSize:12,fontWeight:700,color:"#fff",background:"#C62828",cursor:"pointer",textAlign:"center"}}>⚠ Faltou consulta confirmada</div>
-        </div>
-        <div style={{fontSize:10,color:"#9A8060",marginTop:8}}>Registra automaticamente uma entrada no prontuário do paciente, com dentista responsável e assinatura — sem assinatura do paciente.</div>
-        {faltouConsulta && <div style={{fontSize:11,color:"#C62828",marginTop:8,fontWeight:600}}>✓ Falta já registrada no prontuário desta consulta.</div>}
-      </Card>
-
-      {faltaTipo && (
-        <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"20px 12px"}}>
-          <div style={{background:"#fff",borderRadius:8,padding:20,maxWidth:420,width:"100%",marginTop:20,marginBottom:20}}>
-            <div style={{fontSize:15,fontWeight:700,color:"#2A1538",marginBottom:4}}>{faltaTipo==="agravante"?"⚠ Faltou consulta confirmada":"Não compareceu"}</div>
-            <div style={{fontSize:11,color:"#9A8060",marginBottom:14}}>Cria uma entrada no prontuário do paciente, sem assinatura do paciente.</div>
-
-            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Dentista responsável</label>
-            <select value={faltaDentista} onChange={e=>setFaltaDentista(e.target.value)} style={{width:"100%",padding:"12px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:14,marginTop:4,marginBottom:16,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}>
-              <option value="">Selecione...</option>
-              {EQUIPE.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
-            </select>
-
-            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do dentista</label>
-            <div style={{marginTop:4,marginBottom:16}}><AssinaturaCanvas value={faltaAssinatura} onChange={setFaltaAssinatura}/></div>
-
-            <div style={{display:"flex",gap:10}}>
-              <div onClick={()=>{setFaltaTipo(null);setFaltaDentista("");setFaltaAssinatura("");}} style={{flex:1,padding:"14px",textAlign:"center",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>Cancelar</div>
-              <div onClick={registrarFalta} style={{flex:1,padding:"14px",textAlign:"center",background:faltaSalvando?"#ccc":"#C62828",color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:faltaSalvando?"default":"pointer"}}>{faltaSalvando?"Salvando...":"Confirmar"}</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Notas internas — NUNCA aparecem no relatório, uso exclusivo da equipe */}
       <Card>
@@ -5147,6 +5098,10 @@ function Prontuario({p1}) {
   const [modoAssPaciente, setModoAssPaciente] = React.useState("presencial");
   const [salvando, setSalvando] = React.useState(false);
   const [obsAbertas, setObsAbertas] = React.useState({});
+  const [faltaTipo, setFaltaTipo] = React.useState(null);
+  const [faltaDentista, setFaltaDentista] = React.useState("");
+  const [faltaAssinatura, setFaltaAssinatura] = React.useState("");
+  const [faltaSalvando, setFaltaSalvando] = React.useState(false);
 
   const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
 
@@ -5199,6 +5154,28 @@ function Prontuario({p1}) {
     if(navigator.clipboard) navigator.clipboard.writeText(link).then(()=>showToast("Link copiado! Envie pelo WhatsApp para o paciente.")).catch(()=>showToast("Não foi possível copiar o link","error"));
   };
 
+  const registrarFalta = () => {
+    if(!faltaDentista) { showToast("Selecione o dentista responsável.","error"); return; }
+    if(!faltaAssinatura) { showToast("Colete a assinatura do dentista.","error"); return; }
+    if(!cpfPaciente) { showToast("Preencha o CPF do paciente na aba Paciente antes de registrar.","error"); return; }
+    if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
+    setFaltaSalvando(true);
+    const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
+    const entrada = {
+      cpfPaciente, nomePaciente: p1.nome||"", data: new Date().toISOString().split("T")[0],
+      descricao: faltaTipo==="agravante" ? "Faltou consulta confirmada previamente." : "Paciente não compareceu à consulta.",
+      tipo:"falta", agravante: faltaTipo==="agravante",
+      dentistaResponsavel: faltaDentista,
+      assinaturaDentista: faltaAssinatura, assinaturaPaciente: "",
+      statusPaciente: "nao_compareceu",
+      criadoEm: new Date().toISOString(),
+    };
+    _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).set(entrada).then(()=>{
+      setFaltaSalvando(false); setFaltaTipo(null); setFaltaDentista(""); setFaltaAssinatura("");
+      showToast("Falta registrada no prontuário.");
+    }).catch(e=>{ setFaltaSalvando(false); showToast("Erro ao salvar: "+e.message,"error"); });
+  };
+
   return (
     <div style={{padding:"16px 16px 90px",maxWidth:640,margin:"0 auto"}}>
       <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:6,padding:"16px 18px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
@@ -5206,8 +5183,38 @@ function Prontuario({p1}) {
           <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Prontuário Clínico</div>
           <div style={{fontSize:15,fontWeight:700,color:"#2A1538",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p1.nome||"Paciente sem nome"}</div>
         </div>
-        <div onClick={()=>setShowNova(true)} style={{padding:"8px 16px",background:GOLD_DARK,color:"#fff",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>+ Nova entrada</div>
+        <div style={{display:"flex",gap:8,flexShrink:0}}>
+          <div onClick={()=>setFaltaTipo("simples")} style={{padding:"8px 12px",background:"#fff",border:"1.5px solid #C62828",color:"#C62828",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>Falta</div>
+          <div onClick={()=>setShowNova(true)} style={{padding:"8px 16px",background:GOLD_DARK,color:"#fff",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>+ Nova entrada</div>
+        </div>
       </div>
+
+      {faltaTipo && (
+        <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"20px 12px"}}>
+          <div style={{background:"#fff",borderRadius:8,padding:20,maxWidth:420,width:"100%",marginTop:20,marginBottom:20}}>
+            <div style={{fontSize:15,fontWeight:700,color:"#2A1538",marginBottom:10}}>Registrar falta</div>
+            <div style={{display:"flex",gap:8,marginBottom:14}}>
+              <div onClick={()=>setFaltaTipo("simples")} style={{flex:1,padding:"9px 8px",borderRadius:4,fontSize:11,fontWeight:700,cursor:"pointer",textAlign:"center",border:"1.5px solid #C62828",background:faltaTipo==="simples"?"#C62828":"#fff",color:faltaTipo==="simples"?"#fff":"#C62828"}}>Não compareceu</div>
+              <div onClick={()=>setFaltaTipo("agravante")} style={{flex:1,padding:"9px 8px",borderRadius:4,fontSize:11,fontWeight:700,cursor:"pointer",textAlign:"center",border:"1.5px solid #C62828",background:faltaTipo==="agravante"?"#C62828":"#fff",color:faltaTipo==="agravante"?"#fff":"#C62828"}}>⚠ Confirmada</div>
+            </div>
+            <div style={{fontSize:11,color:"#9A8060",marginBottom:14}}>Cria uma entrada no prontuário do paciente, sem assinatura do paciente.</div>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Dentista responsável</label>
+            <select value={faltaDentista} onChange={e=>setFaltaDentista(e.target.value)} style={{width:"100%",padding:"12px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:14,marginTop:4,marginBottom:16,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}>
+              <option value="">Selecione...</option>
+              {EQUIPE.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
+            </select>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do dentista</label>
+            <div style={{marginTop:4,marginBottom:16}}><AssinaturaCanvas value={faltaAssinatura} onChange={setFaltaAssinatura}/></div>
+
+            <div style={{display:"flex",gap:10}}>
+              <div onClick={()=>{setFaltaTipo(null);setFaltaDentista("");setFaltaAssinatura("");}} style={{flex:1,padding:"14px",textAlign:"center",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>Cancelar</div>
+              <div onClick={registrarFalta} style={{flex:1,padding:"14px",textAlign:"center",background:faltaSalvando?"#ccc":"#C62828",color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:faltaSalvando?"default":"pointer"}}>{faltaSalvando?"Salvando...":"Confirmar"}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!cpfPaciente && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Preencha o CPF do paciente na aba Paciente para ver o histórico de visitas.</div>}
       {cpfPaciente && entradas===null && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Carregando histórico...</div>}
@@ -5426,6 +5433,7 @@ function FormularioPaciente({formId, especialidade}) {
   // Anamnese — Fase 1 (universal) + módulo Ortodontia/DTM
   const [an, setAn] = React.useState({
     genero:"",
+    profissao:"",
     queixa:[], queixaOutro:"",
     alergia:"", alergiaQual:"",
     medicamento:"", medicamentoQual:"",
@@ -5455,7 +5463,7 @@ function FormularioPaciente({formId, especialidade}) {
   });
 
   const stepOrder = React.useMemo(()=>{
-    const base = ["cadastro","genero","queixa","alergia","medicamento","condicoes","denteAusente"];
+    const base = ["cadastro","profissao","genero","queixa","alergia","medicamento","condicoes","denteAusente"];
     const gravidaStep = an.genero==="Masculino" ? [] : ["gravida"]; // não exibir se paciente informou gênero masculino
     const meio = ["comoConheceu","relato"];
     const ortho = isOrtho ? ["bruxismo","sintomasDtm","aparelhoAnterior"] : [];
@@ -5659,6 +5667,14 @@ function FormularioPaciente({formId, especialidade}) {
             </div>
           )}
         </div>
+      </div>
+    );
+  } else if(stepKey==="profissao") {
+    stepContent = (
+      <div>
+        <div style={pergunta}>Qual sua profissão ou ocupação?</div>
+        <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Ex: professora, estudante, aposentado...</div>
+        <CampoTexto value={an.profissao} onChange={v=>setA("profissao",v)} placeholder="Sua profissão ou ocupação"/>
       </div>
     );
   } else if(stepKey==="genero") {
@@ -6288,7 +6304,7 @@ function App() {
 }} onImportarFormulario={(f)=>{
   setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, email:f.email||"", dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||"", anamnese:f.anamnese||null, anamneseEspecialidade:f.anamneseEspecialidade||""}));
 }}/>}
-      {pag==="p2"&&<P2 data={p2} setData={setP2} p1={p1}/>}
+      {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State} modelos={modelos} setModelos={setModelos} p3={p3} setP3={v=>setP3(prev=>({...prev,...v}))}/>}
       {pag==="p4"&&(p3.modoRel==="soma"||p3.modoRel==="ambos")&&(
         <div style={{maxWidth:620,margin:"0 auto",padding:"0 16px 20px"}}>
@@ -6443,21 +6459,21 @@ function App() {
       {showConfigs&&<Configs onClose={()=>setShowConfigs(false)}/>}
       <nav className="no-print" style={{display:"flex",position:"fixed",bottom:0,left:0,right:0,background:CREAM,borderTop:"2px solid "+GOLD,zIndex:100,boxShadow:"0 -2px 12px rgba(0,0,0,0.1)"}}>
         {[
-          {id:"p1",icon:"1",label:"Paciente"},
-          {id:"p2",icon:"2",label:"Avaliação"},
-          {id:"p4",icon:"3",label:"Procedimentos/Orçamento"},
+          {id:"p1",icon:"1",label:"Paciente",grupo:"a"},
+          {id:"p5",icon:"2",label:"Prontuário Clínico",grupo:"a"},
+          {id:"p2",icon:"3",label:"Avaliação",grupo:"b"},
+          {id:"p4",icon:"4",label:"Procedimentos/Orçamento",grupo:"b"},
           {id:"p3",icon:"",label:"Orçamento",hidden:true},
-          {id:"rel",icon:"4",label:"Relatório"},
-          {id:"p5",icon:"5",label:"Prontuário Clínico",roxo:true},
-          {id:"arq",icon:"📁",label:"Arquivo",roxo:true},
+          {id:"rel",icon:"5",label:"Relatório",grupo:"b"},
+          {id:"arq",icon:"📁",label:"Arquivo",grupo:"c"},
         ].filter(tab=>!tab.hidden).map((tab,idx,arr)=>{
-          const cor = tab.roxo?PURPLE:GOLD_DARK;
-          const corPale = tab.roxo?PURPLE_BORDER:GOLD_PALE;
+          const CORES = {a:{cor:GOLD_DARK,corPale:GOLD_PALE,corAtivo:GOLD},b:{cor:PURPLE,corPale:PURPLE_BORDER,corAtivo:PURPLE_LIGHT},c:{cor:NEUTRO,corPale:NEUTRO_PALE,corAtivo:NEUTRO_LIGHT}};
+          const {cor,corPale,corAtivo} = CORES[tab.grupo];
           const ativo = pag===tab.id;
           const anterior = arr[idx-1];
-          const divisor = tab.roxo&&anterior&&!anterior.roxo;
+          const divisor = anterior&&anterior.grupo!==tab.grupo;
           return (
-          <button key={tab.id} style={{flex:1,padding:"8px 2px 10px",border:"none",borderLeft:divisor?"1px solid "+BORDER:"none",background:ativo?cor:"transparent",color:ativo?"#fff":cor,fontFamily:"inherit",fontSize:11,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase",cursor:"pointer",borderTop:ativo?"3px solid "+(tab.roxo?PURPLE_LIGHT:GOLD):"3px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s"}} onClick={()=>setPag(tab.id)}>
+          <button key={tab.id} style={{flex:1,padding:"8px 2px 10px",border:"none",borderLeft:divisor?"1px solid "+BORDER:"none",background:ativo?cor:"transparent",color:ativo?"#fff":cor,fontFamily:"inherit",fontSize:11,fontWeight:700,letterSpacing:"0.5px",textTransform:"uppercase",cursor:"pointer",borderTop:ativo?"3px solid "+corAtivo:"3px solid transparent",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all 0.15s"}} onClick={()=>setPag(tab.id)}>
             <span style={{fontSize:tab.icon.length>1?16:15,fontWeight:800,width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:ativo?"#fff":corPale,color:cor,boxShadow:ativo?"0 2px 6px rgba(122,96,32,0.3)":"none"}}>{tab.icon}</span>
             <span style={{fontSize:10}}>{tab.label}</span>
           </button>
