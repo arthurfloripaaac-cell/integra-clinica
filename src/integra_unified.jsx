@@ -3704,7 +3704,9 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           {(()=>{
             const itensSep0 = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
             const itensSep = ordemRel.length>0?[...itensSep0].sort((a,b)=>{const ia=ordemRel.indexOf(a.id);const ib=ordemRel.indexOf(b.id);if(ia===-1&&ib===-1)return 0;if(ia===-1)return 1;if(ib===-1)return -1;return ia-ib;}):itensSep0;
-            if(!itensSep.length) return null; if((p3.modoRel||"soma")!=="separado"&&(p3.modoRel||"soma")!=="ambos") return null;
+            if(!itensSep.length) return null;
+            const totalAtivosRel = ((p4State?.itens||[]).filter(i=>i.ativo).length) + ((p4State?.customProcs||[]).filter(i=>i.ativo).length);
+            if((p3.modoRel||"soma")!=="separado"&&(p3.modoRel||"soma")!=="ambos"&&totalAtivosRel>1) return null;
             return(
               <div style={{marginTop:16}}>
                 <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
