@@ -1159,11 +1159,12 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
     // Verificar se há propostas individuais
     const itensSepP3 = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
     const temSep = itensSepP3.length > 0;
+    const totalAtivosP3 = ((p4State?.itens||[]).filter(i=>i.ativo).length) + ((p4State?.customProcs||[]).filter(i=>i.ativo).length);
 
     return(
       <div>
         {/* Toggle modo preview */}
-        {temSep&&(
+        {temSep&&totalAtivosP3>1&&(
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:4}}>
             <span style={{fontSize:11,color:"#5C4A2A",flex:1,fontWeight:600}}>Modo de apresentação:</span>
             <div style={{display:"flex",gap:6}}>
@@ -1175,7 +1176,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
         )}
 
         {/* Propostas individuais — modo separado */}
-        {temSep&&(modoRel==="separado"||modoRel==="ambos")&&(
+        {temSep&&(modoRel==="separado"||modoRel==="ambos"||totalAtivosP3<=1)&&(
           <div style={{marginBottom:12}}>
             <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:10}}>Propostas</div>
             {itensSepP3.map((it,idx)=>{
@@ -1379,7 +1380,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
       {p4State && (
         <div style={{fontSize:12,color:PURPLE,marginBottom:14,padding:"14px 18px",background:"#F3EDF6",border:"1.5px solid "+PURPLE_LIGHT,borderRadius:10,lineHeight:1.7}}>
           <div style={{fontWeight:700,marginBottom:4,fontSize:13}}>ℹ️ Orçamento Geral</div>
-          Esta calculadora configura o orçamento que soma todos os procedimentos selecionados. Para criar orçamentos individuais por procedimento, acesse a aba <strong>Plano de Tratamento</strong> e clique em <strong>"Proposta individual"</strong> no procedimento desejado.
+          Esta calculadora configura o orçamento que soma todos os procedimentos selecionados. Para criar orçamentos individuais por procedimento, acesse a aba <strong>Plano de Tratamento</strong> e clique em <strong>"Formas de pagamento"</strong> no procedimento desejado.
         </div>
       )}
       {tab==="calc"&&<>
@@ -1670,12 +1671,12 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <SectionTitle style={{margin:0}}>Propostas ({itensSepCalc.length})</SectionTitle>
                 <div style={{display:"flex",gap:4}}>
-                  {[["soma","Soma tudo"],["separado","Separado"],["ambos","Ambos"]].map(([k,l])=>(
+                  {totalAtivosP3>1&&[["soma","Soma tudo"],["separado","Separado"],["ambos","Ambos"]].map(([k,l])=>(
                     <div key={k} onClick={()=>setModoRel&&setModoRel(k)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",border:"1.5px solid "+(modoRel===k?GOLD_DARK:BORDER),background:modoRel===k?GOLD_PALE:"#fff",fontSize:10,fontWeight:modoRel===k?700:400,color:modoRel===k?GOLD_DARK:"#5C4A2A"}}>{l}</div>
                   ))}
                 </div>
               </div>
-              {(modoRel==="separado"||modoRel==="ambos")?(
+              {(modoRel==="separado"||modoRel==="ambos"||totalAtivosP3<=1)?(
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {itensSepCalc.map((it,idx)=>{
                     const proc=(p4State?.procsBase||[]).find(p=>p.id===it.id)||{nome:it.nome||it.id};
@@ -2325,6 +2326,14 @@ function OdontogramaMini({ selecionados, onToggle }) {
 function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
   const [expandido, setExpandido] = useState(false);
   const [valorPorDente, setValorPorDente] = useState(false);
+  const [showAnotacao, setShowAnotacao] = useState(false);
+
+  // Migração única: Observação (campo removido) vira o primeiro item de Etapas/Detalhes
+  useEffect(()=>{
+    if(item.obs && item.obs.trim()) {
+      onChange({...item, subtopicos:[item.obs.trim(), ...(item.subtopicos||[])], obs:""});
+    }
+  },[]);
 
   // Subtotal: se valorPorDente, soma valores individuais; senão, unitário × qtd
   const modoEfetivo = item.modo || proc.modo;
@@ -2405,7 +2414,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                 {item.ativo && (<>
                   <div style={{display:"flex",alignItems:"center",gap:4}}>
                     <div onClick={e=>{e.stopPropagation();onChange({...item,_showMiniOrc:!item._showMiniOrc});}} style={{fontSize:10,color:item.proposta?"#fff":PURPLE,cursor:"pointer",padding:"4px 12px",border:"1.5px solid "+(item.proposta?PURPLE:PURPLE_LIGHT),borderRadius:20,whiteSpace:"nowrap",background:item.proposta?PURPLE:"#F3EDF6",fontWeight:600}}>
-                      {item.proposta?"✓ Proposta configurada":"+ Proposta individual"}
+                      {item.proposta?"✓ Configurado":"Formas de pagamento"}
                     </div>
                   </div>
                   {/* Resumo das condições de pagamento da proposta individual */}
@@ -2440,7 +2449,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                   )}
                 </>)}
               </div>
-              {item.ativo && (
+              {item.ativo && !expandido && (
                 <div style={{ marginTop: 4 }}>
                   {proc.subtipos
                     ? <span style={{fontSize:10,color:"#9A8060"}}>{Object.keys(item.subtipos || {}).map(id => proc.subtipos.find(s=>s.id===id)?.label).filter(Boolean).join(" + ") || "Selecione o tipo"}</span>
@@ -2452,11 +2461,11 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                           <div key={k} onClick={e=>{e.stopPropagation();onChange({...item,regiao:k});}} style={{padding:"2px 8px",borderRadius:20,fontSize:10,cursor:"pointer",border:"1.5px solid "+(item.regiao===k?GOLD_DARK:BORDER),background:item.regiao===k?GOLD_PALE:"#fff",color:item.regiao===k?GOLD_DARK:"#5C4A2A",fontWeight:item.regiao===k?700:400}}>{l}</div>
                         ))}
                       </div>
-                    : <span style={{fontSize:10,color:"#9A8060"}}>Valor livre</span>}
+                    : null}
                 </div>
               )}
             </div>
-            {item.ativo && (
+            {item.ativo && !expandido && (
               <div style={{ textAlign: "right", flexShrink: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: GOLD_DARK }}>{fmt(subtotal)}</div>
                 {modoEfetivo === "dente" && item.dentes?.length > 1 && (
@@ -2632,48 +2641,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
               )}
             </div>
           )}
-          {/* Campo de observação livre */}
           <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700, marginBottom: 6 }}>Observação</div>
-            <textarea
-              spellCheck="true"
-              lang="pt-BR"
-              autoCorrect="on"
-              autoCapitalize="sentences"
-              data-gramm="true"
-              value={item.obs || ""}
-              onChange={e => onChange({ ...item, obs: e.target.value })}
-              placeholder="Observações clínicas, materiais utilizados..."
-              style={{
-                display:"block",
-                width:"100%",
-                padding:"8px 10px",
-                border:"1px solid "+BORDER,
-                borderRadius:2,
-                fontSize:12,
-                fontFamily:"inherit",
-                resize:"vertical",
-                minHeight:52,
-                background:"#fff",
-                color:"#1C1410",
-                boxSizing:"border-box",
-              }}
-            />
-            {/* Anotações internas — NÃO aparece no relatório */}
-            <div style={{marginTop:8}}>
-              <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"#9A8060",marginBottom:4,display:"flex",alignItems:"center",gap:6}}>
-                📝 Anotação interna
-                <span style={{fontSize:8,color:"#bbb",fontWeight:400,textTransform:"none",letterSpacing:0}}>(não aparece no relatório)</span>
-              </div>
-              <input
-                value={item.anotacao || ""}
-                onChange={e => onChange({ ...item, anotacao: e.target.value })}
-                placeholder="Ex: Orçamento premium, pacote completo..."
-                style={{width:"100%",padding:"6px 10px",border:"1px dashed #ccc",borderRadius:4,fontSize:11,fontFamily:"inherit",color:"#9A8060",background:"#FAFAF8",outline:"none"}}
-              />
-            </div>
-          </div>
-          <div style={{ marginTop: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
               <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>Etapas / Detalhes</div>
               <div
@@ -2715,6 +2683,23 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                 >✕</div>
               </div>
             ))}
+          </div>
+
+          {/* Anotação interna — recolhida, não aparece no relatório */}
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px dashed " + BORDER }}>
+            <div onClick={()=>setShowAnotacao(!showAnotacao)} style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"#9A8060",display:"flex",alignItems:"center",gap:6,cursor:"pointer"}}>
+              <span>📝 Anotação interna{item.anotacao?" ✓":""}</span>
+              <span style={{fontSize:8,color:"#bbb",fontWeight:400,textTransform:"none",letterSpacing:0}}>(não aparece no relatório)</span>
+              <span style={{marginLeft:"auto",fontSize:9}}>{showAnotacao?"▲":"▼"}</span>
+            </div>
+            {showAnotacao && (
+              <input
+                value={item.anotacao || ""}
+                onChange={e => onChange({ ...item, anotacao: e.target.value })}
+                placeholder="Ex: Orçamento premium, pacote completo..."
+                style={{width:"100%",marginTop:6,padding:"6px 10px",border:"1px dashed #ccc",borderRadius:4,fontSize:11,fontFamily:"inherit",color:"#9A8060",background:"#FAFAF8",outline:"none",boxSizing:"border-box"}}
+              />
+            )}
           </div>
         </div>
       )}
@@ -3298,6 +3283,7 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                 <span style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: GOLD_DARK }}>{fmt(totalGeral)}</span>
               </div>
               {/* Toggle modo de apresentação */}
+              {(itens.filter(i=>i.ativo).length + customProcs.filter(i=>i.ativo).length) > 1 && (
               <div style={{marginTop:14,paddingTop:12,borderTop:"1px solid "+BORDER}}>
                 <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Modo de apresentação no relatório</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -3312,10 +3298,11 @@ function P4({onTotalChange, p4State, setP4State, modelos=[], setModelos, p3, set
                 )}
                 {p3?.modoRel==="separado"&&(
                   <div style={{marginTop:8,fontSize:10,color:"#9A8060",padding:"8px 12px",background:GOLD_PALE,borderRadius:6}}>
-                    Cada procedimento apresenta seu orçamento individual. Configure clicando em <strong style={{color:GOLD_DARK}}>Proposta individual</strong> em cada procedimento acima.
+                    Cada procedimento apresenta seu orçamento individual. Configure clicando em <strong style={{color:GOLD_DARK}}>Formas de pagamento</strong> em cada procedimento acima.
                   </div>
                 )}
               </div>
+              )}
               {/* Salvar como modelo */}
               <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:6}}>
                 {modeloEditandoId && (
