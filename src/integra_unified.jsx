@@ -1666,6 +1666,7 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
         {(()=>{
           const itensSepCalc = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
           if(!itensSepCalc.length) return null;
+          const totalAtivosP3 = ((p4State?.itens||[]).filter(i=>i.ativo).length) + ((p4State?.customProcs||[]).filter(i=>i.ativo).length);
           return(
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
@@ -4803,7 +4804,7 @@ function MiniOrcamento({valor, procNome, propostaInicial, onSave, onClose}) {
         {/* Header */}
         <div style={{background:"#3D1F4E",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderRadius:"8px 8px 0 0",flexShrink:0}}>
           <div>
-            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_LIGHT,marginBottom:2}}>Proposta Individual</div>
+            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_LIGHT,marginBottom:2}}>Formas de Pagamento</div>
             <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{procNome}</div>
           </div>
           <span onClick={onClose} style={{cursor:"pointer",color:"#9A8060",fontSize:20,lineHeight:1}}>✕</span>
@@ -6093,6 +6094,7 @@ function App() {
 
   const [pag, setPag] = useState("p1");
   const [showConfigs, setShowConfigs] = useState(false);
+  const [showCalcGeral, setShowCalcGeral] = useState(false);
   const driveLogado = useDriveLogado();
   // configs loaded directly in p3 useState initializer
   const [relatorioSalvo, setRelatorioSalvo] = useState(false);
@@ -6381,9 +6383,25 @@ function App() {
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State} modelos={modelos} setModelos={setModelos} p3={p3} setP3={v=>setP3(prev=>({...prev,...v}))}/>}
       {pag==="p4"&&(p3.modoRel==="soma"||p3.modoRel==="ambos")&&(
-        <div style={{maxWidth:620,margin:"0 auto",padding:"0 16px 20px"}}>
-          <div style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:12,marginTop:8}}>Calculadora — Orçamento Geral</div>
-          <P3
+        <div style={{maxWidth:620,margin:"0 auto",padding:"0 16px 90px"}}>
+          <div onClick={()=>setShowCalcGeral(true)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px",background:PURPLE,color:"#fff",borderRadius:8,cursor:"pointer",marginTop:8}}>
+            <div>
+              <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",opacity:0.8}}>Calculadora — Orçamento Geral</div>
+              <div style={{fontSize:13,fontWeight:700,marginTop:2}}>{p4Total>0?fmt(p4Total):"Toque para configurar"}</div>
+            </div>
+            <div style={{fontSize:18}}>→</div>
+          </div>
+        </div>
+      )}
+      {showCalcGeral && (
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setShowCalcGeral(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:CREAM,borderRadius:8,width:"100%",maxWidth:540,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 40px rgba(0,0,0,0.4)",display:"flex",flexDirection:"column"}}>
+            <div style={{background:"#3D1F4E",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderRadius:"8px 8px 0 0",flexShrink:0}}>
+              <div style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:GOLD_LIGHT}}>Calculadora — Orçamento Geral</div>
+              <span onClick={()=>setShowCalcGeral(false)} style={{cursor:"pointer",color:"#9A8060",fontSize:20,lineHeight:1}}>✕</span>
+            </div>
+            <div style={{overflowY:"auto",flex:1,padding:"14px 16px"}}>
+              <P3
         vb={p3.vb || (p4Total > 0 ? String(p4Total) : "")} setVb={v=>sp3("vb",v)}
         ds={p3.ds} setDs={v=>sp3("ds",v)}
         dc={p3.dc} setDc={v=>sp3("dc",v)}
@@ -6409,6 +6427,8 @@ function App() {
         p4State={p4State}
         modoRel={p3.modoRel||"soma"} setModoRel={v=>sp3("modoRel",v)}
       />
+            </div>
+          </div>
         </div>
       )}
       {pag==="p3"&&<P3
