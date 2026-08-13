@@ -702,13 +702,41 @@ function Dente({numero, achadoAtivo, achadosDente, onClick, achados}) {
   );
 }
 
-function P2({data, setData}) {
+function P2({data, setData, p1}) {
   const {achadosDente={}, achadoAtivo=null, segAtivo=null, arcadaAtiva=null, obsTexto="", obsCorrigido="", notasInternas="", faltouConsulta=false} = data;
   const ACHADOS = data.achados || ACHADOS_DEFAULT;
   const [editandoAchados, setEditandoAchados] = useState(false);
   const [novoAchado, setNovoAchado] = useState({label:"", cor:"#4CAF50"});
   const [adicionando, setAdicionando] = useState(false);
+  const [faltaTipo, setFaltaTipo] = useState(null);
+  const [faltaDentista, setFaltaDentista] = useState("");
+  const [faltaAssinatura, setFaltaAssinatura] = useState("");
+  const [faltaSalvando, setFaltaSalvando] = useState(false);
   const set = (k,v) => setData(p=>({...p,[k]:v}));
+
+  const registrarFalta = () => {
+    if(!faltaDentista) { showToast("Selecione o dentista responsável.","error"); return; }
+    if(!faltaAssinatura) { showToast("Colete a assinatura do dentista.","error"); return; }
+    const cpfPaciente = ((p1&&p1.cpf)||"").replace(/\D/g,"");
+    if(!cpfPaciente) { showToast("Preencha o CPF do paciente na aba Paciente antes de registrar.","error"); return; }
+    if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
+    setFaltaSalvando(true);
+    const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
+    const entrada = {
+      cpfPaciente, nomePaciente: (p1&&p1.nome)||"", data: new Date().toISOString().split("T")[0],
+      descricao: faltaTipo==="agravante" ? "Faltou consulta confirmada previamente." : "Paciente não compareceu à consulta.",
+      tipo:"falta", agravante: faltaTipo==="agravante",
+      dentistaResponsavel: faltaDentista,
+      assinaturaDentista: faltaAssinatura, assinaturaPaciente: "",
+      statusPaciente: "nao_compareceu",
+      criadoEm: new Date().toISOString(),
+    };
+    _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).set(entrada).then(()=>{
+      setFaltaSalvando(false); setFaltaTipo(null); setFaltaDentista(""); setFaltaAssinatura("");
+      set("faltouConsulta", true);
+      showToast("Falta registrada no prontuário.");
+    }).catch(e=>{ setFaltaSalvando(false); showToast("Erro ao salvar: "+e.message,"error"); });
+  };
 
   const toggleDente = n => {
     if(!achadoAtivo) return;
@@ -929,18 +957,39 @@ function P2({data, setData}) {
         <div style={{fontSize:10,color:"#9A8060",marginTop:6}}>Este campo aparece no relatório do paciente.</div>
       </Card>
 
-      {/* Falta de consulta — marcador estruturado, uso interno (prontuário digital) */}
+      {/* Falta de consulta — cria entrada estruturada no prontuário (dentista responsável + assinatura) */}
       <Card>
-        <div onClick={()=>set("faltouConsulta",!faltouConsulta)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 4px"}}>
-          <div style={{width:20,height:20,borderRadius:4,border:"2px solid "+(faltouConsulta?"#C62828":BORDER),background:faltouConsulta?"#C62828":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-            {faltouConsulta&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✕</span>}
-          </div>
-          <div>
-            <div style={{fontSize:13,fontWeight:700,color:faltouConsulta?"#C62828":"#2A1538"}}>Paciente não compareceu à consulta</div>
-            <div style={{fontSize:10,color:"#9A8060"}}>Marcação interna — não aparece no relatório. Evita confundir formulário preenchido com presença confirmada.</div>
+        <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:"#9A8060",marginBottom:10}}>Falta de consulta</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <div onClick={()=>setFaltaTipo("simples")} style={{flex:"1 1 160px",padding:"10px 12px",border:"1.5px solid #C62828",borderRadius:4,fontSize:12,fontWeight:700,color:"#C62828",cursor:"pointer",textAlign:"center"}}>Não compareceu</div>
+          <div onClick={()=>setFaltaTipo("agravante")} style={{flex:"1 1 160px",padding:"10px 12px",border:"1.5px solid #C62828",borderRadius:4,fontSize:12,fontWeight:700,color:"#fff",background:"#C62828",cursor:"pointer",textAlign:"center"}}>⚠ Faltou consulta confirmada</div>
+        </div>
+        <div style={{fontSize:10,color:"#9A8060",marginTop:8}}>Registra automaticamente uma entrada no prontuário do paciente, com dentista responsável e assinatura — sem assinatura do paciente.</div>
+        {faltouConsulta && <div style={{fontSize:11,color:"#C62828",marginTop:8,fontWeight:600}}>✓ Falta já registrada no prontuário desta consulta.</div>}
+      </Card>
+
+      {faltaTipo && (
+        <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"20px 12px"}}>
+          <div style={{background:"#fff",borderRadius:8,padding:20,maxWidth:420,width:"100%",marginTop:20,marginBottom:20}}>
+            <div style={{fontSize:15,fontWeight:700,color:"#2A1538",marginBottom:4}}>{faltaTipo==="agravante"?"⚠ Faltou consulta confirmada":"Não compareceu"}</div>
+            <div style={{fontSize:11,color:"#9A8060",marginBottom:14}}>Cria uma entrada no prontuário do paciente, sem assinatura do paciente.</div>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Dentista responsável</label>
+            <select value={faltaDentista} onChange={e=>setFaltaDentista(e.target.value)} style={{width:"100%",padding:"12px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:14,marginTop:4,marginBottom:16,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}>
+              <option value="">Selecione...</option>
+              {EQUIPE.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
+            </select>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do dentista</label>
+            <div style={{marginTop:4,marginBottom:16}}><AssinaturaCanvas value={faltaAssinatura} onChange={setFaltaAssinatura}/></div>
+
+            <div style={{display:"flex",gap:10}}>
+              <div onClick={()=>{setFaltaTipo(null);setFaltaDentista("");setFaltaAssinatura("");}} style={{flex:1,padding:"14px",textAlign:"center",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>Cancelar</div>
+              <div onClick={registrarFalta} style={{flex:1,padding:"14px",textAlign:"center",background:faltaSalvando?"#ccc":"#C62828",color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:faltaSalvando?"default":"pointer"}}>{faltaSalvando?"Salvando...":"Confirmar"}</div>
+            </div>
           </div>
         </div>
-      </Card>
+      )}
 
       {/* Notas internas — NUNCA aparecem no relatório, uso exclusivo da equipe */}
       <Card>
@@ -2731,6 +2780,7 @@ function ArquivoDriveSection({onCarregar}) {
   const [filtro, setFiltro] = React.useState("");
   const [selecionados, setSelecionados] = React.useState(new Set());
   const [excluindo, setExcluindo] = React.useState(false);
+  const [ordenacao, setOrdenacao] = React.useState("recentes"); // "recentes" | "nome"
 
   const login = async () => {
     if(!window.location.hostname.includes("integra-clinica") && window.location.hostname !== "localhost") {
@@ -2793,7 +2843,8 @@ function ArquivoDriveSection({onCarregar}) {
     } catch(e) { setErro("Erro: "+e.message); }
   };
 
-  const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase())) : [];
+  const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase()))
+    .sort((a,b) => ordenacao==="nome" ? extrairNome(a.name).localeCompare(extrairNome(b.name),"pt-BR") : (b.createdTime||b.modifiedTime||"").localeCompare(a.createdTime||a.modifiedTime||"")) : [];
 
   if(!logado) return (
     <div style={{textAlign:"center",padding:20}}>
@@ -2807,11 +2858,15 @@ function ArquivoDriveSection({onCarregar}) {
 
   return (
     <div>
-      <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}>
+      <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:10}}>
         <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"12px 14px",border:"1px solid "+BORDER,borderRadius:5,fontSize:14,outline:"none"}}/>
         {filtrados.length>0&&<div onClick={()=>{if(selecionados.size===filtrados.length)setSelecionados(new Set());else setSelecionados(new Set(filtrados.map(a=>a.id)));}} style={{padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:5,cursor:"pointer",fontSize:11,color:"#9A8060",whiteSpace:"nowrap"}}>{selecionados.size===filtrados.length?"Desmarcar":"Sel. tudo"}</div>}
         <div onClick={listar} style={{padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:5,cursor:"pointer",fontSize:13,color:"#9A8060"}}>↻</div>
         <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:11,color:"#9A8060",cursor:"pointer",whiteSpace:"nowrap"}}>Sair</div>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        <div onClick={()=>setOrdenacao("nome")} style={{padding:"4px 12px",borderRadius:20,fontSize:10,fontWeight:700,cursor:"pointer",border:"1px solid "+(ordenacao==="nome"?GOLD_DARK:BORDER),background:ordenacao==="nome"?GOLD_DARK:"#fff",color:ordenacao==="nome"?"#fff":"#9A8060"}}>Nome (A-Z)</div>
+        <div onClick={()=>setOrdenacao("recentes")} style={{padding:"4px 12px",borderRadius:20,fontSize:10,fontWeight:700,cursor:"pointer",border:"1px solid "+(ordenacao==="recentes"?GOLD_DARK:BORDER),background:ordenacao==="recentes"?GOLD_DARK:"#fff",color:ordenacao==="recentes"?"#fff":"#9A8060"}}>Mais recentes</div>
       </div>
       {selecionados.size>0&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"8px 12px",background:"#FFF0F0",border:"1px solid #E57373",borderRadius:5}}>
         <span style={{fontSize:12,color:"#C62828",flex:1}}>{selecionados.size} selecionado(s)</span>
@@ -4499,13 +4554,14 @@ async function gdriveListarTodos() {
   const folderId = await gdriveGetFolder();
   let all = [], pageToken = "";
   do {
-    const url = "https://www.googleapis.com/drive/v3/files?q=%27"+folderId+"%27+in+parents+and+trashed%3Dfalse&fields=files(id,name,modifiedTime,size),nextPageToken&orderBy=name&pageSize=100"+(pageToken?"&pageToken="+pageToken:"");
+    const url = "https://www.googleapis.com/drive/v3/files?q=%27"+folderId+"%27+in+parents+and+trashed%3Dfalse&fields=files(id,name,modifiedTime,createdTime,size),nextPageToken&pageSize=100"+(pageToken?"&pageToken="+pageToken:"");
     const res = await fetch(url, {headers:{Authorization:"Bearer "+_gdriveToken}});
     const d = await res.json();
     if(d.files) all = all.concat(d.files);
     pageToken = d.nextPageToken || "";
   } while(pageToken);
-  return all.sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
+  // Sem ordenação forçada aqui — quem chama decide (Nome A-Z ou Mais recentes).
+  return all;
 }
 
 async function gdriveCarregarArquivo(fileId) {
@@ -4521,6 +4577,7 @@ function DrivePastaModal({onClose, onCarregar}) {
   const [filtro, setFiltro] = React.useState("");
   const [selecionados, setSelecionados] = React.useState(new Set());
   const [excluindo, setExcluindo] = React.useState(false);
+  const [ordenacao, setOrdenacao] = React.useState("recentes"); // "recentes" | "nome"
   React.useEffect(()=>{ _gdriveFolderId=null; gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); },[]);
   const extrairNome = (fn) => { const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," "); return m.charAt(0).toUpperCase()+m.slice(1); };
   const fmtData = (iso) => { if(!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
@@ -4551,7 +4608,8 @@ function DrivePastaModal({onClose, onCarregar}) {
     } catch(e) { setErro("Erro: "+e.message); }
     setExcluindo(false);
   };
-  const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase())) : [];
+  const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase()))
+    .sort((a,b) => ordenacao==="nome" ? extrairNome(a.name).localeCompare(extrairNome(b.name),"pt-BR") : (b.createdTime||b.modifiedTime||"").localeCompare(a.createdTime||a.modifiedTime||"")) : [];
   return (
     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"#fff",borderRadius:8,maxWidth:520,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
@@ -4565,6 +4623,10 @@ function DrivePastaModal({onClose, onCarregar}) {
         <div style={{padding:"10px 22px 8px",display:"flex",gap:8,alignItems:"center"}}>
           <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:4,fontSize:12,outline:"none",boxSizing:"border-box"}}/>
           {filtrados.length>0&&<div onClick={selTodos} style={{padding:"6px 10px",border:"1px solid "+BORDER,borderRadius:3,cursor:"pointer",fontSize:9,color:selecionados.size===filtrados.length?GOLD_DARK:"#9A8060",fontWeight:600,whiteSpace:"nowrap"}}>{selecionados.size===filtrados.length?"Desmarcar":"Selecionar tudo"}</div>}
+        </div>
+        <div style={{padding:"0 22px 8px",display:"flex",gap:6}}>
+          <div onClick={()=>setOrdenacao("nome")} style={{padding:"3px 10px",borderRadius:20,fontSize:9,fontWeight:700,cursor:"pointer",border:"1px solid "+(ordenacao==="nome"?GOLD_DARK:BORDER),background:ordenacao==="nome"?GOLD_DARK:"#fff",color:ordenacao==="nome"?"#fff":"#9A8060"}}>Nome (A-Z)</div>
+          <div onClick={()=>setOrdenacao("recentes")} style={{padding:"3px 10px",borderRadius:20,fontSize:9,fontWeight:700,cursor:"pointer",border:"1px solid "+(ordenacao==="recentes"?GOLD_DARK:BORDER),background:ordenacao==="recentes"?GOLD_DARK:"#fff",color:ordenacao==="recentes"?"#fff":"#9A8060"}}>Mais recentes</div>
         </div>
         {selecionados.size>0&&<div style={{padding:"6px 22px",display:"flex",alignItems:"center",gap:8,background:"#FFF0F0",borderBottom:"1px solid #E57373"}}>
           <span style={{fontSize:11,color:"#C62828",flex:1}}>{selecionados.size} selecionado(s)</span>
@@ -5079,6 +5141,7 @@ function Prontuario({p1}) {
   const [novaData, setNovaData] = React.useState(()=>new Date().toISOString().split("T")[0]);
   const [novaDescricao, setNovaDescricao] = React.useState("");
   const [novaObsInterna, setNovaObsInterna] = React.useState("");
+  const [novoDentistaResp, setNovoDentistaResp] = React.useState("");
   const [assDentista, setAssDentista] = React.useState("");
   const [assPaciente, setAssPaciente] = React.useState("");
   const [modoAssPaciente, setModoAssPaciente] = React.useState("presencial");
@@ -5105,12 +5168,13 @@ function Prontuario({p1}) {
 
   const resetForm = () => {
     setNovaData(new Date().toISOString().split("T")[0]);
-    setNovaDescricao(""); setNovaObsInterna(""); setAssDentista(""); setAssPaciente(""); setModoAssPaciente("presencial");
+    setNovaDescricao(""); setNovaObsInterna(""); setNovoDentistaResp(""); setAssDentista(""); setAssPaciente(""); setModoAssPaciente("presencial");
   };
 
   const salvarEntrada = () => {
     if(!cpfPaciente) { showToast("Preencha o CPF do paciente na aba Paciente antes de registrar.","error"); return; }
     if(!novaDescricao.trim()) { showToast("Descreva o que foi feito nesta visita.","error"); return; }
+    if(!novoDentistaResp) { showToast("Selecione o dentista responsável por esta entrada.","error"); return; }
     if(!assDentista) { showToast("Assine como dentista antes de salvar.","error"); return; }
     if(modoAssPaciente==="presencial" && !assPaciente) { showToast("Colete a assinatura do paciente, ou escolha \"Enviar link depois\".","error"); return; }
     if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
@@ -5118,7 +5182,7 @@ function Prontuario({p1}) {
     const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
     const entrada = {
       cpfPaciente, nomePaciente: p1.nome||"", data: novaData, descricao: novaDescricao.trim(),
-      obsInterna: novaObsInterna.trim(),
+      obsInterna: novaObsInterna.trim(), dentistaResponsavel: novoDentistaResp,
       assinaturaDentista: assDentista, assinaturaPaciente: modoAssPaciente==="presencial" ? assPaciente : "",
       statusPaciente: modoAssPaciente==="presencial" ? "assinado" : "pendente",
       criadoEm: new Date().toISOString(),
@@ -5153,16 +5217,23 @@ function Prontuario({p1}) {
         <div key={e._key} style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:6,padding:"14px 16px",marginBottom:10}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,gap:8}}>
             <div style={{fontSize:13,fontWeight:700,color:"#2A1538"}}>{dataFmt(e.data)}</div>
-            <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:e.statusPaciente==="assinado"?"#E8F5E9":GOLD_PALE,color:e.statusPaciente==="assinado"?"#2E7D32":GOLD_DARK}}>
-              {e.statusPaciente==="assinado"?"✓ Assinado":"Aguardando assinatura"}
-            </div>
+            {e.tipo==="falta" ? (
+              <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:"#FDEAEA",color:"#C62828"}}>{e.agravante?"⚠ Faltou confirmada":"Não compareceu"}</div>
+            ) : (
+              <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:e.statusPaciente==="assinado"?"#E8F5E9":GOLD_PALE,color:e.statusPaciente==="assinado"?"#2E7D32":GOLD_DARK}}>
+                {e.statusPaciente==="assinado"?"✓ Assinado":"Aguardando assinatura"}
+              </div>
+            )}
           </div>
+          {e.dentistaResponsavel && <div style={{fontSize:10,fontWeight:700,color:PURPLE,marginBottom:6}}>{e.dentistaResponsavel}</div>}
           <div style={{fontSize:12.5,color:"#5C4A2A",lineHeight:1.5,whiteSpace:"pre-wrap",marginBottom:8}}>{e.descricao}</div>
           <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
             {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Dentista</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
-            {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+            {e.tipo==="falta" ? (
+              <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><div style={{fontSize:11,color:"#C62828",fontWeight:600,padding:"8px 0"}}>Não compareceu</div></div>
+            ) : e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
           </div>
-          {e.statusPaciente!=="assinado" && (
+          {e.tipo!=="falta" && e.statusPaciente!=="assinado" && (
             <div onClick={()=>copiarLink(e._key)} style={{marginTop:8,fontSize:11,color:PURPLE,fontWeight:600,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
           )}
           {e.obsInterna && (
@@ -5189,6 +5260,12 @@ function Prontuario({p1}) {
 
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase",display:"flex",alignItems:"center",gap:5}}><span>🔒</span> Observação interna (não aparece pro paciente)</label>
             <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={novaObsInterna} onChange={e=>setNovaObsInterna(e.target.value)} placeholder="Ex: revisar oclusão no próximo atendimento..." style={{width:"100%",padding:"12px",border:"1px solid "+GOLD,borderRadius:4,fontSize:16,minHeight:70,marginTop:4,marginBottom:16,resize:"vertical",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.5,background:GOLD_PALE}}/>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Dentista responsável</label>
+            <select value={novoDentistaResp} onChange={e=>setNovoDentistaResp(e.target.value)} style={{width:"100%",padding:"12px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:14,marginTop:4,marginBottom:16,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}>
+              <option value="">Selecione...</option>
+              {EQUIPE.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
+            </select>
 
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do dentista</label>
             <div style={{marginTop:4,marginBottom:16}}><AssinaturaCanvas value={assDentista} onChange={setAssDentista}/></div>
@@ -6211,7 +6288,7 @@ function App() {
 }} onImportarFormulario={(f)=>{
   setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, email:f.email||"", dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||"", anamnese:f.anamnese||null, anamneseEspecialidade:f.anamneseEspecialidade||""}));
 }}/>}
-      {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
+      {pag==="p2"&&<P2 data={p2} setData={setP2} p1={p1}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State} modelos={modelos} setModelos={setModelos} p3={p3} setP3={v=>setP3(prev=>({...prev,...v}))}/>}
       {pag==="p4"&&(p3.modoRel==="soma"||p3.modoRel==="ambos")&&(
         <div style={{maxWidth:620,margin:"0 auto",padding:"0 16px 20px"}}>
