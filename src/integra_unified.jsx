@@ -407,7 +407,10 @@ function formatarAnamnese(an) {
   comDetalhe("comoConheceu","comoConheceuOutro",ANAMNESE_LABELS.comoConheceu);
   add(ANAMNESE_LABELS.relatoLivre, an.relatoLivre);
   add(ANAMNESE_LABELS.bruxismo, an.bruxismo);
-  if(an.sintomasDtm&&an.sintomasDtm.length) add(ANAMNESE_LABELS.sintomasDtm, an.sintomasDtm.join(", ")+(an.sintomasDtmOutro?" — "+an.sintomasDtmOutro:""));
+  if(an.sintomasDtm&&an.sintomasDtm.length) {
+    const listaSintomas = an.sintomasDtm.length===1 && an.sintomasDtm[0]==="Nenhum desses" ? "Nenhum" : an.sintomasDtm.join(", ");
+    add(ANAMNESE_LABELS.sintomasDtm, listaSintomas+(an.sintomasDtmOutro?" — "+an.sintomasDtmOutro:""));
+  }
   if(an.aparelhoAnterior) add(ANAMNESE_LABELS.aparelhoAnterior, an.aparelhoAnterior+(an.aparelhoTempo?" — "+an.aparelhoTempo:""));
   return linhas;
 }
@@ -2647,7 +2650,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
               <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: GOLD_DARK, fontWeight: 700 }}>Etapas / Detalhes</div>
               <div
                 onClick={() => onChange({ ...item, subtopicos: [...(item.subtopicos || []), ""] })}
-                style={{ fontSize: 10, color: GOLD_DARK, cursor: "pointer", padding: "2px 8px", border: "1px solid " + GOLD, borderRadius: 20, fontWeight: 600 }}
+                style={{ fontSize: 12, color: GOLD_DARK, cursor: "pointer", padding: "8px 14px", border: "1.5px solid " + GOLD, borderRadius: 20, fontWeight: 700, background: GOLD_PALE }}
               >+ Adicionar</div>
             </div>
             {(item.subtopicos || []).length === 0 && (
@@ -2656,7 +2659,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
               </div>
             )}
             {(item.subtopicos || []).map((st, si) => (
-              <div key={si} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+              <div key={si} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8 }}>
                 <div style={{ fontSize: 11, color: GOLD_DARK, fontWeight: 700, minWidth: 18 }}>{si + 1}.</div>
                 <textarea
                   spellCheck="true"
@@ -2664,7 +2667,7 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                   autoCorrect="on"
                   autoCapitalize="sentences"
                   rows={1}
-                  style={{ flex: 1, padding: "6px 10px", border: "1px solid " + BORDER, borderRadius: 2, fontSize: 12, color: "#1C1410", background: "#fff", fontFamily: "inherit", resize: "none", lineHeight: 1.4, overflow: "hidden" }}
+                  style={{ flex: 1, padding: "10px 10px", border: "1px solid " + BORDER, borderRadius: 4, fontSize: 13, color: "#1C1410", background: "#fff", fontFamily: "inherit", resize: "none", lineHeight: 1.4, overflow: "hidden" }}
                   value={st}
                   onChange={e => {
                     e.target.style.height = "auto";
@@ -2680,25 +2683,25 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
                     const novos = (item.subtopicos || []).filter((_, i) => i !== si);
                     onChange({ ...item, subtopicos: novos });
                   }}
-                  style={{ fontSize: 11, color: "#9A8060", cursor: "pointer", padding: "4px 6px", flexShrink: 0 }}
+                  style={{ fontSize: 14, color: "#9A8060", cursor: "pointer", padding: "10px 10px", flexShrink: 0 }}
                 >✕</div>
               </div>
             ))}
           </div>
 
           {/* Anotação interna — recolhida, não aparece no relatório */}
-          <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px dashed " + BORDER }}>
-            <div onClick={()=>setShowAnotacao(!showAnotacao)} style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"#9A8060",display:"flex",alignItems:"center",gap:6,cursor:"pointer"}}>
-              <span>📝 Anotação interna{item.anotacao?" ✓":""}</span>
-              <span style={{fontSize:8,color:"#bbb",fontWeight:400,textTransform:"none",letterSpacing:0}}>(não aparece no relatório)</span>
-              <span style={{marginLeft:"auto",fontSize:9}}>{showAnotacao?"▲":"▼"}</span>
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px dashed " + BORDER }}>
+            <div onClick={()=>setShowAnotacao(!showAnotacao)} style={{fontSize:11,color:"#9A8060",display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"8px 4px"}}>
+              <span style={{fontWeight:600}}>📝 Anotação interna{item.anotacao?" ✓":""}</span>
+              <span style={{fontSize:9,color:"#bbb",fontWeight:400}}>(não aparece no relatório)</span>
+              <span style={{marginLeft:"auto",fontSize:10}}>{showAnotacao?"▲":"▼"}</span>
             </div>
             {showAnotacao && (
               <input
                 value={item.anotacao || ""}
                 onChange={e => onChange({ ...item, anotacao: e.target.value })}
                 placeholder="Ex: Orçamento premium, pacote completo..."
-                style={{width:"100%",marginTop:6,padding:"6px 10px",border:"1px dashed #ccc",borderRadius:4,fontSize:11,fontFamily:"inherit",color:"#9A8060",background:"#FAFAF8",outline:"none",boxSizing:"border-box"}}
+                style={{width:"100%",marginTop:6,padding:"11px 10px",border:"1px dashed #ccc",borderRadius:4,fontSize:14,fontFamily:"inherit",color:"#9A8060",background:"#FAFAF8",outline:"none",boxSizing:"border-box"}}
               />
             )}
           </div>
@@ -5092,6 +5095,7 @@ function Prontuario({p1}) {
   const [showFalta, setShowFalta] = React.useState(false);
   const [editandoFaltaKey, setEditandoFaltaKey] = React.useState(null);
   const [faltaOcorrencia, setFaltaOcorrencia] = React.useState(null);
+  const [faltaData, setFaltaData] = React.useState(()=>new Date().toISOString().split("T")[0]);
   const [faltaConfirmou, setFaltaConfirmou] = React.useState(null);
   const [faltaAntecedencia, setFaltaAntecedencia] = React.useState(null);
   const [faltaDentista, setFaltaDentista] = React.useState("");
@@ -5178,6 +5182,7 @@ function Prontuario({p1}) {
   const resetFalta = () => {
     setEditandoFaltaKey(null);
     setFaltaOcorrencia(null); setFaltaConfirmou(null); setFaltaAntecedencia(null);
+    setFaltaData(new Date().toISOString().split("T")[0]);
     setFaltaDentista(""); setFaltaAssinatura("");
   };
 
@@ -5186,6 +5191,7 @@ function Prontuario({p1}) {
     setFaltaOcorrencia(e.ocorrencia || "faltou");
     setFaltaConfirmou(e.confirmouAntes!==undefined ? e.confirmouAntes : !!e.agravante);
     setFaltaAntecedencia(e.antecedencia || null);
+    setFaltaData(e.data||new Date().toISOString().split("T")[0]);
     setFaltaDentista(e.dentistaResponsavel||"");
     setFaltaAssinatura(e.assinaturaDentista||"");
     setShowFalta(true);
@@ -5205,7 +5211,7 @@ function Prontuario({p1}) {
       + (faltaConfirmou ? " Consulta estava confirmada previamente." : " Consulta não havia sido confirmada previamente.")
       + (onus ? " Aviso com menos de 24h (ou sem aviso) — sujeito a ônus para convênio." : " Aviso com mais de 24h de antecedência — sem ônus para convênio.");
     const campos = {
-      cpfPaciente, nomePaciente: p1.nome||"", data: new Date().toISOString().split("T")[0], descricao,
+      cpfPaciente, nomePaciente: p1.nome||"", data: faltaData, descricao,
       tipo:"falta", ocorrencia: faltaOcorrencia, confirmouAntes: faltaConfirmou, antecedencia: faltaAntecedencia, onus,
       agravante: !!faltaConfirmou,
       dentistaResponsavel: faltaDentista,
@@ -5242,6 +5248,9 @@ function Prontuario({p1}) {
         <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"20px 12px"}}>
           <div style={{background:"#fff",borderRadius:8,padding:20,maxWidth:420,width:"100%",marginTop:20,marginBottom:20}}>
             <div style={{fontSize:15,fontWeight:700,color:"#2A1538",marginBottom:14}}>{editandoFaltaKey?"Editar falta":"Registrar falta"} — {p1.nome||"paciente sem nome"}</div>
+
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Data</label>
+            <input type="date" value={faltaData} onChange={e=>setFaltaData(e.target.value)} style={{width:"100%",padding:"12px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:16,marginTop:4,marginBottom:16,fontFamily:"inherit",boxSizing:"border-box"}}/>
 
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>O que aconteceu</label>
             <div style={{display:"flex",gap:8,marginTop:6,marginBottom:16}}>
@@ -5313,19 +5322,19 @@ function Prontuario({p1}) {
             ) : e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
           </div>
           {e.tipo!=="falta" && e.statusPaciente!=="assinado" && (
-            <div onClick={()=>copiarLink(e._key)} style={{marginTop:8,fontSize:11,color:PURPLE,fontWeight:600,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
+            <div onClick={()=>copiarLink(e._key)} style={{marginTop:10,padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
           )}
           {e.obsInterna && (
-            <div style={{marginTop:8}}>
-              <div onClick={()=>setObsAbertas(prev=>({...prev,[e._key]:!prev[e._key]}))} style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:11,fontWeight:700,color:GOLD_DARK}}>
-                <span>🔒 Observação interna</span><span style={{fontSize:10}}>{obsAbertas[e._key]?"▲":"▼"}</span>
+            <div style={{marginTop:10}}>
+              <div onClick={()=>setObsAbertas(prev=>({...prev,[e._key]:!prev[e._key]}))} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:12,fontWeight:700,color:GOLD_DARK,padding:"10px 12px",background:GOLD_PALE,borderRadius:6,border:"1px solid "+GOLD}}>
+                <span style={{flex:1}}>🔒 Observação interna</span><span style={{fontSize:11}}>{obsAbertas[e._key]?"▲":"▼"}</span>
               </div>
-              {obsAbertas[e._key] && <div style={{marginTop:6,padding:"8px 10px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:4,fontSize:12,color:"#5C4A2A",whiteSpace:"pre-wrap"}}>{e.obsInterna}</div>}
+              {obsAbertas[e._key] && <div style={{marginTop:6,padding:"10px 12px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:4,fontSize:12.5,color:"#5C4A2A",whiteSpace:"pre-wrap"}}>{e.obsInterna}</div>}
             </div>
           )}
-          <div style={{display:"flex",gap:14,marginTop:10,paddingTop:8,borderTop:"1px solid "+BORDER}}>
-            <div onClick={()=>e.tipo==="falta"?iniciarEdicaoFalta(e):iniciarEdicao(e)} style={{fontSize:11,color:GOLD_DARK,fontWeight:600,cursor:"pointer"}}>✎ Editar</div>
-            <div onClick={()=>excluirEntrada(e._key)} style={{fontSize:11,color:"#C62828",fontWeight:600,cursor:"pointer"}}>🗑 Excluir</div>
+          <div style={{display:"flex",gap:10,marginTop:12,paddingTop:12,borderTop:"1px solid "+BORDER}}>
+            <div onClick={()=>e.tipo==="falta"?iniciarEdicaoFalta(e):iniciarEdicao(e)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
+            <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
           </div>
           {e.editadoEm && <div style={{fontSize:9,color:"#B0A090",marginTop:6}}>Editado em {new Date(e.editadoEm).toLocaleDateString("pt-BR")}</div>}
         </div>
@@ -5528,16 +5537,18 @@ function FormularioPaciente({formId, especialidade}) {
     const arr = p[k].includes(val) ? p[k].filter(x=>x!==val) : [...p[k], val];
     return {...p,[k]:arr};
   });
-  // Condições de saúde: "Nenhuma dessas" é excludente com as demais opções
-  const toggleCondicao = (k,val) => setAn(p=>{
+  // Condições de saúde / Sintomas de DTM: a opção "Nenhuma" é excludente com as demais
+  const toggleExcludente = (k,val,noneLabel) => setAn(p=>{
     const atual = p[k];
-    if(val==="Nenhuma dessas") {
-      return {...p,[k]: atual.includes("Nenhuma dessas") ? [] : ["Nenhuma dessas"]};
+    if(val===noneLabel) {
+      return {...p,[k]: atual.includes(noneLabel) ? [] : [noneLabel]};
     }
-    const semNenhuma = atual.filter(x=>x!=="Nenhuma dessas");
+    const semNenhuma = atual.filter(x=>x!==noneLabel);
     const arr = semNenhuma.includes(val) ? semNenhuma.filter(x=>x!==val) : [...semNenhuma, val];
     return {...p,[k]:arr};
   });
+  const toggleCondicao = (k,val) => toggleExcludente(k,val,"Nenhuma dessas");
+  const toggleSintomasDtm = (k,val) => toggleExcludente(k,val,"Nenhum desses");
 
   const stepOrder = React.useMemo(()=>{
     const base = ["cadastro","profissao","genero","queixa","alergia","medicamento","condicoes","denteAusente"];
@@ -5840,7 +5851,7 @@ function FormularioPaciente({formId, especialidade}) {
       <div>
         <div style={pergunta}>Sente algum desses sintomas?</div>
         <div style={{fontSize:14,color:"#9A8060",marginBottom:16,marginTop:-12}}>Pode marcar mais de um</div>
-        <OpcoesMultiplas an={an} toggleMulti={toggleMulti} field="sintomasDtm" opcoes={["Dor de cabeça frequente","Estalos ou ruídos ao abrir a boca","Dificuldade para abrir a boca","Dor no ouvido","Cansaço no rosto ao mastigar","Não sei localizar, mas sinto desconforto"]}/>
+        <OpcoesMultiplas an={an} toggleMulti={toggleSintomasDtm} field="sintomasDtm" opcoes={["Dor de cabeça frequente","Estalos ou ruídos ao abrir a boca","Dificuldade para abrir a boca","Dor no ouvido","Cansaço no rosto ao mastigar","Não sei localizar, mas sinto desconforto","Nenhum desses"]}/>
         <label style={{...lblF,marginTop:8}}>Outro (opcional)</label>
         <CampoTexto value={an.sintomasDtmOutro} onChange={v=>setA("sintomasDtmOutro",v)} placeholder="Algum outro sintoma"/>
       </div>
