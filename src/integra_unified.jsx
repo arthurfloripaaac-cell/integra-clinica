@@ -5556,7 +5556,7 @@ function Prontuario({p1}) {
 
             <label style={{display:"block",textAlign:"center",padding:"16px",border:"2px dashed "+GOLD,borderRadius:6,background:GOLD_PALE,color:GOLD_DARK,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:16}}>
               {enviandoScans ? scanProgresso||"Enviando..." : "📷 Tirar foto ou escolher imagens"}
-              <input type="file" accept="image/*" capture="environment" multiple disabled={enviandoScans} onChange={e=>{if(e.target.files&&e.target.files.length)enviarScans(e.target.files);e.target.value="";}} style={{display:"none"}}/>
+              <input type="file" accept="image/*" multiple disabled={enviandoScans} onChange={e=>{if(e.target.files&&e.target.files.length)enviarScans(e.target.files);e.target.value="";}} style={{display:"none"}}/>
             </label>
 
             {scans===null && <div style={{fontSize:12,color:"#9A8060",textAlign:"center",padding:12}}>Carregando...</div>}
@@ -5582,7 +5582,7 @@ function Prontuario({p1}) {
       {cpfPaciente && entradas && entradas.length===0 && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Nenhuma visita registrada ainda.</div>}
 
       {cpfPaciente && entradas && entradas.map(e=>(
-        <div key={e._key} style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:6,padding:"14px 16px",marginBottom:10}}>
+        <div key={e._key} style={{background:e.tipo==="falta"?"#FDF4F4":e.tipo==="pagamento"?"#F4FAF5":"#fff",border:"1px solid "+BORDER,borderLeft:"4px solid "+(e.tipo==="falta"?"#C62828":e.tipo==="pagamento"?"#2E7D32":BORDER),borderRadius:6,padding:"14px 16px",marginBottom:10}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,gap:8}}>
             <div style={{fontSize:13,fontWeight:700,color:"#2A1538"}}>{dataFmt(e.data)}</div>
             <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
