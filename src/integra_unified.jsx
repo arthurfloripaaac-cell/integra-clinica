@@ -4408,10 +4408,12 @@ async function gdriveUploadScan(blob, cpfPaciente, nomePaciente, indice) {
 async function gdriveListarScans(cpfPaciente) {
   if(!_gdriveToken) throw new Error("Não autenticado");
   const folderId = await gdriveGetScansFolder();
-  const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27scan_"+encodeURIComponent(cpfPaciente||"___")+"%27";
+  const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27scan_%27";
   const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name,webViewLink,thumbnailLink,createdTime)&orderBy=createdTime",{headers:{Authorization:"Bearer "+_gdriveToken}});
   const d = await res.json();
-  return d.files||[];
+  const all = d.files||[];
+  if(!cpfPaciente) return all;
+  return all.filter(f=>f.name.includes("scan_"+cpfPaciente));
 }
 
 async function gdriveExcluirScan(fileId) {
@@ -5260,10 +5262,13 @@ function Prontuario({p1}) {
       obsInterna: novaObsInterna.trim(), dentistaResponsavel: novoDentistaResp,
       assinaturaDentista: assDentista, assinaturaPaciente: modoAssPaciente==="presencial" ? assPaciente : "",
       statusPaciente: modoAssPaciente==="presencial" ? "assinado" : "pendente",
+      pagamentoPendente: (incluirPagamento && modoAssPaciente==="link") ? {
+        valor: pagValorNum, forma: pagForma, destinatario: pagDestinatario, obsInterna: pagObs.trim()
+      } : null,
     };
     const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
     const criarPagamentoVinculado = () => {
-      if(!incluirPagamento) return Promise.resolve();
+      if(!incluirPagamento || modoAssPaciente!=="presencial") return Promise.resolve();
       const descricaoPag = "Pagamento de "+fmt(pagValorNum)+" via "+(nomesForma[pagForma]||pagForma)+" — repassado para "+(pagDestinatario==="dentista"?"o dentista":"a clínica")+".";
       const camposPag = {
         cpfPaciente, nomePaciente: p1.nome||"", data: novaData, descricao: descricaoPag,
@@ -5277,7 +5282,7 @@ function Prontuario({p1}) {
     };
     const aoTerminar = () => {
       setSalvando(false); setShowNova(false); resetForm();
-      showToast(editandoKey ? "Entrada atualizada." : (incluirPagamento ? "Entrada e pagamento registrados no prontuário" : modoAssPaciente==="presencial" ? "Entrada registrada no prontuário" : "Entrada salva — copie o link para o paciente assinar"));
+      showToast(editandoKey ? "Entrada atualizada." : (incluirPagamento && modoAssPaciente==="presencial" ? "Entrada e pagamento registrados no prontuário" : incluirPagamento && modoAssPaciente==="link" ? "Entrada salva — o link já inclui o pagamento a confirmar" : modoAssPaciente==="presencial" ? "Entrada registrada no prontuário" : "Entrada salva — copie o link para o paciente assinar"));
     };
     const aoFalhar = e => { setSalvando(false); showToast("Erro ao salvar: "+e.message,"error"); };
     if(editandoKey) {
@@ -5483,6 +5488,11 @@ function Prontuario({p1}) {
             </div>
           </div>
         )}
+        {!_gdriveToken && (
+          <div className="no-print" style={{marginTop:24,padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:6,fontSize:11,color:GOLD_DARK}}>
+            Google Drive não conectado nesta sessão — conecte na aba Arquivo para ver as páginas digitalizadas aqui.
+          </div>
+        )}
       </div>
     );
   }
@@ -5503,7 +5513,7 @@ function Prontuario({p1}) {
         <div onClick={()=>{resetFalta();setShowFalta(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #C62828",color:"#C62828",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>Falta</div>
         <div onClick={()=>{resetPagamento();setShowPagamento(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #2E7D32",color:"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>💰 Pagamento</div>
         <div onClick={abrirScans} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+GOLD_DARK,color:GOLD_DARK,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>📎 Anexar páginas antigas</div>
-        {cpfPaciente&&<div onClick={()=>{setShowHistorico(true);if(scans===null)carregarScans();}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+PURPLE,color:PURPLE,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🖨 Histórico completo</div>}
+        {cpfPaciente&&<div onClick={()=>{setShowHistorico(true);carregarScans();}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+PURPLE,color:PURPLE,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🖨 Histórico completo</div>}
       </div>
 
       {showFalta && (
@@ -5662,9 +5672,12 @@ function Prontuario({p1}) {
                   <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:PURPLE_BORDER,color:PURPLE}}>{e.destinatario==="dentista"?"Dentista":"Clínica"}</div>
                 </React.Fragment>
               ) : (
-                <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:e.statusPaciente==="assinado"?"#E8F5E9":GOLD_PALE,color:e.statusPaciente==="assinado"?"#2E7D32":GOLD_DARK}}>
-                  {e.statusPaciente==="assinado"?"✓ Assinado":"Aguardando assinatura"}
-                </div>
+                <React.Fragment>
+                  <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:e.statusPaciente==="assinado"?"#E8F5E9":GOLD_PALE,color:e.statusPaciente==="assinado"?"#2E7D32":GOLD_DARK}}>
+                    {e.statusPaciente==="assinado"?"✓ Assinado":"Aguardando assinatura"}
+                  </div>
+                  {e.pagamentoPendente && <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:"#E8F5E9",color:"#2E7D32"}}>💰 pagamento no link</div>}
+                </React.Fragment>
               )}
             </div>
           </div>
@@ -5729,7 +5742,7 @@ function Prontuario({p1}) {
               <div style={{fontSize:12,color:"#9A8060",marginBottom:16,lineHeight:1.5}}>Depois de salvar, você poderá copiar um link e mandar pelo WhatsApp pro paciente assinar. Fica marcado como "Aguardando assinatura" até ele confirmar.</div>
             )}
 
-            {modoAssPaciente==="presencial" && !editandoKey && (
+            {!editandoKey && (
               <div style={{marginTop:4,marginBottom:16,paddingTop:14,borderTop:"1px dashed "+BORDER}}>
                 <div onClick={()=>setIncluirPagamento(!incluirPagamento)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 4px"}}>
                   <div style={{width:20,height:20,borderRadius:4,border:"2px solid "+(incluirPagamento?"#2E7D32":BORDER),background:incluirPagamento?"#2E7D32":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -5763,7 +5776,7 @@ function Prontuario({p1}) {
                     <label style={{fontSize:10,fontWeight:700,color:"#2E7D32",textTransform:"uppercase"}}>Observação (opcional)</label>
                     <input value={pagObs} onChange={e=>setPagObs(e.target.value)} placeholder="Ex: referente à 1ª parcela do orçamento" style={{width:"100%",padding:"10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,marginTop:4,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}/>
 
-                    <div style={{fontSize:9,color:"#9A8060",marginTop:10}}>Usa a mesma assinatura do dentista e do paciente já coletadas acima — não pede uma segunda.</div>
+                    <div style={{fontSize:9,color:"#9A8060",marginTop:10}}>{modoAssPaciente==="presencial" ? "Usa a mesma assinatura do dentista e do paciente já coletadas acima — não pede uma segunda." : "O paciente verá o valor e a forma de pagamento junto com o atendimento no link, e confirma tudo com uma única assinatura."}</div>
                   </div>
                 )}
               </div>
@@ -5802,7 +5815,22 @@ function AssinaturaVisitaPublica({visitaId}) {
     if(!assinatura) { setErro("Assine no campo acima antes de enviar."); return; }
     setErro("");
     setEnviando(true);
-    _fbDb.ref(PRONTUARIO_FB_PATH+"/"+visitaId).update({assinaturaPaciente:assinatura, statusPaciente:"assinado"}).then(()=>{
+    const pend = entrada.pagamentoPendente;
+    const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
+    const criarPagamento = () => {
+      if(!pend) return Promise.resolve();
+      const descricaoPag = "Pagamento de "+fmt(pend.valor||0)+" via "+(nomesForma[pend.forma]||pend.forma)+" — repassado para "+(pend.destinatario==="dentista"?"o dentista":"a clínica")+".";
+      const camposPag = {
+        cpfPaciente: entrada.cpfPaciente, nomePaciente: entrada.nomePaciente||"", data: entrada.data, descricao: descricaoPag,
+        tipo:"pagamento", valor: pend.valor, forma: pend.forma, destinatario: pend.destinatario,
+        obsInterna: pend.obsInterna||"", dentistaResponsavel: entrada.dentistaResponsavel,
+        assinaturaDentista: entrada.assinaturaDentista, assinaturaPaciente: assinatura,
+        statusPaciente: "assinado", criadoEm: new Date().toISOString(),
+      };
+      const keyPag = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
+      return _fbDb.ref(PRONTUARIO_FB_PATH+"/"+keyPag).set(camposPag);
+    };
+    _fbDb.ref(PRONTUARIO_FB_PATH+"/"+visitaId).update({assinaturaPaciente:assinatura, statusPaciente:"assinado", pagamentoPendente:null}).then(criarPagamento).then(()=>{
       setEnviando(false); setEnviado(true);
     }).catch(e=>{ setEnviando(false); setErro("Erro ao enviar: "+e.message); });
   };
@@ -5830,7 +5858,20 @@ function AssinaturaVisitaPublica({visitaId}) {
         <div style={{fontSize:13,color:"#5C4A2A",marginBottom:4}}><b>Paciente:</b> {entrada.nomePaciente}</div>
         <div style={{fontSize:13,color:"#5C4A2A",marginBottom:14}}><b>Data:</b> {dataFmt(entrada.data)}</div>
         <div style={{fontSize:11,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase",marginBottom:6}}>Hoje foram realizados:</div>
-        <div style={{fontSize:13,color:"#2A1538",background:GOLD_PALE,padding:"10px 12px",borderRadius:4,marginBottom:18,whiteSpace:"pre-wrap"}}>{entrada.descricao}</div>
+        <div style={{fontSize:13,color:"#2A1538",background:GOLD_PALE,padding:"10px 12px",borderRadius:4,marginBottom:entrada.pagamentoPendente?12:18,whiteSpace:"pre-wrap"}}>{entrada.descricao}</div>
+        {entrada.pagamentoPendente && (()=>{
+          const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
+          const pend = entrada.pagamentoPendente;
+          return (
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#2E7D32",textTransform:"uppercase",marginBottom:6}}>Pagamento a confirmar</div>
+              <div style={{fontSize:13,color:"#2A1538",background:"#F4FAF5",border:"1px solid #2E7D32",padding:"10px 12px",borderRadius:4}}>
+                <div><b>Valor:</b> {fmt(pend.valor||0)}</div>
+                <div style={{marginTop:2}}><b>Forma:</b> {nomesForma[pend.forma]||pend.forma}</div>
+              </div>
+            </div>
+          );
+        })()}
         <div style={{fontSize:12,color:"#5C4A2A",marginBottom:8}}>Confirme com sua assinatura abaixo:</div>
         <AssinaturaCanvas value={assinatura} onChange={setAssinatura}/>
         {erro && <div style={{fontSize:11,color:"#C62828",marginTop:8}}>{erro}</div>}
