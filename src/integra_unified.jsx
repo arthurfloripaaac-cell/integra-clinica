@@ -4419,6 +4419,23 @@ async function gdriveExcluirScan(fileId) {
   await fetch("https://www.googleapis.com/drive/v3/files/"+fileId,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}});
 }
 
+// thumbnailLink do Drive exige sessão autenticada do Google — não funciona em <img> direto.
+// Baixamos o arquivo com o token da API e criamos uma URL local (blob) para exibir.
+async function gdriveBaixarPreview(fileId) {
+  const res = await fetch("https://www.googleapis.com/drive/v3/files/"+fileId+"?alt=media",{headers:{Authorization:"Bearer "+_gdriveToken}});
+  if(!res.ok) throw new Error("Falha ao baixar imagem");
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
+async function gdriveListarScansComPreview(cpfPaciente) {
+  const lista = await gdriveListarScans(cpfPaciente);
+  return Promise.all(lista.map(async f => {
+    try { return {...f, _previewUrl: await gdriveBaixarPreview(f.id)}; }
+    catch(e) { return {...f, _previewUrl: null}; }
+  }));
+}
+
 async function gdriveListarArquivos(folderId, paciente) {
   const nomeNorm = (paciente||"").replace(/[^a-z0-9]/gi,"_").toLowerCase();
   const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27integra_%27";
@@ -5149,6 +5166,7 @@ function Prontuario({p1}) {
   const [assDentista, setAssDentista] = React.useState("");
   const [assPaciente, setAssPaciente] = React.useState("");
   const [modoAssPaciente, setModoAssPaciente] = React.useState("presencial");
+  const [incluirPagamento, setIncluirPagamento] = React.useState(false);
   const [salvando, setSalvando] = React.useState(false);
   const [obsAbertas, setObsAbertas] = React.useState({});
   const [showFalta, setShowFalta] = React.useState(false);
@@ -5199,6 +5217,7 @@ function Prontuario({p1}) {
     setEditandoKey(null);
     setNovaData(new Date().toISOString().split("T")[0]);
     setNovaDescricao(""); setNovaObsInterna(""); setNovoDentistaResp(""); setAssDentista(""); setAssPaciente(""); setModoAssPaciente("presencial");
+    setIncluirPagamento(false); setPagValor(""); setPagForma(null); setPagDestinatario(null); setPagObs("");
   };
 
   const iniciarEdicao = (e) => {
@@ -5210,6 +5229,7 @@ function Prontuario({p1}) {
     setAssDentista(e.assinaturaDentista||"");
     setAssPaciente(e.assinaturaPaciente||"");
     setModoAssPaciente(e.assinaturaPaciente?"presencial":"link");
+    setIncluirPagamento(false);
     setShowNova(true);
   };
 
@@ -5227,6 +5247,12 @@ function Prontuario({p1}) {
     if(!novoDentistaResp) { showToast("Selecione o dentista responsável por esta entrada.","error"); return; }
     if(!assDentista) { showToast("Assine como dentista antes de salvar.","error"); return; }
     if(modoAssPaciente==="presencial" && !assPaciente) { showToast("Colete a assinatura do paciente, ou escolha \"Enviar link depois\".","error"); return; }
+    const pagValorNum = parseFloat(String(pagValor).replace(",","."));
+    if(incluirPagamento) {
+      if(!pagValorNum || pagValorNum<=0) { showToast("Informe o valor recebido do pagamento.","error"); return; }
+      if(!pagForma) { showToast("Selecione a forma de pagamento.","error"); return; }
+      if(!pagDestinatario) { showToast("Informe se o valor foi para o dentista ou para a clínica.","error"); return; }
+    }
     if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
     setSalvando(true);
     const campos = {
@@ -5235,16 +5261,30 @@ function Prontuario({p1}) {
       assinaturaDentista: assDentista, assinaturaPaciente: modoAssPaciente==="presencial" ? assPaciente : "",
       statusPaciente: modoAssPaciente==="presencial" ? "assinado" : "pendente",
     };
+    const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
+    const criarPagamentoVinculado = () => {
+      if(!incluirPagamento) return Promise.resolve();
+      const descricaoPag = "Pagamento de "+fmt(pagValorNum)+" via "+(nomesForma[pagForma]||pagForma)+" — repassado para "+(pagDestinatario==="dentista"?"o dentista":"a clínica")+".";
+      const camposPag = {
+        cpfPaciente, nomePaciente: p1.nome||"", data: novaData, descricao: descricaoPag,
+        tipo:"pagamento", valor: pagValorNum, forma: pagForma, destinatario: pagDestinatario,
+        obsInterna: pagObs.trim(), dentistaResponsavel: novoDentistaResp,
+        assinaturaDentista: assDentista, assinaturaPaciente: assPaciente,
+        statusPaciente: "assinado", criadoEm: new Date().toISOString(),
+      };
+      const keyPag = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
+      return _fbDb.ref(PRONTUARIO_FB_PATH+"/"+keyPag).set(camposPag);
+    };
     const aoTerminar = () => {
       setSalvando(false); setShowNova(false); resetForm();
-      showToast(editandoKey ? "Entrada atualizada." : (modoAssPaciente==="presencial" ? "Entrada registrada no prontuário" : "Entrada salva — copie o link para o paciente assinar"));
+      showToast(editandoKey ? "Entrada atualizada." : (incluirPagamento ? "Entrada e pagamento registrados no prontuário" : modoAssPaciente==="presencial" ? "Entrada registrada no prontuário" : "Entrada salva — copie o link para o paciente assinar"));
     };
     const aoFalhar = e => { setSalvando(false); showToast("Erro ao salvar: "+e.message,"error"); };
     if(editandoKey) {
       _fbDb.ref(PRONTUARIO_FB_PATH+"/"+editandoKey).update({...campos, editadoEm:new Date().toISOString()}).then(aoTerminar).catch(aoFalhar);
     } else {
       const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
-      _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).set({...campos, criadoEm:new Date().toISOString()}).then(aoTerminar).catch(aoFalhar);
+      _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).set({...campos, criadoEm:new Date().toISOString()}).then(criarPagamentoVinculado).then(aoTerminar).catch(aoFalhar);
     }
   };
 
@@ -5359,16 +5399,20 @@ function Prontuario({p1}) {
     }
   };
 
-  const abrirScans = () => {
-    setShowScans(true);
+  const carregarScans = () => {
     if(!cpfPaciente) return;
     onFirebaseReady(async ()=>{
       try {
         if(!_gdriveToken) { setScans([]); return; }
-        const lista = await gdriveListarScans(cpfPaciente);
+        const lista = await gdriveListarScansComPreview(cpfPaciente);
         setScans(lista);
       } catch(e) { setScans([]); }
     });
+  };
+
+  const abrirScans = () => {
+    setShowScans(true);
+    if(scans===null) carregarScans();
   };
 
   const enviarScans = async (files) => {
@@ -5385,7 +5429,7 @@ function Prontuario({p1}) {
     }
     setScanProgresso("");
     setEnviandoScans(false);
-    try { setScans(await gdriveListarScans(cpfPaciente)); } catch(e) {}
+    try { setScans(await gdriveListarScansComPreview(cpfPaciente)); } catch(e) {}
     showToast("Páginas anexadas.");
   };
 
@@ -5422,6 +5466,23 @@ function Prontuario({p1}) {
           </div>
         ))}
         {(!entradas||entradas.length===0) && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Nenhum registro encontrado.</div>}
+
+        {scans&&scans.length>0 && (
+          <div style={{marginTop:24,breakInside:"avoid"}}>
+            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:10,borderTop:"2px solid "+GOLD,paddingTop:14}}>Páginas do prontuário em papel (digitalizadas)</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+              {scans.map(s=>(
+                <div key={s.id} style={{border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",aspectRatio:"1",background:"#F5F2EC"}}>
+                  {s._previewUrl ? (
+                    <a href={s._previewUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={s._previewUrl} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                    </a>
+                  ) : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#9A8060"}}>...</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -5442,7 +5503,7 @@ function Prontuario({p1}) {
         <div onClick={()=>{resetFalta();setShowFalta(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #C62828",color:"#C62828",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>Falta</div>
         <div onClick={()=>{resetPagamento();setShowPagamento(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #2E7D32",color:"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>💰 Pagamento</div>
         <div onClick={abrirScans} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+GOLD_DARK,color:GOLD_DARK,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>📎 Anexar páginas antigas</div>
-        {entradas&&entradas.length>0&&<div onClick={()=>setShowHistorico(true)} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+PURPLE,color:PURPLE,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🖨 Histórico completo</div>}
+        {cpfPaciente&&<div onClick={()=>{setShowHistorico(true);if(scans===null)carregarScans();}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+PURPLE,color:PURPLE,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🖨 Histórico completo</div>}
       </div>
 
       {showFalta && (
@@ -5564,10 +5625,14 @@ function Prontuario({p1}) {
             {scans&&scans.length>0 && (
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
                 {scans.map(s=>(
-                  <div key={s.id} style={{position:"relative",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",aspectRatio:"1"}}>
-                    <a href={s.webViewLink} target="_blank" rel="noopener noreferrer">
-                      <img src={s.thumbnailLink} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-                    </a>
+                  <div key={s.id} style={{position:"relative",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",aspectRatio:"1",background:"#F5F2EC"}}>
+                    {s._previewUrl ? (
+                      <a href={s._previewUrl} target="_blank" rel="noopener noreferrer">
+                        <img src={s._previewUrl} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                      </a>
+                    ) : (
+                      <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#9A8060"}}>...</div>
+                    )}
                     <div onClick={()=>excluirScanArquivo(s.id)} style={{position:"absolute",top:3,right:3,width:22,height:22,borderRadius:"50%",background:"rgba(0,0,0,0.6)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,cursor:"pointer"}}>✕</div>
                   </div>
                 ))}
@@ -5662,6 +5727,46 @@ function Prontuario({p1}) {
               <div style={{marginBottom:16}}><AssinaturaCanvas value={assPaciente} onChange={setAssPaciente}/></div>
             ) : (
               <div style={{fontSize:12,color:"#9A8060",marginBottom:16,lineHeight:1.5}}>Depois de salvar, você poderá copiar um link e mandar pelo WhatsApp pro paciente assinar. Fica marcado como "Aguardando assinatura" até ele confirmar.</div>
+            )}
+
+            {modoAssPaciente==="presencial" && !editandoKey && (
+              <div style={{marginTop:4,marginBottom:16,paddingTop:14,borderTop:"1px dashed "+BORDER}}>
+                <div onClick={()=>setIncluirPagamento(!incluirPagamento)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 4px"}}>
+                  <div style={{width:20,height:20,borderRadius:4,border:"2px solid "+(incluirPagamento?"#2E7D32":BORDER),background:incluirPagamento?"#2E7D32":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    {incluirPagamento&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✓</span>}
+                  </div>
+                  <div style={{fontSize:13,fontWeight:700,color:incluirPagamento?"#2E7D32":"#2A1538"}}>💰 Também registrar pagamento nesta visita</div>
+                </div>
+
+                {incluirPagamento && (
+                  <div style={{marginTop:10,padding:"12px 14px",background:"#F4FAF5",border:"1px solid #2E7D32",borderRadius:6}}>
+                    <label style={{fontSize:10,fontWeight:700,color:"#2E7D32",textTransform:"uppercase"}}>Valor recebido</label>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4,marginBottom:14}}>
+                      <span style={{fontSize:16,color:"#5C4A2A",fontWeight:700}}>R$</span>
+                      <input value={pagValor} onChange={e=>setPagValor(e.target.value)} inputMode="decimal" placeholder="0,00" style={{flex:1,padding:"11px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:16,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}/>
+                    </div>
+
+                    <label style={{fontSize:10,fontWeight:700,color:"#2E7D32",textTransform:"uppercase"}}>Forma de pagamento</label>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6,marginBottom:14}}>
+                      {[["dinheiro","Dinheiro"],["pix","PIX"],["debito","Débito"],["credito","Crédito"],["boleto","Boleto"]].map(([k,l])=>(
+                        <div key={k} onClick={()=>setPagForma(k)} style={{padding:"8px 11px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",border:"1.5px solid #2E7D32",background:pagForma===k?"#2E7D32":"#fff",color:pagForma===k?"#fff":"#2E7D32"}}>{l}</div>
+                      ))}
+                    </div>
+
+                    <label style={{fontSize:10,fontWeight:700,color:"#2E7D32",textTransform:"uppercase"}}>Valor foi para</label>
+                    <div style={{display:"flex",gap:8,marginTop:6,marginBottom:6}}>
+                      <div onClick={()=>setPagDestinatario("dentista")} style={{flex:1,padding:"9px 8px",borderRadius:4,fontSize:11,fontWeight:700,cursor:"pointer",textAlign:"center",border:"1.5px solid "+PURPLE,background:pagDestinatario==="dentista"?PURPLE:"#fff",color:pagDestinatario==="dentista"?"#fff":PURPLE}}>Dentista</div>
+                      <div onClick={()=>setPagDestinatario("clinica")} style={{flex:1,padding:"9px 8px",borderRadius:4,fontSize:11,fontWeight:700,cursor:"pointer",textAlign:"center",border:"1.5px solid "+PURPLE,background:pagDestinatario==="clinica"?PURPLE:"#fff",color:pagDestinatario==="clinica"?"#fff":PURPLE}}>Clínica</div>
+                    </div>
+                    <div style={{fontSize:9,color:"#9A8060",marginBottom:12}}>Usado depois para acertar a compensação de 50%/50% entre as partes.</div>
+
+                    <label style={{fontSize:10,fontWeight:700,color:"#2E7D32",textTransform:"uppercase"}}>Observação (opcional)</label>
+                    <input value={pagObs} onChange={e=>setPagObs(e.target.value)} placeholder="Ex: referente à 1ª parcela do orçamento" style={{width:"100%",padding:"10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,marginTop:4,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}/>
+
+                    <div style={{fontSize:9,color:"#9A8060",marginTop:10}}>Usa a mesma assinatura do dentista e do paciente já coletadas acima — não pede uma segunda.</div>
+                  </div>
+                )}
+              </div>
             )}
 
             <div style={{display:"flex",gap:10}}>
