@@ -1505,10 +1505,9 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
                 {boletoJuros==="combinado"&&(
                   <div style={{padding:"10px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,marginBottom:12}}>
                     <div style={{fontSize:11,color:"#5C4A2A",marginBottom:8}}>Até quantas parcelas sem juros?</div>
-                    <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>(
-                        <div key={n} onClick={()=>setBoletoIsento(String(n))} style={{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"1.5px solid "+(parseInt(boletoIsento)===n?GOLD_DARK:BORDER),background:parseInt(boletoIsento)===n?GOLD:"#fff",color:parseInt(boletoIsento)===n?"#fff":"#5C4A2A",fontSize:11,cursor:"pointer"}}>{n}</div>
-                      ))}
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <input type="number" min="1" max="24" value={boletoIsento} onChange={e=>setBoletoIsento(e.target.value.replace(/[^0-9]/g,""))} style={{...inp,width:70,padding:"7px 10px",fontSize:14,fontWeight:700,textAlign:"center"}}/>
+                      <span style={{fontSize:11,color:"#9A8060"}}>parcelas</span>
                     </div>
                     <div style={{fontSize:10,color:"#9A8060",marginTop:6}}>Até {boletoIsento}x sem juros · demais com 1,2% a.m.</div>
                   </div>
@@ -1602,14 +1601,11 @@ function P3({vb:valorBruto,setVb:setValorBruto,ds:descSel,setDs:setDescSel,dc:de
 
               {/* Parcelas sem juros */}
               <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:8}}>Parcelas sem juros para o paciente</div>
-              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:14}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
                 <span style={{fontSize:11,color:"#5C4A2A"}}>Até</span>
-                <div style={{display:"flex",gap:5}}>
-                  {[1,2,3,4,5,6].map(n=>(
-                    <div key={n} onClick={()=>setCreditoIsento(String(n))} style={{width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",border:"1.5px solid "+(nIsentoCredito===n?GOLD_DARK:BORDER),background:nIsentoCredito===n?GOLD:"#fff",color:nIsentoCredito===n?"#fff":"#5C4A2A",fontSize:11,cursor:"pointer"}}>{n}</div>
-                  ))}
-                  <div onClick={()=>setCreditoIsento("0")} style={{padding:"0 10px",height:30,borderRadius:20,display:"flex",alignItems:"center",border:"1.5px solid "+(nIsentoCredito===0?GOLD_DARK:BORDER),background:nIsentoCredito===0?GOLD:"#fff",color:nIsentoCredito===0?"#fff":"#5C4A2A",fontSize:10,cursor:"pointer"}}>Nenhuma</div>
-                </div>
+                <input type="number" min="0" max="24" value={nIsentoCredito} onChange={e=>setCreditoIsento(e.target.value.replace(/[^0-9]/g,""))} style={{...inp,width:70,padding:"7px 10px",fontSize:14,fontWeight:700,textAlign:"center"}}/>
+                <span style={{fontSize:11,color:"#5C4A2A"}}>parcelas sem juros</span>
+                {nIsentoCredito>0 && <div onClick={()=>setCreditoIsento("0")} style={{fontSize:10,color:"#9A8060",cursor:"pointer",textDecoration:"underline",marginLeft:4}}>Nenhuma</div>}
               </div>
               <div style={{marginBottom:10}}>
                 <div style={{fontSize:9,color:"#9A8060",marginBottom:4}}>Mostrar apenas parcelas específicas no relatório (separar por vírgula, vazio = todas)</div>
@@ -3491,7 +3487,50 @@ const ACHADOS_MAP = {gengivite:"Gengivite",carie_ativa:"Cárie ativa",suspeita_c
 const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FFB74D",perda_ossea:"#7986CB",retracao:"#F06292",desgaste:"#4DB6AC",erosao:"#81C784",fratura:"#FF8A65",ausente:"#90A4AE"};
 
 // v3.0
-function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoRel,onCarregarDrive}) {
+function SecaoEditavel({id, titulo, ordem, setAjustes, ajustes, editMode, children}) {
+  const idx = ordem.indexOf(id);
+  const [editando, setEditando] = React.useState(false);
+  const override = (ajustes.textos||{})[id] || "";
+  const mover = (dir) => {
+    const alvo = idx + dir;
+    if(alvo<0 || alvo>=ordem.length) return;
+    const nova = [...ordem];
+    [nova[idx],nova[alvo]] = [nova[alvo],nova[idx]];
+    setAjustes({...ajustes, ordem:nova});
+  };
+  return (
+    <div style={{order: idx}}>
+      {editMode && (
+        <div className="no-print" style={{display:"flex",gap:6,alignItems:"center",marginBottom:8,padding:"6px 10px",background:"#F3EDF6",borderRadius:6,border:"1px dashed "+PURPLE}}>
+          <span style={{fontSize:10,fontWeight:700,color:PURPLE,flex:1}}>{titulo}</span>
+          <div onClick={()=>mover(-1)} style={{cursor:idx<=0?"default":"pointer",opacity:idx<=0?0.3:1,fontSize:16,color:PURPLE,padding:"2px 8px"}}>▲</div>
+          <div onClick={()=>mover(1)} style={{cursor:idx>=ordem.length-1?"default":"pointer",opacity:idx>=ordem.length-1?0.3:1,fontSize:16,color:PURPLE,padding:"2px 8px"}}>▼</div>
+          <div onClick={()=>setEditando(!editando)} style={{fontSize:11,fontWeight:700,color:PURPLE,cursor:"pointer",padding:"4px 10px",border:"1px solid "+PURPLE,borderRadius:20,whiteSpace:"nowrap"}}>{editando?"Fechar":"✎ Editar texto"}</div>
+        </div>
+      )}
+      {editMode && editando && (
+        <div className="no-print" style={{marginBottom:10}}>
+          <textarea
+            value={override}
+            onChange={e=>setAjustes({...ajustes, textos:{...(ajustes.textos||{}), [id]:e.target.value}})}
+            placeholder="Deixe em branco para manter o conteúdo padrão desta seção. Escrevendo aqui, esse texto substitui a seção inteira no relatório final."
+            style={{width:"100%",minHeight:140,padding:10,border:"1px solid "+PURPLE,borderRadius:6,fontFamily:"inherit",fontSize:13,boxSizing:"border-box",lineHeight:1.6}}
+          />
+          {override && <div onClick={()=>setAjustes({...ajustes, textos:{...(ajustes.textos||{}), [id]:""}})} style={{fontSize:10,color:"#C62828",cursor:"pointer",marginTop:4}}>Restaurar conteúdo padrão</div>}
+        </div>
+      )}
+      {override ? <div style={{whiteSpace:"pre-wrap",fontSize:12.5,color:"#1C1410",lineHeight:1.7}}>{override}</div> : children}
+    </div>
+  );
+}
+
+function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoRel,onCarregarDrive,onAjustesChange}) {
+  const [editModeRelatorio, setEditModeRelatorio] = React.useState(false);
+  const ORDEM_PADRAO_REL = ["avaliacao","plano","proposta"];
+  const ajustesRel = p3.relatorioAjustes && Array.isArray(p3.relatorioAjustes.ordem) && p3.relatorioAjustes.ordem.length===3
+    ? p3.relatorioAjustes
+    : {ordem: ORDEM_PADRAO_REL, textos:{}};
+  const setAjustesRel = (novo) => { if(onAjustesChange) onAjustesChange(novo); };
   const _driveData = React.useMemo(()=>({
     id: Date.now(),
     data: new Date().toISOString(),
@@ -3565,6 +3604,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
 
   return (
     <div className="relatorio-outer" style={{maxWidth:680,margin:"0 auto",padding:"8px 16px 40px"}}>
+      {!isPreview && (
+        <div className="no-print" style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+          <div onClick={()=>setEditModeRelatorio(!editModeRelatorio)} style={{padding:"8px 16px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+PURPLE,background:editModeRelatorio?PURPLE:"#fff",color:editModeRelatorio?"#fff":PURPLE}}>{editModeRelatorio?"✓ Concluir edição":"✎ Editar relatório"}</div>
+        </div>
+      )}
       <div className="relatorio-container" style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:4,display:"flex",flexDirection:"column",minHeight:"calc(100vh - 80px)"}}>
 
         {/* Cabeçalho */}
@@ -3643,7 +3687,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           </>}
 
           {/* Avaliação Clínica */}
-          {temAval && <>
+          {temAval && <SecaoEditavel id="avaliacao" titulo="Avaliação Clínica" ordem={ajustesRel.ordem} ajustes={ajustesRel} setAjustes={setAjustesRel} editMode={editModeRelatorio}>
             <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Avaliação Clínica</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
@@ -3666,10 +3710,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:PURPLE,fontWeight:600,marginBottom:6}}>Informações Clínicas</div>
               {obsTexto}
             </div>}
-          </>}
+          </SecaoEditavel>}
 
           {/* Plano de Tratamento */}
-          {temPlano && <>
+          {/* Plano de Tratamento */}
+          {temPlano && <SecaoEditavel id="plano" titulo="Plano de Tratamento" ordem={ajustesRel.ordem} ajustes={ajustesRel} setAjustes={setAjustesRel} editMode={editModeRelatorio}>
             <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Plano de Tratamento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
@@ -3694,8 +3739,10 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 </div>);
               })}
             </div>
-          </>}
+          </SecaoEditavel>}
 
+          {/* Proposta de Investimento (Propostas individuais + Proposta Financeira) */}
+          <SecaoEditavel id="proposta" titulo="Proposta de Investimento" ordem={ajustesRel.ordem} ajustes={ajustesRel} setAjustes={setAjustesRel} editMode={editModeRelatorio}>
           {/* Propostas individuais por procedimento */}
           {(()=>{
             const itensSep0 = [...(p4State?.itens||[]).filter(it=>it.ativo&&it.proposta),...(p4State?.customProcs||[]).filter(it=>it.ativo&&it.proposta)];
@@ -3924,6 +3971,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             })()}
           </>}
           </>);})()}
+          </SecaoEditavel>
 
         </div>
           {/* Rodapé */}
@@ -5170,6 +5218,8 @@ function Prontuario({p1, equipeGlobal}) {
   const [incluirPagamento, setIncluirPagamento] = React.useState(false);
   const [salvando, setSalvando] = React.useState(false);
   const [obsAbertas, setObsAbertas] = React.useState({});
+  const [filtroHistorico, setFiltroHistorico] = React.useState({procedimentos:true, faltas:true, pagamentos:true});
+  const [galeriaIndex, setGaleriaIndex] = React.useState(null);
   const [showFalta, setShowFalta] = React.useState(false);
   const [editandoFaltaKey, setEditandoFaltaKey] = React.useState(null);
   const [faltaOcorrencia, setFaltaOcorrencia] = React.useState(null);
@@ -5462,12 +5512,17 @@ function Prontuario({p1, equipeGlobal}) {
           <div onClick={()=>setShowHistorico(false)} style={{padding:"10px 16px",border:"1px solid "+BORDER,borderRadius:6,fontSize:12,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>← Voltar</div>
           <div onClick={()=>window.print()} style={{padding:"10px 16px",background:PURPLE,color:"#fff",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>🖨 Imprimir / Salvar PDF</div>
         </div>
+        <div className="no-print" style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+          {[["procedimentos","Procedimentos"],["faltas","Faltas"],["pagamentos","Pagamentos"]].map(([k,l])=>(
+            <div key={k} onClick={()=>setFiltroHistorico(prev=>({...prev,[k]:!prev[k]}))} style={{padding:"7px 14px",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",border:"1.5px solid "+(filtroHistorico[k]?PURPLE:BORDER),background:filtroHistorico[k]?PURPLE:"#fff",color:filtroHistorico[k]?"#fff":"#9A8060"}}>{l}</div>
+          ))}
+        </div>
         <div style={{borderBottom:"2px solid "+PURPLE,paddingBottom:12,marginBottom:16}}>
           <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Histórico Completo — Prontuário Clínico</div>
           <div style={{fontSize:19,fontWeight:700,color:"#2A1538",marginTop:4}}>{p1.nome||"Paciente sem nome"}</div>
           <div style={{fontSize:11,color:"#9A8060",marginTop:2}}>{p1.cpf?("CPF "+p1.cpf):""}{entradas?" · "+entradas.length+" registro(s)":""}</div>
         </div>
-        {(entradas||[]).map(e=>(
+        {(entradas||[]).filter(e=>(e.tipo==="falta"&&filtroHistorico.faltas)||(e.tipo==="pagamento"&&filtroHistorico.pagamentos)||(e.tipo!=="falta"&&e.tipo!=="pagamento"&&filtroHistorico.procedimentos)).map(e=>(
           <div key={e._key} style={{borderBottom:"1px solid "+BORDER,padding:"12px 0",breakInside:"avoid"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:4}}>
               <div style={{fontSize:12.5,fontWeight:700,color:"#2A1538"}}>{dataFmt(e.data)}</div>
@@ -5479,18 +5534,16 @@ function Prontuario({p1, equipeGlobal}) {
             <div style={{fontSize:12,color:"#5C4A2A",lineHeight:1.5,whiteSpace:"pre-wrap"}}>{e.descricao}</div>
           </div>
         ))}
-        {(!entradas||entradas.length===0) && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Nenhum registro encontrado.</div>}
+        {(!entradas||entradas.filter(e=>(e.tipo==="falta"&&filtroHistorico.faltas)||(e.tipo==="pagamento"&&filtroHistorico.pagamentos)||(e.tipo!=="falta"&&e.tipo!=="pagamento"&&filtroHistorico.procedimentos)).length===0) && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Nenhum registro encontrado com esse filtro.</div>}
 
         {scans&&scans.length>0 && (
           <div style={{marginTop:24,breakInside:"avoid"}}>
             <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:10,borderTop:"2px solid "+GOLD,paddingTop:14}}>Páginas do prontuário em papel (digitalizadas)</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-              {scans.map(s=>(
-                <div key={s.id} style={{border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",aspectRatio:"1",background:"#F5F2EC"}}>
+              {scans.map((s,idx)=>(
+                <div key={s.id} onClick={()=>s._previewUrl&&setGaleriaIndex(idx)} style={{border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",aspectRatio:"1",background:"#F5F2EC",cursor:s._previewUrl?"pointer":"default"}}>
                   {s._previewUrl ? (
-                    <a href={s._previewUrl} target="_blank" rel="noopener noreferrer">
-                      <img src={s._previewUrl} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-                    </a>
+                    <img src={s._previewUrl} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
                   ) : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#9A8060"}}>...</div>}
                 </div>
               ))}
@@ -5500,6 +5553,15 @@ function Prontuario({p1, equipeGlobal}) {
         {!_gdriveToken && (
           <div className="no-print" style={{marginTop:24,padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:6,fontSize:11,color:GOLD_DARK}}>
             Google Drive não conectado nesta sessão — conecte na aba Arquivo para ver as páginas digitalizadas aqui.
+          </div>
+        )}
+        {galeriaIndex!==null && scans && (
+          <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+            <div onClick={()=>setGaleriaIndex(null)} style={{position:"absolute",top:16,right:20,color:"#fff",fontSize:26,cursor:"pointer"}}>✕</div>
+            <div style={{position:"absolute",top:18,left:20,color:"#fff",fontSize:13}}>{galeriaIndex+1} / {scans.length}</div>
+            {galeriaIndex>0 && <div onClick={()=>setGaleriaIndex(galeriaIndex-1)} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>‹</div>}
+            {scans[galeriaIndex]?._previewUrl && <img src={scans[galeriaIndex]._previewUrl} alt="" style={{maxWidth:"92vw",maxHeight:"85vh",objectFit:"contain"}}/>}
+            {galeriaIndex<scans.length-1 && <div onClick={()=>setGaleriaIndex(galeriaIndex+1)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>›</div>}
           </div>
         )}
       </div>
@@ -5651,12 +5713,12 @@ function Prontuario({p1, equipeGlobal}) {
             {scans&&scans.length===0 && <div style={{fontSize:12,color:"#9A8060",textAlign:"center",padding:12}}>Nenhuma página anexada ainda.</div>}
             {scans&&scans.length>0 && (
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                {scans.map(s=>(
+                {scans.map((s,idx)=>(
                   <div key={s.id} style={{position:"relative",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",aspectRatio:"1",background:"#F5F2EC"}}>
                     {s._previewUrl ? (
-                      <a href={s._previewUrl} target="_blank" rel="noopener noreferrer">
+                      <div onClick={()=>setGaleriaIndex(idx)} style={{cursor:"pointer",width:"100%",height:"100%"}}>
                         <img src={s._previewUrl} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-                      </a>
+                      </div>
                     ) : (
                       <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#9A8060"}}>...</div>
                     )}
@@ -5845,6 +5907,15 @@ function Prontuario({p1, equipeGlobal}) {
               <div onClick={salvarEntrada} style={{flex:1,padding:"14px",textAlign:"center",background:salvando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:salvando?"default":"pointer"}}>{salvando?"Salvando...":(editandoKey?"Salvar alterações":"Salvar entrada")}</div>
             </div>
           </div>
+        </div>
+      )}
+      {galeriaIndex!==null && scans && (
+        <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+          <div onClick={()=>setGaleriaIndex(null)} style={{position:"absolute",top:16,right:20,color:"#fff",fontSize:26,cursor:"pointer"}}>✕</div>
+          <div style={{position:"absolute",top:18,left:20,color:"#fff",fontSize:13}}>{galeriaIndex+1} / {scans.length}</div>
+          {galeriaIndex>0 && <div onClick={()=>setGaleriaIndex(galeriaIndex-1)} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>‹</div>}
+          {scans[galeriaIndex]?._previewUrl && <img src={scans[galeriaIndex]._previewUrl} alt="" style={{maxWidth:"92vw",maxHeight:"85vh",objectFit:"contain"}}/>}
+          {galeriaIndex<scans.length-1 && <div onClick={()=>setGaleriaIndex(galeriaIndex+1)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>›</div>}
         </div>
       )}
     </div>
@@ -6995,7 +7066,7 @@ function App() {
         p4State={p4State}
         modoRel={p3.modoRel||"soma"} setModoRel={v=>sp3("modoRel",v)}
       />}
-      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSetModoRel={v=>sp3("modoRel",v)} onSalvar={()=>{
+      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSetModoRel={v=>sp3("modoRel",v)} onAjustesChange={v=>sp3("relatorioAjustes",v)} onSalvar={()=>{
   const dup = verificarDuplicata(p1);
   if(dup) {
     setModalSalvar({
