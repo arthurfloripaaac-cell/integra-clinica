@@ -296,6 +296,15 @@ const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5
 const NEUTRO = "#5C5850", NEUTRO_LIGHT = "#7A7568", NEUTRO_PALE = "#E9E7E1";
 
 const fmt = v => "R$ " + (v||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+const PARTICULAS_NOME = new Set(["de","da","do","das","dos","e"]);
+function formatarNomeProprio(str) {
+  if(!str) return str;
+  return str.toLowerCase().split(" ").map((palavra,i) => {
+    if(!palavra) return palavra;
+    if(i>0 && PARTICULAS_NOME.has(palavra)) return palavra;
+    return palavra.charAt(0).toUpperCase()+palavra.slice(1);
+  }).join(" ");
+}
 function maskTelefone(v) {
   let d = String(v||"").replace(/\D/g,"");
   if(d.length===0) return "";
@@ -524,9 +533,11 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, 
             <div style={{marginBottom:10}}>
               <div style={{fontSize:10,fontWeight:700,color:"#2E7D32",marginBottom:6,letterSpacing:0.5}}>ESPECIALIDADE DA AVALIAÇÃO</div>
               <div style={{display:"flex",gap:6}}>
-                <div onClick={()=>setEspLinkForm("geral")} style={{flex:1,padding:"8px 10px",background:espLinkForm==="geral"?"#4CAF50":"#fff",border:"1px solid "+(espLinkForm==="geral"?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:espLinkForm==="geral"?"#fff":"#5C4A2A",textAlign:"center"}}>Geral</div>
-                <div onClick={()=>setEspLinkForm("ortho")} style={{flex:1,padding:"8px 10px",background:espLinkForm==="ortho"?"#4CAF50":"#fff",border:"1px solid "+(espLinkForm==="ortho"?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:espLinkForm==="ortho"?"#fff":"#5C4A2A",textAlign:"center"}}>Ortodontia / DTM</div>
+                <div onClick={()=>setEspLinkForm("geral")} style={{flex:1,padding:"8px 6px",background:espLinkForm==="geral"?"#4CAF50":"#fff",border:"1px solid "+(espLinkForm==="geral"?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:espLinkForm==="geral"?"#fff":"#5C4A2A",textAlign:"center"}}>Geral</div>
+                <div onClick={()=>setEspLinkForm("ortho")} style={{flex:1,padding:"8px 6px",background:espLinkForm==="ortho"?"#4CAF50":"#fff",border:"1px solid "+(espLinkForm==="ortho"?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:espLinkForm==="ortho"?"#fff":"#5C4A2A",textAlign:"center"}}>Ortodontia / DTM</div>
+                <div onClick={()=>setEspLinkForm("pessoal")} style={{flex:1,padding:"8px 6px",background:espLinkForm==="pessoal"?"#4CAF50":"#fff",border:"1px solid "+(espLinkForm==="pessoal"?"#4CAF50":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:espLinkForm==="pessoal"?"#fff":"#5C4A2A",textAlign:"center"}}>Só dados pessoais</div>
               </div>
+              {espLinkForm==="pessoal" && <div style={{fontSize:10,color:"#9A8060",marginTop:6}}>Sem perguntas clínicas — pra pacientes que já são da casa, só migrando o cadastro do papel pro digital.</div>}
             </div>
             <div style={{marginBottom:10}}>
               <div style={{fontSize:10,fontWeight:700,color:"#2E7D32",marginBottom:6,letterSpacing:0.5}}>DENTISTA RESPONSÁVEL *</div>
@@ -537,7 +548,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, 
               {!dentistaLinkForm && <div style={{fontSize:10,color:"#E57373",marginTop:4}}>Obrigatório — evita enviar o link com o dentista errado.</div>}
             </div>
             {(()=>{
-              const link = (typeof window!=="undefined"?window.location.origin:"")+"/f/"+formLinkId+(espLinkForm==="ortho"?"?esp=ortho":"");
+              const link = (typeof window!=="undefined"?window.location.origin:"")+"/f/"+formLinkId+(espLinkForm==="ortho"?"?esp=ortho":espLinkForm==="pessoal"?"?esp=pessoal":"");
               const msg = "Olá! Segue o link para preencher seu cadastro na Íntegra Clínica Odontológica:\n"+link;
               const waLink = "https://wa.me/?text="+encodeURIComponent(msg);
               const liberado = !!dentistaLinkForm;
@@ -573,7 +584,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, 
           </div>
         )}
         <div style={{marginBottom:12}}>
-          <Field label="Nome completo"><input style={inp} spellCheck={false} value={nome} onChange={e=>set("nome",e.target.value)} placeholder="Nome completo"/></Field>
+          <Field label="Nome completo"><input style={inp} spellCheck={false} value={nome} onChange={e=>set("nome",e.target.value)} onBlur={()=>set("nome",formatarNomeProprio(nome))} placeholder="Nome completo"/></Field>
         </div>
         <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12}}>
           <Field label="CPF"><input style={inp} value={cpf} onChange={e=>set("cpf",formatCpf(e.target.value))} placeholder="000.000.000-00"/></Field>
@@ -594,7 +605,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, 
           <div style={{background:"rgba(91,45,142,0.05)", border:"1px solid rgba(91,45,142,0.2)", borderRadius:3, padding:"14px 16px", marginBottom:12}}>
             <div style={{fontSize:9, letterSpacing:2, textTransform:"uppercase", color:PURPLE, fontWeight:700, marginBottom:12}}>Responsável Legal</div>
             <div style={{marginBottom:10}}>
-              <Field label="Nome do responsável"><input style={inp} value={respNome} onChange={e=>set("respNome",e.target.value)} spellCheck={false} placeholder="Nome completo"/></Field>
+              <Field label="Nome do responsável"><input style={inp} value={respNome} onChange={e=>set("respNome",e.target.value)} onBlur={()=>set("respNome",formatarNomeProprio(respNome))} spellCheck={false} placeholder="Nome completo"/></Field>
             </div>
             <Field label="CPF do responsável"><input style={inp} value={respCpf} onChange={e=>set("respCpf",formatCpf(e.target.value))} placeholder="000.000.000-00"/></Field>
           </div>
@@ -6130,13 +6141,15 @@ function FormularioPaciente({formId, especialidade}) {
   const toggleCondicao = (k,val) => toggleExcludente(k,val,"Nenhuma dessas");
   const toggleSintomasDtm = (k,val) => toggleExcludente(k,val,"Nenhum desses");
 
+  const isPessoal = especialidade === "pessoal";
   const stepOrder = React.useMemo(()=>{
+    if(isPessoal) return ["cadastro","profissao","genero","assinatura"];
     const base = ["cadastro","profissao","genero","queixa","alergia","medicamento","condicoes","denteAusente"];
     const gravidaStep = an.genero==="Masculino" ? [] : ["gravida"]; // não exibir se paciente informou gênero masculino
     const meio = ["comoConheceu","relato"];
     const ortho = isOrtho ? ["bruxismo","sintomasDtm","aparelhoAnterior"] : [];
     return [...base, ...gravidaStep, ...meio, ...ortho, "assinatura"];
-  },[isOrtho, an.genero]);
+  },[isOrtho, isPessoal, an.genero]);
   const stepKey = stepOrder[stepIdx];
   const totalSteps = stepOrder.length;
 
@@ -6254,14 +6267,14 @@ function FormularioPaciente({formId, especialidade}) {
       await new Promise((res)=>{
         onFirebaseReady(()=>{
           _fbDb.ref("formularios/"+formId).set({
-            nome: nome.trim(),
+            nome: formatarNomeProprio(nome.trim()),
             cpf: cpf.trim(),
             telefone: telefone.replace(/\D/g,""),
             email: email.trim(),
             dataNasc,
             idade: idade+" anos",
             isMinor,
-            respNome: isMinor?respNome.trim():"",
+            respNome: isMinor?formatarNomeProprio(respNome.trim()):"",
             respCpf: isMinor?respCpf.trim():"",
             assinatura,
             especialidade: especialidade||"geral",
@@ -6290,7 +6303,7 @@ function FormularioPaciente({formId, especialidade}) {
         <div style={{display:"flex",flexDirection:"column",gap:18}}>
           <div>
             <label style={lblF}>Nome completo *</label>
-            <input style={inpF} value={nome} onChange={e=>setNome(e.target.value)} placeholder="Seu nome completo" name="name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
+            <input style={inpF} value={nome} onChange={e=>setNome(e.target.value)} onBlur={()=>setNome(formatarNomeProprio(nome))} placeholder="Seu nome completo" name="name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
           </div>
           <div>
             <label style={lblF}>CPF *</label>
@@ -6325,7 +6338,7 @@ function FormularioPaciente({formId, especialidade}) {
               <div style={{display:"flex",flexDirection:"column",gap:14}}>
                 <div>
                   <label style={{fontSize:13,color:PURPLE,fontWeight:600,display:"block",marginBottom:6}}>Nome do responsável *</label>
-                  <input style={inpF} value={respNome} onChange={e=>setRespNome(e.target.value)} placeholder="Nome completo do responsável" name="parent-name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
+                  <input style={inpF} value={respNome} onChange={e=>setRespNome(e.target.value)} onBlur={()=>setRespNome(formatarNomeProprio(respNome))} placeholder="Nome completo do responsável" name="parent-name" autoComplete="name" autoCapitalize="words" spellCheck={false}/>
                 </div>
                 <div>
                   <label style={{fontSize:13,color:PURPLE,fontWeight:600,display:"block",marginBottom:6}}>CPF do responsável</label>
