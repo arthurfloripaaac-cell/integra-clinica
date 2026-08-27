@@ -3489,8 +3489,8 @@ const ACH_CORES = {gengivite:"#E57373",carie_ativa:"#8D6E63",suspeita_carie:"#FF
 // v3.0
 function SecaoEditavel({id, titulo, ordem, setAjustes, ajustes, editMode, children}) {
   const idx = ordem.indexOf(id);
-  const [editando, setEditando] = React.useState(false);
   const override = (ajustes.textos||{})[id] || "";
+  const ref = React.useRef(null);
   const mover = (dir) => {
     const alvo = idx + dir;
     if(alvo<0 || alvo>=ordem.length) return;
@@ -3498,28 +3498,28 @@ function SecaoEditavel({id, titulo, ordem, setAjustes, ajustes, editMode, childr
     [nova[idx],nova[alvo]] = [nova[alvo],nova[idx]];
     setAjustes({...ajustes, ordem:nova});
   };
+  const salvarEdicao = () => {
+    if(ref.current) setAjustes({...ajustes, textos:{...(ajustes.textos||{}), [id]: ref.current.innerHTML}});
+  };
   return (
     <div style={{order: idx}}>
       {editMode && (
-        <div className="no-print" style={{display:"flex",gap:6,alignItems:"center",marginBottom:8,padding:"6px 10px",background:"#F3EDF6",borderRadius:6,border:"1px dashed "+PURPLE}}>
+        <div className="no-print" style={{display:"flex",gap:6,alignItems:"center",marginBottom:6,marginTop:14,padding:"6px 10px",background:"#F3EDF6",borderRadius:6,border:"1px dashed "+PURPLE}}>
           <span style={{fontSize:10,fontWeight:700,color:PURPLE,flex:1}}>{titulo}</span>
           <div onClick={()=>mover(-1)} style={{cursor:idx<=0?"default":"pointer",opacity:idx<=0?0.3:1,fontSize:16,color:PURPLE,padding:"2px 8px"}}>▲</div>
           <div onClick={()=>mover(1)} style={{cursor:idx>=ordem.length-1?"default":"pointer",opacity:idx>=ordem.length-1?0.3:1,fontSize:16,color:PURPLE,padding:"2px 8px"}}>▼</div>
-          <div onClick={()=>setEditando(!editando)} style={{fontSize:11,fontWeight:700,color:PURPLE,cursor:"pointer",padding:"4px 10px",border:"1px solid "+PURPLE,borderRadius:20,whiteSpace:"nowrap"}}>{editando?"Fechar":"✎ Editar texto"}</div>
+          {override && <div onClick={()=>setAjustes({...ajustes, textos:{...(ajustes.textos||{}), [id]:""}})} style={{fontSize:10,color:"#C62828",cursor:"pointer",padding:"4px 8px",whiteSpace:"nowrap"}}>↺ Restaurar padrão</div>}
         </div>
       )}
-      {editMode && editando && (
-        <div className="no-print" style={{marginBottom:10}}>
-          <textarea
-            value={override}
-            onChange={e=>setAjustes({...ajustes, textos:{...(ajustes.textos||{}), [id]:e.target.value}})}
-            placeholder="Deixe em branco para manter o conteúdo padrão desta seção. Escrevendo aqui, esse texto substitui a seção inteira no relatório final."
-            style={{width:"100%",minHeight:140,padding:10,border:"1px solid "+PURPLE,borderRadius:6,fontFamily:"inherit",fontSize:13,boxSizing:"border-box",lineHeight:1.6}}
-          />
-          {override && <div onClick={()=>setAjustes({...ajustes, textos:{...(ajustes.textos||{}), [id]:""}})} style={{fontSize:10,color:"#C62828",cursor:"pointer",marginTop:4}}>Restaurar conteúdo padrão</div>}
-        </div>
+      {editMode ? (
+        override ? (
+          <div ref={ref} contentEditable suppressContentEditableWarning onBlur={salvarEdicao} style={{outline:"1.5px dashed "+PURPLE,outlineOffset:6,cursor:"text",borderRadius:4}} dangerouslySetInnerHTML={{__html:override}}/>
+        ) : (
+          <div ref={ref} contentEditable suppressContentEditableWarning onBlur={salvarEdicao} style={{outline:"1.5px dashed "+PURPLE,outlineOffset:6,cursor:"text",borderRadius:4}}>{children}</div>
+        )
+      ) : (
+        override ? <div dangerouslySetInnerHTML={{__html:override}}/> : children
       )}
-      {override ? <div style={{whiteSpace:"pre-wrap",fontSize:12.5,color:"#1C1410",lineHeight:1.7}}>{override}</div> : children}
     </div>
   );
 }
@@ -3642,7 +3642,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
           </div>
         </div>
 
-        <div className="rel-content" style={{padding:"22px 24px",flex:1}}>
+        <div className="rel-content" style={{padding:"22px 24px",flex:1,display:"flex",flexDirection:"column"}}>
 
           {/* Dados do Paciente — compacto com assinatura lateral */}
           {temDados && <>
