@@ -433,10 +433,10 @@ function AnamneseCompacta({anamnese}) {
   );
 }
 
-function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
+function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, setEquipeGlobal}) {
   const {nome,cpf,telefone,email,dataNasc,idade,isMinor,respNome,respCpf,dataConsulta,responsavel} = data;
 
-  const [equipe, setEquipe] = React.useState(EQUIPE);
+  const equipe = equipeGlobal || EQUIPE;
   const [gerenciandoEquipe, setGerenciandoEquipe] = React.useState(false);
   const [novoMembro, setNovoMembro] = React.useState({nome:"", area:""});
   const [adicionandoMembro, setAdicionandoMembro] = React.useState(false);
@@ -448,17 +448,10 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
   const [espLinkForm, setEspLinkForm] = React.useState("geral");
   const [dentistaLinkForm, setDentistaLinkForm] = React.useState("");
 
-  // Carregar equipe persistente
-  useEffect(()=>{
-    try {
-      const saved = JSON.parse(localStorage.getItem("integra_equipe")||"[]");
-      if(saved.length>0) setEquipe(saved);
-    } catch(e){}
-  },[]);
-
   const salvarEquipe = (novaEquipe) => {
-    setEquipe(novaEquipe);
+    setEquipeGlobal(novaEquipe);
     try { localStorage.setItem("integra_equipe", JSON.stringify(novaEquipe)); } catch(e){}
+    salvarEquipeFirebase(novaEquipe);
   };
 
   const adicionarMembro = () => {
@@ -632,7 +625,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario}) {
         <div style={{borderTop:"1px solid "+BORDER, marginTop:4, paddingTop:16}}>
           <div style={{fontSize:9, letterSpacing:2, textTransform:"uppercase", color:GOLD_DARK, fontWeight:700, marginBottom:12}}>Dados da Consulta</div>
           <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:8}}>
-            <Field label="Data da consulta"><input style={inp} type="date" value={dataConsulta} onChange={e=>set("dataConsulta",e.target.value)}/></Field>
+            <Field label="Data"><input style={inp} type="date" value={dataConsulta} onChange={e=>set("dataConsulta",e.target.value)}/></Field>
             <Field label="Responsável clínico">
               <select style={sel} value={responsavel} onChange={e=>set("responsavel",e.target.value)}>
                 {equipe.map(p=><option key={p.nome} value={p.nome}>{p.nome} — {p.area}</option>)}
@@ -4450,6 +4443,11 @@ async function gdriveListarArquivos(folderId, paciente) {
 
 // ─── MODELOS DE PROCEDIMENTOS (TEMPLATES) ────────────────────────────────────
 const MODELOS_FB_PATH = "modelos_procedimentos";
+const EQUIPE_FB_PATH = "equipe_clinica";
+async function salvarEquipeFirebase(equipe) {
+  if(!_fbDb) return;
+  try { await _fbDb.ref(EQUIPE_FB_PATH).set(equipe); } catch(e) { console.error("Firebase equipe save error:", e); }
+}
 const MODELOS_DRIVE_FILENAME = "Integra_Modelos_Procedimentos.json";
 
 async function fbSalvarModelos(modelos) {
@@ -5156,7 +5154,8 @@ function AssinaturaCanvas({value, onChange}) {
 // técnico do link de anamnese via WhatsApp).
 const PRONTUARIO_FB_PATH = "prontuario_visitas";
 
-function Prontuario({p1}) {
+function Prontuario({p1, equipeGlobal}) {
+  const equipe = equipeGlobal || EQUIPE;
   const cpfPaciente = (p1.cpf||"").replace(/\D/g,"");
   const [todasEntradas, setTodasEntradas] = React.useState(null);
   const [showNova, setShowNova] = React.useState(false);
@@ -5255,8 +5254,8 @@ function Prontuario({p1}) {
   const salvarEntrada = () => {
     if(!cpfPaciente) { showToast("Preencha o CPF do paciente na aba Paciente antes de registrar.","error"); return; }
     if(!novaDescricao.trim()) { showToast("Descreva o que foi feito nesta visita.","error"); return; }
-    if(!novoDentistaResp) { showToast("Selecione o dentista responsável por esta entrada.","error"); return; }
-    if(!assDentista) { showToast("Assine como dentista antes de salvar.","error"); return; }
+    if(!novoDentistaResp) { showToast("Selecione o responsável por esta entrada.","error"); return; }
+    if(!assDentista) { showToast("Colete a assinatura de quem atendeu antes de salvar.","error"); return; }
     if(modoAssPaciente==="presencial" && !assPaciente) { showToast("Colete a assinatura do paciente, ou escolha \"Enviar link depois\".","error"); return; }
     const pagValorNum = parseFloat(String(pagValor).replace(",","."));
     if(incluirPagamento) {
@@ -5330,8 +5329,8 @@ function Prontuario({p1}) {
     if(!faltaOcorrencia) { showToast("Selecione: faltou ou remarcou.","error"); return; }
     if(faltaConfirmou===null) { showToast("Informe se a consulta estava confirmada previamente.","error"); return; }
     if(!faltaAntecedencia) { showToast("Informe a antecedência do aviso.","error"); return; }
-    if(!faltaDentista) { showToast("Selecione o dentista responsável.","error"); return; }
-    if(!faltaAssinatura) { showToast("Colete a assinatura do dentista.","error"); return; }
+    if(!faltaDentista) { showToast("Selecione o responsável.","error"); return; }
+    if(!faltaAssinatura) { showToast("Colete a assinatura de quem atendeu.","error"); return; }
     if(!cpfPaciente) { showToast("Preencha o CPF do paciente na aba Paciente antes de registrar.","error"); return; }
     if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
     setFaltaSalvando(true);
@@ -5386,8 +5385,8 @@ function Prontuario({p1}) {
     if(!valorNum || valorNum<=0) { showToast("Informe o valor recebido.","error"); return; }
     if(!pagForma) { showToast("Selecione a forma de pagamento.","error"); return; }
     if(!pagDestinatario) { showToast("Informe se o valor foi para o dentista ou para a clínica.","error"); return; }
-    if(!pagDentista) { showToast("Selecione o dentista responsável.","error"); return; }
-    if(!pagAssDentista) { showToast("Colete a assinatura do dentista.","error"); return; }
+    if(!pagDentista) { showToast("Selecione o responsável.","error"); return; }
+    if(!pagAssDentista) { showToast("Colete a assinatura de quem atendeu.","error"); return; }
     if(pagModoAss==="presencial" && !pagAssPaciente) { showToast("Colete a assinatura do paciente, ou escolha \"Enviar link depois\".","error"); return; }
     if(!cpfPaciente) { showToast("Preencha o CPF do paciente na aba Paciente antes de registrar.","error"); return; }
     if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
@@ -5557,13 +5556,13 @@ function Prontuario({p1}) {
               </div>
             )}
 
-            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Dentista responsável</label>
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Responsável</label>
             <select value={faltaDentista} onChange={e=>setFaltaDentista(e.target.value)} style={{width:"100%",padding:"12px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:14,marginTop:4,marginBottom:16,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}>
               <option value="">Selecione...</option>
-              {EQUIPE.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
+              {equipe.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
             </select>
 
-            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do dentista</label>
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura de quem atendeu</label>
             <div style={{marginTop:4,marginBottom:16}}><AssinaturaCanvas value={faltaAssinatura} onChange={setFaltaAssinatura}/></div>
 
             <div style={{display:"flex",gap:10}}>
@@ -5605,13 +5604,13 @@ function Prontuario({p1}) {
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Observação (opcional)</label>
             <input value={pagObs} onChange={e=>setPagObs(e.target.value)} placeholder="Ex: referente à 1ª parcela do orçamento" style={{width:"100%",padding:"11px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:14,marginTop:4,marginBottom:16,fontFamily:"inherit",boxSizing:"border-box"}}/>
 
-            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Dentista responsável</label>
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Responsável</label>
             <select value={pagDentista} onChange={e=>setPagDentista(e.target.value)} style={{width:"100%",padding:"12px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:14,marginTop:4,marginBottom:16,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}>
               <option value="">Selecione...</option>
-              {EQUIPE.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
+              {equipe.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
             </select>
 
-            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do dentista</label>
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura de quem atendeu</label>
             <div style={{marginTop:4,marginBottom:16}}><AssinaturaCanvas value={pagAssDentista} onChange={setPagAssDentista}/></div>
 
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do paciente</label>
@@ -5688,7 +5687,7 @@ function Prontuario({p1}) {
               {aberto && (
                 <div style={{padding:"0 14px 12px"}}>
                   {e.dentistaResponsavel && <div style={{fontSize:10,fontWeight:700,color:PURPLE,marginBottom:8}}>{e.dentistaResponsavel}</div>}
-                  {e.assinaturaDentista && <div style={{marginBottom:10}}><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Assinatura do dentista</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+                  {e.assinaturaDentista && <div style={{marginBottom:10}}><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Assinatura de quem atendeu</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
                   <div style={{display:"flex",gap:10,paddingTop:8,borderTop:"1px solid "+BORDER}}>
                     <div onClick={()=>iniciarEdicaoFalta(e)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
                     <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
@@ -5699,30 +5698,52 @@ function Prontuario({p1}) {
             </div>
           );
         }
+        if(e.tipo==="pagamento") {
+          const aberto = !!obsAbertas[e._key];
+          return (
+            <div key={e._key} style={{background:"#F4FAF5",border:"1px solid "+BORDER,borderLeft:"4px solid #2E7D32",borderRadius:6,marginBottom:8,overflow:"hidden"}}>
+              <div onClick={()=>setObsAbertas(prev=>({...prev,[e._key]:!prev[e._key]}))} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#2A1538",flexShrink:0}}>{dataFmt(e.data)}</div>
+                <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:"#E8F5E9",color:"#2E7D32"}}>💰 {fmt(e.valor||0)}</div>
+                <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:PURPLE_BORDER,color:PURPLE}}>{e.destinatario==="dentista"?"Dentista":"Clínica"}</div>
+                {e.statusPaciente!=="assinado" && <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:GOLD_PALE,color:GOLD_DARK}}>Aguardando assinatura</div>}
+                <div style={{marginLeft:"auto",fontSize:11,color:"#9A8060",flexShrink:0}}>{aberto?"▲":"▼"}</div>
+              </div>
+              {aberto && (
+                <div style={{padding:"0 14px 12px"}}>
+                  {e.dentistaResponsavel && <div style={{fontSize:10,fontWeight:700,color:PURPLE,marginBottom:8}}>{e.dentistaResponsavel}</div>}
+                  <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:10}}>
+                    {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Assinatura de quem atendeu</div><img src={e.assinaturaDentista} alt="Assinatura" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+                    {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+                  </div>
+                  {e.statusPaciente!=="assinado" && (
+                    <div onClick={()=>copiarLink(e._key)} style={{marginBottom:10,padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
+                  )}
+                  <div style={{display:"flex",gap:10,paddingTop:8,borderTop:"1px solid "+BORDER}}>
+                    <div onClick={()=>iniciarEdicaoPagamento(e)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
+                    <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
+                  </div>
+                  {e.editadoEm && <div style={{fontSize:9,color:"#B0A090",marginTop:6}}>Editado em {new Date(e.editadoEm).toLocaleDateString("pt-BR")}</div>}
+                </div>
+              )}
+            </div>
+          );
+        }
         return (
-        <div key={e._key} style={{background:e.tipo==="pagamento"?"#F4FAF5":"#fff",border:"1px solid "+BORDER,borderLeft:"4px solid "+(e.tipo==="pagamento"?"#2E7D32":BORDER),borderRadius:6,padding:"14px 16px",marginBottom:10}}>
+        <div key={e._key} style={{background:"#fff",border:"1px solid "+BORDER,borderLeft:"4px solid "+BORDER,borderRadius:6,padding:"14px 16px",marginBottom:10}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,gap:8}}>
             <div style={{fontSize:13,fontWeight:700,color:"#2A1538"}}>{dataFmt(e.data)}</div>
             <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-              {e.tipo==="pagamento" ? (
-                <React.Fragment>
-                  <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:"#E8F5E9",color:"#2E7D32"}}>💰 {fmt(e.valor||0)}</div>
-                  <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:PURPLE_BORDER,color:PURPLE}}>{e.destinatario==="dentista"?"Dentista":"Clínica"}</div>
-                </React.Fragment>
-              ) : (
-                <React.Fragment>
-                  <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:e.statusPaciente==="assinado"?"#E8F5E9":GOLD_PALE,color:e.statusPaciente==="assinado"?"#2E7D32":GOLD_DARK}}>
-                    {e.statusPaciente==="assinado"?"✓ Assinado":"Aguardando assinatura"}
-                  </div>
-                  {e.pagamentoPendente && <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:"#E8F5E9",color:"#2E7D32"}}>💰 pagamento no link</div>}
-                </React.Fragment>
-              )}
+              <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:e.statusPaciente==="assinado"?"#E8F5E9":GOLD_PALE,color:e.statusPaciente==="assinado"?"#2E7D32":GOLD_DARK}}>
+                {e.statusPaciente==="assinado"?"✓ Assinado":"Aguardando assinatura"}
+              </div>
+              {e.pagamentoPendente && <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:"#E8F5E9",color:"#2E7D32"}}>💰 pagamento no link</div>}
             </div>
           </div>
           {e.dentistaResponsavel && <div style={{fontSize:10,fontWeight:700,color:PURPLE,marginBottom:6}}>{e.dentistaResponsavel}</div>}
           <div style={{fontSize:12.5,color:"#5C4A2A",lineHeight:1.5,whiteSpace:"pre-wrap",marginBottom:8}}>{e.descricao}</div>
           <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-            {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Dentista</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+            {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Quem atendeu</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
             {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
           </div>
           {e.statusPaciente!=="assinado" && (
@@ -5737,7 +5758,7 @@ function Prontuario({p1}) {
             </div>
           )}
           <div style={{display:"flex",gap:10,marginTop:12,paddingTop:12,borderTop:"1px solid "+BORDER}}>
-            <div onClick={()=>e.tipo==="pagamento"?iniciarEdicaoPagamento(e):iniciarEdicao(e)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
+            <div onClick={()=>iniciarEdicao(e)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
             <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
           </div>
           {e.editadoEm && <div style={{fontSize:9,color:"#B0A090",marginTop:6}}>Editado em {new Date(e.editadoEm).toLocaleDateString("pt-BR")}</div>}
@@ -5759,13 +5780,13 @@ function Prontuario({p1}) {
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase",display:"flex",alignItems:"center",gap:5}}><span>🔒</span> Observação interna (não aparece pro paciente)</label>
             <textarea spellCheck="true" lang="pt-BR" autoCorrect="on" autoCapitalize="sentences" value={novaObsInterna} onChange={e=>setNovaObsInterna(e.target.value)} placeholder="Ex: revisar oclusão no próximo atendimento..." style={{width:"100%",padding:"12px",border:"1px solid "+GOLD,borderRadius:4,fontSize:16,minHeight:70,marginTop:4,marginBottom:16,resize:"vertical",fontFamily:"inherit",boxSizing:"border-box",lineHeight:1.5,background:GOLD_PALE}}/>
 
-            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Dentista responsável</label>
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Responsável</label>
             <select value={novoDentistaResp} onChange={e=>setNovoDentistaResp(e.target.value)} style={{width:"100%",padding:"12px 10px",border:"1px solid "+BORDER,borderRadius:4,fontSize:14,marginTop:4,marginBottom:16,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}>
               <option value="">Selecione...</option>
-              {EQUIPE.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
+              {equipe.map(m=><option key={m.nome} value={m.nome}>{m.nome}</option>)}
             </select>
 
-            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do dentista</label>
+            <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura de quem atendeu</label>
             <div style={{marginTop:4,marginBottom:16}}><AssinaturaCanvas value={assDentista} onChange={setAssDentista}/></div>
 
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura do paciente</label>
@@ -6680,6 +6701,22 @@ function App() {
   const [showGlobalPasta, setShowGlobalPasta] = useState(false);
   const [modalSalvar, setModalSalvar] = useState(null); // {msg, onSobrepor, onDuplicar, onCancelar}
   const [modelos, setModelos] = useState([]); // modelos de procedimentos salvos
+  const [equipeGlobal, setEquipeGlobal] = useState(EQUIPE);
+
+  // Equipe clínica: mesmo padrão dos modelos — cache local instantâneo + sincronização
+  // em tempo real via Firebase, para editar uma vez e refletir em todos os computadores.
+  useEffect(() => {
+    try { const local = JSON.parse(localStorage.getItem("integra_equipe")||"[]"); if(local.length) setEquipeGlobal(local); } catch(e){}
+    onFirebaseReady(()=>{
+      _fbDb.ref(EQUIPE_FB_PATH).on("value",(snap)=>{
+        const data = snap.val();
+        const lista = !data ? EQUIPE : (Array.isArray(data) ? data : Object.values(data));
+        setEquipeGlobal(lista);
+        try{localStorage.setItem("integra_equipe",JSON.stringify(lista));}catch(e){}
+      });
+    });
+    return ()=>{ if(_fbDb) _fbDb.ref(EQUIPE_FB_PATH).off(); };
+  }, []);
 
   // Modelos de procedimentos: pintura instantânea com cache local + sincronização
   // em tempo real com o Firebase (mesmo padrão já usado nos formulários recebidos).
@@ -6872,7 +6909,7 @@ function App() {
         </div>
       )}
 
-      {pag==="p1"&&<P1 data={p1} setData={setP1} onNovoPaciente={()=>{
+      {pag==="p1"&&<P1 data={p1} setData={setP1} equipeGlobal={equipeGlobal} setEquipeGlobal={setEquipeGlobal} onNovoPaciente={()=>{
   setP1(p1Initial);
   _setP2Raw({...p2Initial, achados: getAchadosInicial()});
   setP3(prev=>({...p3Initial, ds:prev.ds, ci:prev.ci, quemPaga:prev.quemPaga, plano:prev.plano}));
@@ -6978,7 +7015,7 @@ function App() {
   if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
   setPag("p1");
 }}/>}
-      {pag==="p5"&&<Prontuario p1={p1}/>}
+      {pag==="p5"&&<Prontuario p1={p1} equipeGlobal={equipeGlobal}/>}
       {pag==="arq"&&<Arquivo onCarregar={(r)=>{
         if(r._p1) setP1(r._p1);
         if(r._p2) setP2(sanitizeP2(r._p2));
