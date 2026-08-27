@@ -5232,7 +5232,15 @@ function Prontuario({p1}) {
     setAssDentista(e.assinaturaDentista||"");
     setAssPaciente(e.assinaturaPaciente||"");
     setModoAssPaciente(e.assinaturaPaciente?"presencial":"link");
-    setIncluirPagamento(false);
+    if(e.pagamentoPendente) {
+      setIncluirPagamento(true);
+      setPagValor(e.pagamentoPendente.valor!=null?String(e.pagamentoPendente.valor):"");
+      setPagForma(e.pagamentoPendente.forma||null);
+      setPagDestinatario(e.pagamentoPendente.destinatario||null);
+      setPagObs(e.pagamentoPendente.obsInterna||"");
+    } else {
+      setIncluirPagamento(false); setPagValor(""); setPagForma(null); setPagDestinatario(null); setPagObs("");
+    }
     setShowNova(true);
   };
 
@@ -5514,7 +5522,7 @@ function Prontuario({p1}) {
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
         <div onClick={()=>{resetFalta();setShowFalta(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #C62828",color:"#C62828",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>Falta</div>
         <div onClick={()=>{resetPagamento();setShowPagamento(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #2E7D32",color:"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>💰 Pagamento</div>
-        <div onClick={abrirScans} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+GOLD_DARK,color:GOLD_DARK,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>📎 Anexar páginas antigas</div>
+        <div onClick={abrirScans} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+GOLD_DARK,color:GOLD_DARK,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>📎 Arquivos anexados</div>
         {cpfPaciente&&<div onClick={()=>{setShowHistorico(true);carregarScans();}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+PURPLE,color:PURPLE,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🖨 Histórico completo</div>}
       </div>
 
@@ -5630,7 +5638,7 @@ function Prontuario({p1}) {
         <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"20px 12px"}}>
           <div style={{background:"#fff",borderRadius:8,padding:20,maxWidth:480,width:"100%",marginTop:20,marginBottom:20}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <div style={{fontSize:15,fontWeight:700,color:"#2A1538"}}>Páginas antigas — {p1.nome||"paciente sem nome"}</div>
+              <div style={{fontSize:15,fontWeight:700,color:"#2A1538"}}>Arquivos anexados — {p1.nome||"paciente sem nome"}</div>
               <span onClick={()=>setShowScans(false)} style={{cursor:"pointer",color:"#9A8060",fontSize:20,lineHeight:1}}>✕</span>
             </div>
             <div style={{fontSize:11,color:"#9A8060",marginBottom:14}}>Fotos do prontuário em papel deste paciente, guardadas no Google Drive. As imagens são comprimidas automaticamente antes do envio.</div>
@@ -5666,17 +5674,37 @@ function Prontuario({p1}) {
       {cpfPaciente && entradas===null && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Carregando histórico...</div>}
       {cpfPaciente && entradas && entradas.length===0 && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Nenhuma visita registrada ainda.</div>}
 
-      {cpfPaciente && entradas && entradas.map(e=>(
-        <div key={e._key} style={{background:e.tipo==="falta"?"#FDF4F4":e.tipo==="pagamento"?"#F4FAF5":"#fff",border:"1px solid "+BORDER,borderLeft:"4px solid "+(e.tipo==="falta"?"#C62828":e.tipo==="pagamento"?"#2E7D32":BORDER),borderRadius:6,padding:"14px 16px",marginBottom:10}}>
+      {cpfPaciente && entradas && entradas.map(e=>{
+        if(e.tipo==="falta") {
+          const aberto = !!obsAbertas[e._key];
+          return (
+            <div key={e._key} style={{background:"#FDF4F4",border:"1px solid "+BORDER,borderLeft:"4px solid #C62828",borderRadius:6,marginBottom:8,overflow:"hidden"}}>
+              <div onClick={()=>setObsAbertas(prev=>({...prev,[e._key]:!prev[e._key]}))} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#2A1538",flexShrink:0}}>{dataFmt(e.data)}</div>
+                <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:"#FDEAEA",color:"#C62828"}}>{e.ocorrencia==="remarcou"?"Remarcou":"Faltou"}{e.confirmouAntes?" · confirmada":""}</div>
+                {e.antecedencia && <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:e.onus?"#FDEAEA":"#E8F5E9",color:e.onus?"#C62828":"#2E7D32"}}>{e.onus?"Com ônus":"Sem ônus"}</div>}
+                <div style={{marginLeft:"auto",fontSize:11,color:"#9A8060",flexShrink:0}}>{aberto?"▲":"▼"}</div>
+              </div>
+              {aberto && (
+                <div style={{padding:"0 14px 12px"}}>
+                  {e.dentistaResponsavel && <div style={{fontSize:10,fontWeight:700,color:PURPLE,marginBottom:8}}>{e.dentistaResponsavel}</div>}
+                  {e.assinaturaDentista && <div style={{marginBottom:10}}><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Assinatura do dentista</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+                  <div style={{display:"flex",gap:10,paddingTop:8,borderTop:"1px solid "+BORDER}}>
+                    <div onClick={()=>iniciarEdicaoFalta(e)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
+                    <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
+                  </div>
+                  {e.editadoEm && <div style={{fontSize:9,color:"#B0A090",marginTop:6}}>Editado em {new Date(e.editadoEm).toLocaleDateString("pt-BR")}</div>}
+                </div>
+              )}
+            </div>
+          );
+        }
+        return (
+        <div key={e._key} style={{background:e.tipo==="pagamento"?"#F4FAF5":"#fff",border:"1px solid "+BORDER,borderLeft:"4px solid "+(e.tipo==="pagamento"?"#2E7D32":BORDER),borderRadius:6,padding:"14px 16px",marginBottom:10}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,gap:8}}>
             <div style={{fontSize:13,fontWeight:700,color:"#2A1538"}}>{dataFmt(e.data)}</div>
             <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-              {e.tipo==="falta" ? (
-                <React.Fragment>
-                  <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:"#FDEAEA",color:"#C62828"}}>{e.ocorrencia==="remarcou"?"Remarcou":"Faltou"}{e.confirmouAntes?" · confirmada antes":""}</div>
-                  {e.antecedencia && <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:e.onus?"#FDEAEA":"#E8F5E9",color:e.onus?"#C62828":"#2E7D32"}}>{e.onus?"Com ônus":"Sem ônus"}</div>}
-                </React.Fragment>
-              ) : e.tipo==="pagamento" ? (
+              {e.tipo==="pagamento" ? (
                 <React.Fragment>
                   <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:"#E8F5E9",color:"#2E7D32"}}>💰 {fmt(e.valor||0)}</div>
                   <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:PURPLE_BORDER,color:PURPLE}}>{e.destinatario==="dentista"?"Dentista":"Clínica"}</div>
@@ -5695,11 +5723,9 @@ function Prontuario({p1}) {
           <div style={{fontSize:12.5,color:"#5C4A2A",lineHeight:1.5,whiteSpace:"pre-wrap",marginBottom:8}}>{e.descricao}</div>
           <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
             {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Dentista</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
-            {e.tipo==="falta" ? (
-              <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><div style={{fontSize:11,color:"#C62828",fontWeight:600,padding:"8px 0"}}>Não compareceu</div></div>
-            ) : e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+            {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
           </div>
-          {e.tipo!=="falta" && e.statusPaciente!=="assinado" && (
+          {e.statusPaciente!=="assinado" && (
             <div onClick={()=>copiarLink(e._key)} style={{marginTop:10,padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
           )}
           {e.obsInterna && (
@@ -5711,12 +5737,13 @@ function Prontuario({p1}) {
             </div>
           )}
           <div style={{display:"flex",gap:10,marginTop:12,paddingTop:12,borderTop:"1px solid "+BORDER}}>
-            <div onClick={()=>e.tipo==="falta"?iniciarEdicaoFalta(e):e.tipo==="pagamento"?iniciarEdicaoPagamento(e):iniciarEdicao(e)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
+            <div onClick={()=>e.tipo==="pagamento"?iniciarEdicaoPagamento(e):iniciarEdicao(e)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
             <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
           </div>
           {e.editadoEm && <div style={{fontSize:9,color:"#B0A090",marginTop:6}}>Editado em {new Date(e.editadoEm).toLocaleDateString("pt-BR")}</div>}
         </div>
-      ))}
+        );
+      })}
 
       {showNova && (
         <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"20px 12px"}}>
