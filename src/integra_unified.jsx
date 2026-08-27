@@ -5212,6 +5212,7 @@ function AssinaturaCanvas({value, onChange}) {
 // + assinatura do paciente (na hora OU depois via link, mesmo mecanismo
 // técnico do link de anamnese via WhatsApp).
 const PRONTUARIO_FB_PATH = "prontuario_visitas";
+const GRUPO_ASSINATURA_FB_PATH = "assinaturas_grupo";
 
 function Prontuario({p1, equipeGlobal}) {
   const equipe = equipeGlobal || EQUIPE;
@@ -5257,6 +5258,10 @@ function Prontuario({p1, equipeGlobal}) {
   const [enviandoScans, setEnviandoScans] = React.useState(false);
   const [scanProgresso, setScanProgresso] = React.useState("");
   const [showHistorico, setShowHistorico] = React.useState(false);
+  const [showPendencias, setShowPendencias] = React.useState(false);
+  const [pendenciasSel, setPendenciasSel] = React.useState(new Set());
+  const [linkGrupo, setLinkGrupo] = React.useState(null);
+  const [gerandoGrupo, setGerandoGrupo] = React.useState(false);
 
   const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
 
@@ -5366,6 +5371,37 @@ function Prontuario({p1, equipeGlobal}) {
   const copiarLink = (key) => {
     const link = linkVisita(key);
     if(navigator.clipboard) navigator.clipboard.writeText(link).then(()=>showToast("Link copiado! Envie pelo WhatsApp para o paciente.")).catch(()=>showToast("Não foi possível copiar o link","error"));
+  };
+
+  const togglePendencia = (key) => {
+    setPendenciasSel(prev => {
+      const nova = new Set(prev);
+      if(nova.has(key)) nova.delete(key); else nova.add(key);
+      return nova;
+    });
+  };
+
+  const gerarLinkGrupo = () => {
+    if(pendenciasSel.size===0) { showToast("Selecione ao menos uma pendência.","error"); return; }
+    if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
+    setGerandoGrupo(true);
+    const chaves = Array.from(pendenciasSel);
+    if(chaves.length===1) {
+      // um item só: usa o link normal de sempre, sem precisar do registro de grupo
+      setGerandoGrupo(false);
+      setLinkGrupo(linkVisita(chaves[0]));
+      return;
+    }
+    const groupId = _fbDb.ref(GRUPO_ASSINATURA_FB_PATH).push().key;
+    _fbDb.ref(GRUPO_ASSINATURA_FB_PATH+"/"+groupId).set({chaves, cpfPaciente, criadoEm:new Date().toISOString()}).then(()=>{
+      setGerandoGrupo(false);
+      setLinkGrupo((typeof window!=="undefined"?window.location.origin:"")+"/v/g/"+groupId);
+    }).catch(e=>{ setGerandoGrupo(false); showToast("Erro ao gerar link: "+e.message,"error"); });
+  };
+
+  const copiarLinkGrupo = () => {
+    if(!linkGrupo) return;
+    if(navigator.clipboard) navigator.clipboard.writeText(linkGrupo).then(()=>showToast("Link copiado! Envie pelo WhatsApp para o paciente.")).catch(()=>showToast("Não foi possível copiar o link","error"));
   };
 
   const resetFalta = () => {
@@ -5596,6 +5632,7 @@ function Prontuario({p1, equipeGlobal}) {
         <div onClick={()=>{resetPagamento();setShowPagamento(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #2E7D32",color:"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>💰 Pagamento</div>
         <div onClick={abrirScans} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+GOLD_DARK,color:GOLD_DARK,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>📎 Arquivos anexados</div>
         {cpfPaciente&&<div onClick={()=>{setShowHistorico(true);carregarScans();}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+PURPLE,color:PURPLE,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🖨 Histórico completo</div>}
+        {cpfPaciente&&<div onClick={()=>{setPendenciasSel(new Set());setLinkGrupo(null);setShowPendencias(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #2E7D32",color:"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🔗 Pendências</div>}
       </div>
 
       {showFalta && (
@@ -5642,6 +5679,43 @@ function Prontuario({p1, equipeGlobal}) {
               <div onClick={()=>{setShowFalta(false);resetFalta();}} style={{flex:1,padding:"14px",textAlign:"center",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>Cancelar</div>
               <div onClick={registrarFalta} style={{flex:1,padding:"14px",textAlign:"center",background:faltaSalvando?"#ccc":"#C62828",color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:faltaSalvando?"default":"pointer"}}>{faltaSalvando?"Salvando...":(editandoFaltaKey?"Salvar alterações":"Confirmar")}</div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPendencias && (
+        <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"20px 12px"}}>
+          <div style={{background:"#fff",borderRadius:8,padding:20,maxWidth:460,width:"100%",marginTop:20,marginBottom:20}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontSize:15,fontWeight:700,color:"#2A1538"}}>Central de Pendências — {p1.nome||"paciente sem nome"}</div>
+              <span onClick={()=>setShowPendencias(false)} style={{cursor:"pointer",color:"#9A8060",fontSize:20,lineHeight:1}}>✕</span>
+            </div>
+            <div style={{fontSize:11,color:"#9A8060",marginBottom:14}}>Selecione o que ainda está aguardando assinatura. Marcando mais de um, gera um único link — o paciente vê tudo junto e assina uma vez só.</div>
+
+            {(()=>{
+              const pendentes = (entradas||[]).filter(e=>e.tipo!=="falta" && e.statusPaciente!=="assinado");
+              if(pendentes.length===0) return <div style={{fontSize:12,color:"#9A8060",textAlign:"center",padding:20}}>Nenhuma pendência de assinatura no momento.</div>;
+              return pendentes.map(e=>(
+                <div key={e._key} onClick={()=>togglePendencia(e._key)} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 8px",borderBottom:"1px solid "+BORDER,cursor:"pointer"}}>
+                  <div style={{width:20,height:20,borderRadius:4,border:"2px solid "+(pendenciasSel.has(e._key)?"#2E7D32":BORDER),background:pendenciasSel.has(e._key)?"#2E7D32":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>
+                    {pendenciasSel.has(e._key)&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✓</span>}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:11,fontWeight:700,color:e.tipo==="pagamento"?"#2E7D32":GOLD_DARK}}>{dataFmt(e.data)} · {e.tipo==="pagamento"?("Pagamento — "+fmt(e.valor||0)):"Atendimento"}</div>
+                    <div style={{fontSize:12,color:"#5C4A2A",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.descricao}</div>
+                  </div>
+                </div>
+              ));
+            })()}
+
+            {!linkGrupo ? (
+              <div onClick={gerarLinkGrupo} style={{marginTop:16,padding:"13px 16px",textAlign:"center",background:gerandoGrupo?"#ccc":"#2E7D32",color:"#fff",borderRadius:6,fontSize:13,fontWeight:700,cursor:gerandoGrupo?"default":"pointer"}}>{gerandoGrupo?"Gerando...":"Gerar link"+(pendenciasSel.size>1?" agrupado":"")}</div>
+            ) : (
+              <div style={{marginTop:16}}>
+                <div style={{padding:"10px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,wordBreak:"break-all",color:GOLD_DARK,fontWeight:500,marginBottom:8}}>{linkGrupo}</div>
+                <div onClick={copiarLinkGrupo} style={{padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>📋 Copiar link</div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -6028,6 +6102,124 @@ function AssinaturaVisitaPublica({visitaId}) {
           </React.Fragment>
         )}
         <div style={{fontSize:12,color:"#5C4A2A",marginBottom:8}}>Confirme com sua assinatura abaixo:</div>
+        <AssinaturaCanvas value={assinatura} onChange={setAssinatura}/>
+        {erro && <div style={{fontSize:11,color:"#C62828",marginTop:8}}>{erro}</div>}
+        <div onClick={enviar} style={{marginTop:16,padding:"12px",textAlign:"center",background:enviando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:enviando?"default":"pointer"}}>{enviando?"Enviando...":"Confirmar assinatura"}</div>
+      </div>
+    </div>
+  );
+}
+
+// Assinatura de um grupo de pendências — mesma assinatura confirma várias entradas de uma vez.
+function AssinaturaGrupoPublica({groupId}) {
+  const [grupo, setGrupo] = React.useState(undefined); // undefined=carregando, null=não encontrado
+  const [entradas, setEntradas] = React.useState(null);
+  const [assinatura, setAssinatura] = React.useState("");
+  const [enviando, setEnviando] = React.useState(false);
+  const [enviado, setEnviado] = React.useState(false);
+  const [erro, setErro] = React.useState("");
+
+  const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
+
+  React.useEffect(()=>{
+    onFirebaseReady(async ()=>{
+      try {
+        const snap = await _fbDb.ref(GRUPO_ASSINATURA_FB_PATH+"/"+groupId).once("value");
+        const g = snap.val();
+        if(!g || !g.chaves || !g.chaves.length) { setGrupo(null); return; }
+        setGrupo(g);
+        const lista = await Promise.all(g.chaves.map(async k=>{
+          const s = await _fbDb.ref(PRONTUARIO_FB_PATH+"/"+k).once("value");
+          return {...s.val(), _key:k};
+        }));
+        setEntradas(lista.filter(Boolean));
+      } catch(e) { setGrupo(null); }
+    });
+  },[groupId]);
+
+  const enviar = () => {
+    if(!assinatura) { setErro("Assine no campo acima antes de enviar."); return; }
+    if(!entradas || !entradas.length) { setErro("Nenhuma pendência encontrada."); return; }
+    setErro("");
+    setEnviando(true);
+    const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
+    const operacoes = entradas.map(entrada => {
+      const pend = entrada.pagamentoPendente;
+      const criarPagamento = () => {
+        if(!pend) return Promise.resolve();
+        const descricaoPag = "Pagamento de "+fmt(pend.valor||0)+" via "+(nomesForma[pend.forma]||pend.forma)+" — repassado para "+(pend.destinatario==="dentista"?"o dentista":"a clínica")+".";
+        const camposPag = {
+          cpfPaciente: entrada.cpfPaciente, nomePaciente: entrada.nomePaciente||"", data: entrada.data, descricao: descricaoPag,
+          tipo:"pagamento", valor: pend.valor, forma: pend.forma, destinatario: pend.destinatario,
+          obsInterna: pend.obsInterna||"", dentistaResponsavel: entrada.dentistaResponsavel,
+          assinaturaDentista: entrada.assinaturaDentista, assinaturaPaciente: assinatura,
+          statusPaciente: "assinado", criadoEm: new Date().toISOString(),
+        };
+        const keyPag = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
+        return _fbDb.ref(PRONTUARIO_FB_PATH+"/"+keyPag).set(camposPag);
+      };
+      return _fbDb.ref(PRONTUARIO_FB_PATH+"/"+entrada._key).update({assinaturaPaciente:assinatura, statusPaciente:"assinado", pagamentoPendente:null}).then(criarPagamento);
+    });
+    Promise.all(operacoes).then(()=>{
+      setEnviando(false); setEnviado(true);
+    }).catch(e=>{ setEnviando(false); setErro("Erro ao enviar: "+e.message); });
+  };
+
+  if(grupo===undefined) return <div style={{padding:40,textAlign:"center",fontFamily:"inherit"}}>Carregando...</div>;
+  if(grupo===null || !entradas) return <div style={{padding:40,textAlign:"center",fontFamily:"inherit"}}>Link não encontrado ou expirado.</div>;
+
+  const jaAssinado = entradas.length>0 && entradas.every(e=>e.statusPaciente==="assinado");
+  if(enviado || jaAssinado) {
+    return (
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:CREAM,padding:20,fontFamily:"inherit"}}>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:40,marginBottom:10}}>✓</div>
+          <div style={{fontSize:16,fontWeight:700,color:"#2A1538"}}>Assinatura confirmada!</div>
+          <div style={{fontSize:13,color:"#9A8060",marginTop:6}}>Obrigado, {entradas[0]?.nomePaciente}.</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{minHeight:"100vh",background:CREAM,padding:"24px 16px",fontFamily:"inherit"}}>
+      <div style={{maxWidth:420,margin:"0 auto",background:"#fff",borderRadius:8,padding:22,border:"1px solid "+BORDER}}>
+        <div style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700,marginBottom:4}}>Íntegra Clínica Odontológica</div>
+        <div style={{fontSize:17,fontWeight:700,color:"#2A1538",marginBottom:14}}>Confirmação de atendimento</div>
+        <div style={{fontSize:13,color:"#5C4A2A",marginBottom:14}}><b>Paciente:</b> {entradas[0]?.nomePaciente}</div>
+
+        <div style={{fontSize:11,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase",marginBottom:8}}>Itens a confirmar</div>
+        {entradas.map((entrada,i)=>{
+          const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
+          const ehPagamento = entrada.tipo==="pagamento";
+          return (
+            <div key={entrada._key||i} style={{marginBottom:10,padding:"10px 12px",borderRadius:4,background: ehPagamento?"#F4FAF5":GOLD_PALE,border:"1px solid "+(ehPagamento?"#2E7D32":BORDER)}}>
+              <div style={{fontSize:10,color:"#9A8060",marginBottom:3}}>{dataFmt(entrada.data)}</div>
+              {ehPagamento ? (
+                <div style={{fontSize:13,color:"#2A1538"}}>
+                  <div><b>Valor:</b> {fmt(entrada.valor||0)}</div>
+                  <div style={{marginTop:2}}><b>Forma:</b> {nomesForma[entrada.forma]||entrada.forma}</div>
+                </div>
+              ) : (
+                <div style={{fontSize:13,color:"#2A1538",whiteSpace:"pre-wrap"}}>{entrada.descricao}</div>
+              )}
+              {entrada.pagamentoPendente && (()=>{
+                const pend = entrada.pagamentoPendente;
+                return (
+                  <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid "+BORDER}}>
+                    <div style={{fontSize:10,fontWeight:700,color:"#2E7D32",textTransform:"uppercase",marginBottom:4}}>Pagamento a confirmar</div>
+                    <div style={{fontSize:13,color:"#2A1538"}}>
+                      <div><b>Valor:</b> {fmt(pend.valor||0)}</div>
+                      <div style={{marginTop:2}}><b>Forma:</b> {nomesForma[pend.forma]||pend.forma}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          );
+        })}
+
+        <div style={{fontSize:12,color:"#5C4A2A",marginTop:8,marginBottom:8}}>Confirme tudo acima com uma única assinatura:</div>
         <AssinaturaCanvas value={assinatura} onChange={setAssinatura}/>
         {erro && <div style={{fontSize:11,color:"#C62828",marginTop:8}}>{erro}</div>}
         <div onClick={enviar} style={{marginTop:16,padding:"12px",textAlign:"center",background:enviando?"#ccc":GOLD_DARK,color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:enviando?"default":"pointer"}}>{enviando?"Enviando...":"Confirmar assinatura"}</div>
@@ -6692,6 +6884,10 @@ function App() {
   if(formMatch) {
     const espParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("esp") : "";
     return <FormularioPaciente formId={formMatch[1]} especialidade={espParam||"geral"}/>;
+  }
+  const grupoMatch = urlPath.match(/\/v\/g\/([a-zA-Z0-9_-]+)/);
+  if(grupoMatch) {
+    return <AssinaturaGrupoPublica groupId={grupoMatch[1]}/>;
   }
   const visitaMatch = urlPath.match(/\/v\/([a-zA-Z0-9_-]+)/);
   if(visitaMatch) {
