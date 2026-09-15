@@ -2382,7 +2382,10 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
           valor={subtotal}
           procNome={proc.nome}
           propostaInicial={item.proposta}
-          onSave={(prop)=>onChange({...item, proposta:prop, _showMiniOrc:false})}
+          onSave={(prop)=>{
+            const novoValor = parseMoeda(prop.vb) > 0 ? prop.vb : item.valor;
+            onChange({...item, valor: novoValor, proposta:prop, _showMiniOrc:false});
+          }}
           onClose={()=>onChange({...item,_showMiniOrc:false})}
         />
       )}
@@ -2742,6 +2745,7 @@ function ArquivoDriveSection({onCarregar}) {
   };
 
   React.useEffect(()=>{ if(logado) listar(); },[logado]);
+  React.useEffect(()=>{ const unsub = onDriveDataChanged(()=>{ if(logado) listar(); }); return unsub; },[logado]);
 
   const extrairNome = (fn) => {
     const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," ");
@@ -4203,6 +4207,11 @@ function useDriveLogado() {
   return logado;
 }
 
+// Notificação leve para listas de pacientes na nuvem se atualizarem sozinhas após qualquer salvamento
+const _dataChangeListeners = new Set();
+function onDriveDataChanged(fn) { _dataChangeListeners.add(fn); return ()=>_dataChangeListeners.delete(fn); }
+function notifyDriveDataChanged() { _dataChangeListeners.forEach(fn=>fn()); }
+
 // Restaurar token Google do localStorage ao carregar
 function gdriveRestaurarToken() {
   try {
@@ -4658,6 +4667,7 @@ function DrivePastaModal({onClose, onCarregar}) {
   const [excluindo, setExcluindo] = React.useState(false);
   const [ordenacao, setOrdenacao] = React.useState("recentes"); // "recentes" | "nome"
   React.useEffect(()=>{ _gdriveFolderId=null; gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); },[]);
+  React.useEffect(()=>{ const unsub = onDriveDataChanged(()=>{ gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); }); return unsub; },[]);
   const extrairNome = (fn) => { const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," "); return m.charAt(0).toUpperCase()+m.slice(1); };
   const fmtData = (iso) => { if(!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
   const carregar = async (arq) => { setCarregando(arq.id); try { const dados = await gdriveCarregarArquivo(arq.id); onCarregar(dados); onClose(); } catch(e) { setErro("Erro: "+e.message); setCarregando(null); } };
@@ -4775,6 +4785,7 @@ function DriveSync({relatorio, onCarregar}) {
       }
       setMsgDrive({tipo:"ok",texto:"✓ Salvo no Google Drive"});
       setTimeout(()=>setMsgDrive(null),3000);
+      notifyDriveDataChanged();
     } catch(e) {
       setMsgDrive({tipo:"erro",texto:"Erro: "+e.message});
     }
@@ -5232,6 +5243,7 @@ function Prontuario({p1, equipeGlobal}) {
   const [obsAbertas, setObsAbertas] = React.useState({});
   const [filtroHistorico, setFiltroHistorico] = React.useState({procedimentos:true, faltas:true, pagamentos:true});
   const [galeriaIndex, setGaleriaIndex] = React.useState(null);
+  const [galeriaZoom, setGaleriaZoom] = React.useState(false);
   const [showFalta, setShowFalta] = React.useState(false);
   const [editandoFaltaKey, setEditandoFaltaKey] = React.useState(null);
   const [faltaOcorrencia, setFaltaOcorrencia] = React.useState(null);
@@ -5604,11 +5616,15 @@ function Prontuario({p1, equipeGlobal}) {
         )}
         {galeriaIndex!==null && scans && (
           <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-            <div onClick={()=>setGaleriaIndex(null)} style={{position:"absolute",top:16,right:20,color:"#fff",fontSize:26,cursor:"pointer"}}>✕</div>
+            <div onClick={()=>{setGaleriaIndex(null);setGaleriaZoom(false);}} style={{position:"absolute",top:16,right:20,color:"#fff",fontSize:26,cursor:"pointer"}}>✕</div>
             <div style={{position:"absolute",top:18,left:20,color:"#fff",fontSize:13}}>{galeriaIndex+1} / {scans.length}</div>
-            {galeriaIndex>0 && <div onClick={()=>setGaleriaIndex(galeriaIndex-1)} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>‹</div>}
-            {scans[galeriaIndex]?._previewUrl && <img src={scans[galeriaIndex]._previewUrl} alt="" style={{maxWidth:"92vw",maxHeight:"85vh",objectFit:"contain"}}/>}
-            {galeriaIndex<scans.length-1 && <div onClick={()=>setGaleriaIndex(galeriaIndex+1)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>›</div>}
+            {!galeriaZoom && galeriaIndex>0 && <div onClick={()=>{setGaleriaIndex(galeriaIndex-1);setGaleriaZoom(false);}} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>‹</div>}
+            {scans[galeriaIndex]?._previewUrl && (
+              <div style={{width:"100%",height:"100%",overflow:galeriaZoom?"auto":"hidden",display:"flex",alignItems:galeriaZoom?"flex-start":"center",justifyContent:galeriaZoom?"flex-start":"center"}}>
+                <img onClick={()=>setGaleriaZoom(!galeriaZoom)} src={scans[galeriaIndex]._previewUrl} alt="" style={galeriaZoom?{width:"220%",maxWidth:"none",cursor:"zoom-out"}:{maxWidth:"92vw",maxHeight:"85vh",objectFit:"contain",cursor:"zoom-in"}}/>
+              </div>
+            )}
+            {!galeriaZoom && galeriaIndex<scans.length-1 && <div onClick={()=>{setGaleriaIndex(galeriaIndex+1);setGaleriaZoom(false);}} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>›</div>}
           </div>
         )}
       </div>
@@ -5996,11 +6012,15 @@ function Prontuario({p1, equipeGlobal}) {
       )}
       {galeriaIndex!==null && scans && (
         <div className="no-print" style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:400,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-          <div onClick={()=>setGaleriaIndex(null)} style={{position:"absolute",top:16,right:20,color:"#fff",fontSize:26,cursor:"pointer"}}>✕</div>
+          <div onClick={()=>{setGaleriaIndex(null);setGaleriaZoom(false);}} style={{position:"absolute",top:16,right:20,color:"#fff",fontSize:26,cursor:"pointer"}}>✕</div>
           <div style={{position:"absolute",top:18,left:20,color:"#fff",fontSize:13}}>{galeriaIndex+1} / {scans.length}</div>
-          {galeriaIndex>0 && <div onClick={()=>setGaleriaIndex(galeriaIndex-1)} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>‹</div>}
-          {scans[galeriaIndex]?._previewUrl && <img src={scans[galeriaIndex]._previewUrl} alt="" style={{maxWidth:"92vw",maxHeight:"85vh",objectFit:"contain"}}/>}
-          {galeriaIndex<scans.length-1 && <div onClick={()=>setGaleriaIndex(galeriaIndex+1)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>›</div>}
+          {!galeriaZoom && galeriaIndex>0 && <div onClick={()=>{setGaleriaIndex(galeriaIndex-1);setGaleriaZoom(false);}} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>‹</div>}
+          {scans[galeriaIndex]?._previewUrl && (
+            <div style={{width:"100%",height:"100%",overflow:galeriaZoom?"auto":"hidden",display:"flex",alignItems:galeriaZoom?"flex-start":"center",justifyContent:galeriaZoom?"flex-start":"center"}}>
+              <img onClick={()=>setGaleriaZoom(!galeriaZoom)} src={scans[galeriaIndex]._previewUrl} alt="" style={galeriaZoom?{width:"220%",maxWidth:"none",cursor:"zoom-out"}:{maxWidth:"92vw",maxHeight:"85vh",objectFit:"contain",cursor:"zoom-in"}}/>
+            </div>
+          )}
+          {!galeriaZoom && galeriaIndex<scans.length-1 && <div onClick={()=>{setGaleriaIndex(galeriaIndex+1);setGaleriaZoom(false);}} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#fff",fontSize:34,cursor:"pointer",padding:10}}>›</div>}
         </div>
       )}
     </div>
@@ -6980,6 +7000,25 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [showGlobalPasta, setShowGlobalPasta] = useState(false);
   const [modalSalvar, setModalSalvar] = useState(null); // {msg, onSobrepor, onDuplicar, onCancelar}
+
+  const salvarNoDriveAgora = async (dadosP1, dadosP2, dadosP3, dadosP4) => {
+    if(!_gdriveToken) return;
+    try {
+      const rel = {id:Date.now()+Math.floor(Math.random()*1000), data:new Date().toISOString(), paciente:dadosP1.nome||"Sem nome", cpf:dadosP1.cpf||"", telefone:dadosP1.telefone||"", dataNasc:dadosP1.dataNasc||"", responsavel:dadosP1.responsavel||"", dataConsulta:dadosP1.dataConsulta||"", valorTotal:parseFloat(dadosP3.vb)||0, _p1:dadosP1, _p2:dadosP2, _p3:dadosP3, _p4:dadosP4};
+      const res = await gdriveSalvarAtendimento(rel,false);
+      if(res && res.precisaConfirmar) {
+        setModalSalvar({
+          msg: "Já existe um arquivo para "+(dadosP1.nome||"este paciente")+" no Google Drive.",
+          onSobrepor: async()=>{ setModalSalvar(null); try{ await gdriveSalvarAtendimento(rel,true); showToast("Salvo na nuvem"); notifyDriveDataChanged(); }catch(e2){ showToast("Erro ao salvar: "+e2.message,"error"); } },
+          onDuplicar: async()=>{ setModalSalvar(null); try{ await gdriveSalvarAtendimento(rel,"novo"); showToast("Salvo na nuvem como novo arquivo"); notifyDriveDataChanged(); }catch(e2){ showToast("Erro ao salvar: "+e2.message,"error"); } },
+          onCancelar: ()=>setModalSalvar(null),
+        });
+      } else {
+        showToast("Salvo na nuvem");
+        notifyDriveDataChanged();
+      }
+    } catch(e) { showToast("Erro ao salvar: "+e.message,"error"); }
+  };
   const [modelos, setModelos] = useState([]); // modelos de procedimentos salvos
   const [equipeGlobal, setEquipeGlobal] = useState(EQUIPE);
 
@@ -7044,7 +7083,7 @@ function App() {
 
           {/* Salvar no Drive */}
           {driveLogado&&(
-            <div onClick={async()=>{if(!_gdriveToken)return;try{const rel={id:Date.now()+Math.floor(Math.random()*1000),data:new Date().toISOString(),paciente:p1.nome||"Sem nome",cpf:p1.cpf||"",telefone:p1.telefone||"",dataNasc:p1.dataNasc||"",responsavel:p1.responsavel||"",dataConsulta:p1.dataConsulta||"",valorTotal:parseFloat(p3.vb)||0,_p1:p1,_p2:p2,_p3:p3,_p4:p4State};const res=await gdriveSalvarAtendimento(rel,false);if(res&&res.precisaConfirmar){setModalSalvar({msg:"Já existe um arquivo para "+(p1.nome||"este paciente")+" no Google Drive.",onSobrepor:async()=>{setModalSalvar(null);try{await gdriveSalvarAtendimento(rel,true);showToast("Salvo na nuvem");}catch(e2){showToast("Erro ao salvar: "+e2.message,"error");}},onDuplicar:async()=>{setModalSalvar(null);try{await gdriveSalvarAtendimento(rel,"novo");showToast("Salvo na nuvem como novo arquivo");}catch(e2){showToast("Erro ao salvar: "+e2.message,"error");}},onCancelar:()=>setModalSalvar(null)});}else{showToast("Salvo na nuvem");}}catch(e){showToast("Erro ao salvar: "+e.message,"error");}}} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
+            <div onClick={()=>salvarNoDriveAgora(p1,p2,p3,p4State)} style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",background:CREAM,border:"1px solid "+BORDER,color:GOLD_DARK,borderRadius:20,cursor:"pointer",fontSize:10,fontWeight:600}}>
               ☁ Salvar
             </div>
           )}
@@ -7196,7 +7235,9 @@ function App() {
   setP4State(prev=>({...p4Initial, procsBase:prev.procsBase, customProcs:(prev.customProcs||[]).map(c=>({...c,ativo:false,dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}))}));
   _driveFileId=null; _driveFileName=null; _lastSyncHash="";
 }} onImportarFormulario={(f)=>{
-  setP1(prev=>({...prev, nome:f.nome, cpf:f.cpf, telefone:f.telefone, email:f.email||"", dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||"", anamnese:f.anamnese||null, anamneseEspecialidade:f.anamneseEspecialidade||""}));
+  const novoP1 = {...p1, nome:f.nome, cpf:f.cpf, telefone:f.telefone, email:f.email||"", dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||"", anamnese:f.anamnese||null, anamneseEspecialidade:f.anamneseEspecialidade||""};
+  setP1(novoP1);
+  if(_gdriveToken) salvarNoDriveAgora(novoP1, p2, p3, p4State);
 }}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State} modelos={modelos} setModelos={setModelos} p3={p3} setP3={v=>setP3(prev=>({...prev,...v}))}/>}
