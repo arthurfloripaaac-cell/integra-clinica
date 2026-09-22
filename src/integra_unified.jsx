@@ -2715,6 +2715,24 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
   );
 }
 
+function ModalConfirmarExclusao({qtd, onConfirmar, onCancelar}) {
+  const [texto, setTexto] = React.useState("");
+  const ok = texto.trim().toUpperCase()==="EXCLUIR";
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:800,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#fff",borderRadius:8,padding:24,maxWidth:360,width:"100%"}}>
+        <div style={{fontSize:14,fontWeight:700,color:"#C62828",marginBottom:8}}>Excluir {qtd>1?qtd+" arquivos":"arquivo"} do Drive?</div>
+        <div style={{fontSize:12,color:"#5C4A2A",marginBottom:14,lineHeight:1.6}}>Essa ação não pode ser desfeita. Digite <b>EXCLUIR</b> abaixo para confirmar.</div>
+        <input value={texto} onChange={e=>setTexto(e.target.value)} placeholder="EXCLUIR" style={{width:"100%",padding:"11px 12px",border:"1px solid "+BORDER,borderRadius:4,fontSize:14,fontFamily:"inherit",boxSizing:"border-box",marginBottom:14}}/>
+        <div style={{display:"flex",gap:8}}>
+          <div onClick={onCancelar} style={{flex:1,padding:"11px",textAlign:"center",border:"1px solid "+BORDER,borderRadius:4,cursor:"pointer",fontSize:12,color:"#9A8060"}}>Cancelar</div>
+          <div onClick={()=>{if(ok)onConfirmar();}} style={{flex:1,padding:"11px",textAlign:"center",background:ok?"#C62828":"#eee",color:ok?"#fff":"#bbb",borderRadius:4,cursor:ok?"pointer":"default",fontSize:12,fontWeight:700}}>Excluir</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ArquivoDriveSection({onCarregar}) {
   const logado = useDriveLogado();
   const [arquivos, setArquivos] = React.useState(null);
@@ -2724,6 +2742,7 @@ function ArquivoDriveSection({onCarregar}) {
   const [selecionados, setSelecionados] = React.useState(new Set());
   const [excluindo, setExcluindo] = React.useState(false);
   const [ordenacao, setOrdenacao] = React.useState("recentes"); // "recentes" | "nome"
+  const [confirmandoExclusao, setConfirmandoExclusao] = React.useState(null); // {ids:[...]} | null
 
   const login = async () => {
     if(!window.location.hostname.includes("integra-clinica") && window.location.hostname !== "localhost") {
@@ -2748,7 +2767,7 @@ function ArquivoDriveSection({onCarregar}) {
   React.useEffect(()=>{ const unsub = onDriveDataChanged(()=>{ if(logado) listar(); }); return unsub; },[logado]);
 
   const extrairNome = (fn) => {
-    const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," ");
+    const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/^(\d+|semcpf)_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," ");
     return m.charAt(0).toUpperCase()+m.slice(1);
   };
 
@@ -2766,25 +2785,24 @@ function ArquivoDriveSection({onCarregar}) {
 
   const toggleSel = (id) => { setSelecionados(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; }); };
 
-  const excluirSelecionados = async () => {
-    if(!selecionados.size) return;
-    if(!window.confirm("Excluir "+selecionados.size+" arquivo(s) do Drive?")) return;
+  const executarExclusao = async (ids) => {
     setExcluindo(true);
     try {
-      for(const id of selecionados) { await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}}); }
+      for(const id of ids) { await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}}); }
       setSelecionados(new Set());
       setArquivos(await gdriveListarTodos());
     } catch(e) { setErro("Erro ao excluir: "+e.message); }
     setExcluindo(false);
+    setConfirmandoExclusao(null);
   };
 
-  const excluirUnico = async (id) => {
-    if(!window.confirm("Excluir este arquivo do Drive?")) return;
-    try {
-      await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}});
-      setArquivos(await gdriveListarTodos());
-      selecionados.delete(id); setSelecionados(new Set(selecionados));
-    } catch(e) { setErro("Erro: "+e.message); }
+  const excluirSelecionados = () => {
+    if(!selecionados.size) return;
+    setConfirmandoExclusao({ids:Array.from(selecionados)});
+  };
+
+  const excluirUnico = (id) => {
+    setConfirmandoExclusao({ids:[id]});
   };
 
   const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase()))
@@ -2802,6 +2820,7 @@ function ArquivoDriveSection({onCarregar}) {
 
   return (
     <div>
+      {confirmandoExclusao && <ModalConfirmarExclusao qtd={confirmandoExclusao.ids.length} onConfirmar={()=>executarExclusao(confirmandoExclusao.ids)} onCancelar={()=>setConfirmandoExclusao(null)}/>}
       <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:10}}>
         <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"12px 14px",border:"1px solid "+BORDER,borderRadius:5,fontSize:14,outline:"none"}}/>
         {filtrados.length>0&&<div onClick={()=>{if(selecionados.size===filtrados.length)setSelecionados(new Set());else setSelecionados(new Set(filtrados.map(a=>a.id)));}} style={{padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:5,cursor:"pointer",fontSize:11,color:"#9A8060",whiteSpace:"nowrap"}}>{selecionados.size===filtrados.length?"Desmarcar":"Sel. tudo"}</div>}
@@ -4441,6 +4460,42 @@ async function gdriveGetScansFolder() {
   return _gdriveScansFolderId;
 }
 
+// Pasta reserva: toda vez que um atendimento é salvo, uma cópia extra vai pra cá também —
+// pasta separada da principal, sem sobrepor nunca (cada salvamento vira um arquivo novo),
+// como segunda linha de defesa contra perda de dado (mesmo que algo afete a pasta principal).
+const GDRIVE_BACKUP_FOLDER_NAME = "Íntegra Clínica — Backup";
+let _gdriveBackupFolderId = null;
+async function gdriveGetBackupFolder() {
+  if(_gdriveBackupFolderId) return _gdriveBackupFolderId;
+  const res = await fetch(
+    "https://www.googleapis.com/drive/v3/files?q=name%3D%27"+encodeURIComponent(GDRIVE_BACKUP_FOLDER_NAME)+"%27+and+mimeType%3D%27application%2Fvnd.google-apps.folder%27+and+trashed%3Dfalse&fields=files(id)",
+    {headers:{Authorization:"Bearer "+_gdriveToken}}
+  );
+  const d = await res.json();
+  if(d.files && d.files.length>0){ _gdriveBackupFolderId=d.files[0].id; return _gdriveBackupFolderId; }
+  const cr = await fetch("https://www.googleapis.com/drive/v3/files",{
+    method:"POST",
+    headers:{Authorization:"Bearer "+_gdriveToken,"Content-Type":"application/json"},
+    body:JSON.stringify({name:GDRIVE_BACKUP_FOLDER_NAME,mimeType:"application/vnd.google-apps.folder"}),
+  });
+  const pasta = await cr.json();
+  _gdriveBackupFolderId=pasta.id;
+  return _gdriveBackupFolderId;
+}
+async function gdriveBackupAtendimento(atendimento) {
+  // Nunca deve travar nem atrasar o salvamento principal — falhas aqui são só registradas.
+  try {
+    const folderId = await gdriveGetBackupFolder();
+    const cpfDigits = (atendimento.cpf||"").replace(/\D/g,"") || "semcpf";
+    const nome = "integra_"+cpfDigits+"_"+(atendimento.paciente||"p").replace(/[^a-z0-9]/gi,"_")+"_"+Date.now()+".json";
+    const metadata = {name:nome,mimeType:"application/json",parents:[folderId]};
+    const form = new FormData();
+    form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
+    form.append("file",new Blob([JSON.stringify(atendimento,null,2)],{type:"application/json"}));
+    await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+  } catch(e) { console.error("Backup automático falhou:", e); }
+}
+
 // Comprime uma imagem (File/Blob) no navegador antes do upload — reduz de ~3-8MB para ~150-350KB
 async function comprimirImagem(file, maxLargura=1600, qualidade=0.75) {
   const bitmap = await createImageBitmap(file);
@@ -4499,14 +4554,17 @@ async function gdriveListarScansComPreview(cpfPaciente) {
   }));
 }
 
-async function gdriveListarArquivos(folderId, paciente) {
-  const nomeNorm = (paciente||"").replace(/[^a-z0-9]/gi,"_").toLowerCase();
+async function gdriveListarArquivos(folderId, cpf) {
+  const cpfDigits = (cpf||"").replace(/\D/g,"") || "semcpf";
   const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27integra_%27";
   const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name)",{headers:{Authorization:"Bearer "+_gdriveToken}});
   const d = await res.json();
   const all = d.files||[];
-  if(!nomeNorm) return all;
-  return all.filter(f=>f.name.toLowerCase().includes(nomeNorm.slice(0,15)));
+  // Correspondência exata por CPF no nome do arquivo — antes usava só os primeiros
+  // caracteres do nome do paciente, o que fazia pacientes com nomes parecidos
+  // (ex: "Maria da Silva Santos" e "Maria da Silva Souza") serem tratados como
+  // o mesmo cadastro, podendo sobrepor o arquivo errado ao salvar.
+  return all.filter(f=>f.name.includes("integra_"+cpfDigits+"_"));
 }
 
 // ─── MODELOS DE PROCEDIMENTOS (TEMPLATES) ────────────────────────────────────
@@ -4607,12 +4665,13 @@ async function carregarModelosProcedimentos() {
 async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
   if(!_gdriveToken) throw new Error("Não autenticado");
   const folderId = await gdriveGetFolder();
-  const nomeBase = "integra_"+(atendimento.paciente||"p").replace(/[^a-z0-9]/gi,"_");
+  const cpfDigits = (atendimento.cpf||"").replace(/\D/g,"") || "semcpf";
+  const nomeBase = "integra_"+cpfDigits+"_"+(atendimento.paciente||"p").replace(/[^a-z0-9]/gi,"_");
   const json = JSON.stringify(atendimento,null,2);
 
   if(sobrepor !== "novo") {
-    // Verificar se existe arquivo similar (mesmo paciente)
-    const existentes = await gdriveListarArquivos(folderId, atendimento.paciente);
+    // Verificar se existe arquivo do mesmo paciente (por CPF, não por nome)
+    const existentes = await gdriveListarArquivos(folderId, atendimento.cpf);
     if(existentes.length > 0 && sobrepor !== true) {
       // Retornar info para o componente decidir
       return {precisaConfirmar: true, existentes, folderId, atendimento};
@@ -4624,6 +4683,7 @@ async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
       form.append("metadata",new Blob([JSON.stringify({name:existentes[0].name})],{type:"application/json"}));
       form.append("file",new Blob([json],{type:"application/json"}));
       await fetch("https://www.googleapis.com/upload/drive/v3/files/"+fileId+"?uploadType=multipart",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+      gdriveBackupAtendimento(atendimento);
       return {salvo:true};
     }
   }
@@ -4634,6 +4694,7 @@ async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
   form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
   form.append("file",new Blob([json],{type:"application/json"}));
   await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+  gdriveBackupAtendimento(atendimento);
   return {salvo:true};
 }
 
@@ -4666,41 +4727,37 @@ function DrivePastaModal({onClose, onCarregar}) {
   const [selecionados, setSelecionados] = React.useState(new Set());
   const [excluindo, setExcluindo] = React.useState(false);
   const [ordenacao, setOrdenacao] = React.useState("recentes"); // "recentes" | "nome"
+  const [confirmandoExclusao, setConfirmandoExclusao] = React.useState(null); // {ids:[...]} | null
   React.useEffect(()=>{ _gdriveFolderId=null; gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); },[]);
   React.useEffect(()=>{ const unsub = onDriveDataChanged(()=>{ gdriveListarTodos().then(setArquivos).catch(e=>setErro(e.message)); }); return unsub; },[]);
-  const extrairNome = (fn) => { const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," "); return m.charAt(0).toUpperCase()+m.slice(1); };
+  const extrairNome = (fn) => { const m = fn.replace(/\.json$/,"").replace(/^integra_/,"").replace(/^(\d+|semcpf)_/,"").replace(/_[a-f0-9-]+$/,"").replace(/_/g," "); return m.charAt(0).toUpperCase()+m.slice(1); };
   const fmtData = (iso) => { if(!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
   const carregar = async (arq) => { setCarregando(arq.id); try { const dados = await gdriveCarregarArquivo(arq.id); onCarregar(dados); onClose(); } catch(e) { setErro("Erro: "+e.message); setCarregando(null); } };
   const toggleSel = (id) => { setSelecionados(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; }); };
   const selTodos = () => { if(selecionados.size===filtrados.length) setSelecionados(new Set()); else setSelecionados(new Set(filtrados.map(a=>a.id))); };
-  const excluirSelecionados = async () => {
-    if(!selecionados.size) return;
-    if(!window.confirm("Excluir "+selecionados.size+" arquivo(s) do Drive? Esta ação não pode ser desfeita.")) return;
+  const executarExclusao = async (ids) => {
     setExcluindo(true); setErro(null);
     try {
-      for(const id of selecionados) { await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}}); }
+      for(const id of ids) { await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}}); }
       setSelecionados(new Set());
       const novos = await gdriveListarTodos();
       setArquivos(novos);
     } catch(e) { setErro("Erro ao excluir: "+e.message); }
     setExcluindo(false);
+    setConfirmandoExclusao(null);
   };
-  const excluirUnico = async (id) => {
-    if(!window.confirm("Excluir este arquivo do Drive?")) return;
-    setExcluindo(true); setErro(null);
-    try {
-      await fetch("https://www.googleapis.com/drive/v3/files/"+id,{method:"DELETE",headers:{Authorization:"Bearer "+_gdriveToken}});
-      const novos = await gdriveListarTodos();
-      setArquivos(novos);
-      selecionados.delete(id);
-      setSelecionados(new Set(selecionados));
-    } catch(e) { setErro("Erro: "+e.message); }
-    setExcluindo(false);
+  const excluirSelecionados = () => {
+    if(!selecionados.size) return;
+    setConfirmandoExclusao({ids:Array.from(selecionados)});
+  };
+  const excluirUnico = (id) => {
+    setConfirmandoExclusao({ids:[id]});
   };
   const filtrados = arquivos ? arquivos.filter(a => !filtro || extrairNome(a.name).toLowerCase().includes(filtro.toLowerCase()))
     .sort((a,b) => ordenacao==="nome" ? extrairNome(a.name).localeCompare(extrairNome(b.name),"pt-BR") : (b.createdTime||b.modifiedTime||"").localeCompare(a.createdTime||a.modifiedTime||"")) : [];
   return (
     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      {confirmandoExclusao && <ModalConfirmarExclusao qtd={confirmandoExclusao.ids.length} onConfirmar={()=>executarExclusao(confirmandoExclusao.ids)} onCancelar={()=>setConfirmandoExclusao(null)}/>}
       <div style={{background:"#fff",borderRadius:8,maxWidth:520,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column",boxShadow:"0 8px 32px rgba(0,0,0,0.3)"}}>
         <div style={{padding:"18px 22px 14px",borderBottom:"1px solid "+BORDER,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
@@ -6760,13 +6817,14 @@ function FormularioPaciente({formId, especialidade}) {
 function FormulariosRecebidos({onImportar}) {
   const [formularios, setFormularios] = React.useState(null);
   const [erro, setErro] = React.useState(null);
+  const [ordenacao, setOrdenacao] = React.useState("recentes"); // "recentes" | "nome"
 
   React.useEffect(()=>{
     onFirebaseReady(()=>{
       _fbDb.ref("formularios").orderByChild("dataEnvio").on("value", (snap)=>{
         const data = snap.val();
         if(!data) { setFormularios([]); return; }
-        const list = Object.entries(data).map(([k,v])=>({...v,_key:k})).sort((a,b)=>(b.dataEnvio||"").localeCompare(a.dataEnvio||""));
+        const list = Object.entries(data).map(([k,v])=>({...v,_key:k}));
         setFormularios(list);
       });
     });
@@ -6803,9 +6861,18 @@ function FormulariosRecebidos({onImportar}) {
   if(!formularios) return <div style={{fontSize:11,color:"#9A8060",padding:12}}>Carregando formulários...</div>;
   if(!formularios.length) return <div style={{fontSize:11,color:"#9A8060",padding:12,textAlign:"center"}}>Nenhum formulário recebido ainda.</div>;
 
+  const formulariosOrdenados = [...formularios].sort((a,b) => ordenacao==="nome"
+    ? (a.nome||"").localeCompare(b.nome||"","pt-BR")
+    : (b.dataEnvio||"").localeCompare(a.dataEnvio||""));
+
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:560,overflowY:"auto",paddingRight:4}}>
-      {formularios.map(f=>(
+    <div>
+      <div style={{display:"flex",gap:6,marginBottom:8}}>
+        <div onClick={()=>setOrdenacao("recentes")} style={{padding:"4px 12px",borderRadius:20,fontSize:10,fontWeight:700,cursor:"pointer",border:"1px solid "+(ordenacao==="recentes"?GOLD_DARK:BORDER),background:ordenacao==="recentes"?GOLD_DARK:"#fff",color:ordenacao==="recentes"?"#fff":"#9A8060"}}>Mais recentes</div>
+        <div onClick={()=>setOrdenacao("nome")} style={{padding:"4px 12px",borderRadius:20,fontSize:10,fontWeight:700,cursor:"pointer",border:"1px solid "+(ordenacao==="nome"?GOLD_DARK:BORDER),background:ordenacao==="nome"?GOLD_DARK:"#fff",color:ordenacao==="nome"?"#fff":"#9A8060"}}>Nome (A-Z)</div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:560,overflowY:"auto",paddingRight:4}}>
+      {formulariosOrdenados.map(f=>(
         <div key={f._key} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",border:"1px solid "+(f.status==="importado"?BORDER:GOLD),borderRadius:4,background:f.status==="importado"?"#FAFAF8":"#FFF"}}>
           <div style={{width:4,height:36,background:f.status==="importado"?"#9A8060":GOLD,borderRadius:2,flexShrink:0}}/>
           <div style={{flex:1,minWidth:0}}>
@@ -6820,6 +6887,7 @@ function FormulariosRecebidos({onImportar}) {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }
@@ -7053,17 +7121,10 @@ function App() {
     return ()=>{ if(_fbDb) _fbDb.ref(MODELOS_FB_PATH).off(); };
   }, []);
 
-  // Auto-conectar Firebase na sessão "1" ao iniciar
-  const _fbAutoConectadoRef = React.useRef(false);
-  React.useEffect(()=>{
-    if(_fbAutoConectadoRef.current || fb.fbConectado) return;
-    _fbAutoConectadoRef.current = true;
-    const sessaoSalva = (() => { try { return localStorage.getItem("integra_fb_sessao") || "1"; } catch(e){ return "1"; } })();
-    // Esperar Firebase ficar pronto e conectar
-    onFirebaseReady(()=>{
-      setTimeout(()=>fb.conectar(sessaoSalva), 500);
-    });
-  },[]);
+  // Reconexão automática à última sessão foi desativada (ago/2026) — fazia o sistema
+  // reabrir sozinho o último paciente trabalhado, mesmo dias depois, o que gerava risco
+  // de edição acidental. A sincronização entre computadores continua disponível, mas
+  // agora só liga quando o usuário conecta manualmente (modal de sessão).
 
   return (
     <div style={{paddingBottom:64,fontFamily:"'Outfit',system-ui,sans-serif",background:"#FDFAF4",minHeight:"100vh"}}>
