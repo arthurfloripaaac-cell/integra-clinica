@@ -4508,8 +4508,7 @@ async function comprimirImagem(file, maxLargura=1600, qualidade=0.75) {
   return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", qualidade));
 }
 
-async function gdriveUploadScan(blob, cpfPaciente, nomePaciente, indice) {
-  if(!_gdriveToken) throw new Error("Não autenticado");
+async function gdriveUploadScanUmaVez(blob, cpfPaciente, nomePaciente, indice) {
   const folderId = await gdriveGetScansFolder();
   const nomeBase = "scan_"+(cpfPaciente||"sem_cpf")+"_"+(nomePaciente||"").replace(/[^a-z0-9]/gi,"_").slice(0,25);
   const nome = nomeBase+"_"+Date.now()+"_"+indice+".jpg";
@@ -4518,7 +4517,21 @@ async function gdriveUploadScan(blob, cpfPaciente, nomePaciente, indice) {
   form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
   form.append("file",blob);
   const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,thumbnailLink",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
-  return await res.json();
+  const dados = await res.json();
+  if(!res.ok || dados.error) throw new Error((dados.error&&dados.error.message)||("Falha no upload (HTTP "+res.status+")"));
+  return dados;
+}
+async function gdriveUploadScan(blob, cpfPaciente, nomePaciente, indice) {
+  if(!_gdriveToken) throw new Error("Não autenticado");
+  // O Drive pode falhar de forma passageira (token renovando, instabilidade momentânea)
+  // sem que isso apareça como erro de rede — por isso confirmamos o resultado de verdade
+  // e tentamos mais uma vez automaticamente antes de desistir.
+  try {
+    return await gdriveUploadScanUmaVez(blob, cpfPaciente, nomePaciente, indice);
+  } catch(e) {
+    await new Promise(r=>setTimeout(r,1200));
+    return await gdriveUploadScanUmaVez(blob, cpfPaciente, nomePaciente, indice);
+  }
 }
 
 async function gdriveListarScans(cpfPaciente) {
