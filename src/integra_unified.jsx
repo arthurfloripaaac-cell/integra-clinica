@@ -2416,7 +2416,15 @@ function ProcedimentoItem({ proc, item, onChange, onRemove, editavel=false }) {
             <div style={{flex:1}}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: item.ativo ? "#1C1410" : "#9A8060" }}>
-                  {proc.nome}
+                  {editavel ? (
+                    <input
+                      value={item.nome!=null?item.nome:proc.nome}
+                      onChange={e=>{e.stopPropagation();onChange({...item, nome:e.target.value});}}
+                      onClick={e=>e.stopPropagation()}
+                      spellCheck={false}
+                      style={{fontFamily:"inherit",fontSize:13,fontWeight:700,color:"inherit",border:"none",borderBottom:"1px dashed "+BORDER,background:"transparent",outline:"none",width:"100%",padding:"2px 0"}}
+                    />
+                  ) : proc.nome}
                 </div>
                 {item.ativo && (<>
                   <div style={{display:"flex",alignItems:"center",gap:4}}>
