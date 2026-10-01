@@ -3566,7 +3566,7 @@ function SecaoEditavel({id, titulo, ordem, setAjustes, ajustes, editMode, childr
   );
 }
 
-function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoRel,onCarregarDrive,onAjustesChange}) {
+function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoRel,onCarregarDrive,onAjustesChange,onOrdemAlternativasChange}) {
   const [editModeRelatorio, setEditModeRelatorio] = React.useState(false);
   const ORDEM_PADRAO_REL = ["avaliacao","plano","proposta"];
   const ajustesRel = p3.relatorioAjustes && Array.isArray(p3.relatorioAjustes.ordem) && p3.relatorioAjustes.ordem.length===3
@@ -3909,6 +3909,8 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             const temParcelado = fc.includes("credito") || (fc.includes("boleto") && bm==="parcelado");
             const duasAlternativas = temAVista && temParcelado;
             const nomes = {pix:"PIX", dinheiro:"Dinheiro", debito:"Cartão de débito", boleto:"Boleto"};
+            const ordemInvertida = p3.ordemAlternativas==="invertido";
+            const numAVista = ordemInvertida?"2":"1", numParcelado = ordemInvertida?"1":"2";
 
             const LabelAlternativa = ({num, titulo}) => (
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
@@ -3923,14 +3925,18 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
             <div className="rel-section-title" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,marginTop:20}}>
               <span style={{fontSize:11,letterSpacing:2.5,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Proposta de Investimento</span>
               <div style={{flex:1,height:1,background:BORDER}}/>
+              {duasAlternativas && onOrdemAlternativasChange && (
+                <div className="no-print" onClick={()=>onOrdemAlternativasChange(ordemInvertida?"normal":"invertido")} style={{fontSize:9,fontWeight:700,color:PURPLE,cursor:"pointer",padding:"3px 8px",border:"1px dashed "+PURPLE,borderRadius:20,whiteSpace:"nowrap"}}>⇅ Inverter ordem</div>
+              )}
             </div>
 
-            {/* ALTERNATIVA 1 — À vista com valor e desconto incorporados */}
+            <div style={{display:"flex",flexDirection:"column"}}>
+            {/* ALTERNATIVA — À vista com valor e desconto incorporados */}
             {temAVista && (()=>{
               const lb = [...formasAv,...(bolAv?["boleto"]:[])].map(id=>nomes[id]).join(" · ");
               return(
-                <div style={{marginBottom:14}}>
-                  <LabelAlternativa num="1" titulo="Pagamento à vista"/>
+                <div style={{marginBottom:14,order:ordemInvertida?2:1}}>
+                  <LabelAlternativa num={numAVista} titulo="Pagamento à vista"/>
                   <div style={{padding:"12px 14px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:3}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -3945,11 +3951,11 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
               );
             })()}
 
-            {/* ALTERNATIVA 2 — Parcelado */}
+            {/* ALTERNATIVA — Parcelado */}
             {temParcelado && (()=>{
               return(
-                <div style={{marginBottom:8}}>
-                  <LabelAlternativa num="2" titulo={entrada&&entradaValor2>0?"Com entrada e parcelamento":"Parcelamento"}/>
+                <div style={{marginBottom:8,order:ordemInvertida?1:2}}>
+                  <LabelAlternativa num={numParcelado} titulo={entrada&&entradaValor2>0?"Com entrada e parcelamento":"Parcelamento"}/>
 
                   {/* Entrada */}
                   {entrada && entradaValor2>0 && (
@@ -4011,6 +4017,7 @@ function Relatorio({p1,p2,p3,p4State,onSalvar,salvoOk,isPreview=false,onSetModoR
                 </div>
               );
             })()}
+            </div>
           </>}
           </>);})()}
           </SecaoEditavel>
@@ -4273,11 +4280,17 @@ function gdriveIniciarRenovacao() {
         scope: GDRIVE_SCOPE,
         callback: (r) => {
           if(r.access_token) { _gdriveToken = r.access_token; notifyDriveLogin(); gdriveIniciarRenovacao(); }
+          else { _gdriveToken = null; notifyDriveLogin(); }
         },
-        error_callback: () => {},
+        // Renovação silenciosa falhou (sessão do Google expirou, cookies de terceiros
+        // bloqueados, etc.) — antes isso ficava em silêncio e o sistema continuava
+        // mostrando "Trocar conta" como se estivesse tudo certo, mesmo sem funcionar de
+        // verdade. Agora, ao falhar, o login é marcado como encerrado e a tela já mostra
+        // o botão de entrar novamente, sem precisar adivinhar.
+        error_callback: () => { _gdriveToken = null; notifyDriveLogin(); },
       });
       tc.requestAccessToken({prompt: ""});
-    } catch(e){}
+    } catch(e){ _gdriveToken = null; notifyDriveLogin(); }
   }, 45 * 60 * 1000);
 }
 
@@ -4438,6 +4451,7 @@ async function gdriveGetFolder() {
     "https://www.googleapis.com/drive/v3/files?q=name%3D%27"+encodeURIComponent(GDRIVE_FOLDER_NAME)+"%27+and+mimeType%3D%27application%2Fvnd.google-apps.folder%27+and+trashed%3Dfalse&fields=files(id)",
     {headers:{Authorization:"Bearer "+_gdriveToken}}
   );
+  if(res.status===401) { _gdriveToken=null; notifyDriveLogin(); throw new Error("Sessão do Google expirou — entre novamente."); }
   const d = await res.json();
   if(d.files && d.files.length>0){ _gdriveFolderId=d.files[0].id; return _gdriveFolderId; }
   const cr = await fetch("https://www.googleapis.com/drive/v3/files",{
@@ -4495,7 +4509,7 @@ async function gdriveBackupAtendimento(atendimento) {
   try {
     const folderId = await gdriveGetBackupFolder();
     const cpfDigits = (atendimento.cpf||"").replace(/\D/g,"") || "semcpf";
-    const nome = "integra_"+cpfDigits+"_"+(atendimento.paciente||"p").replace(/[^a-z0-9]/gi,"_")+"_"+Date.now()+".json";
+    const nome = "integra_"+cpfDigits+"_"+(atendimento.paciente||"p").replace(/[\/\\:*?"<>|]/g,"_")+"_"+Date.now()+".json";
     const metadata = {name:nome,mimeType:"application/json",parents:[folderId]};
     const form = new FormData();
     form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
@@ -4516,29 +4530,37 @@ async function comprimirImagem(file, maxLargura=1600, qualidade=0.75) {
   return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", qualidade));
 }
 
-async function gdriveUploadScanUmaVez(blob, cpfPaciente, nomePaciente, indice) {
+const EXTENSOES_MIME = {
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+};
+async function gdriveUploadScanUmaVez(blob, mimeType, cpfPaciente, nomePaciente, indice) {
   const folderId = await gdriveGetScansFolder();
-  const nomeBase = "scan_"+(cpfPaciente||"sem_cpf")+"_"+(nomePaciente||"").replace(/[^a-z0-9]/gi,"_").slice(0,25);
-  const nome = nomeBase+"_"+Date.now()+"_"+indice+".jpg";
-  const metadata = {name:nome,mimeType:"image/jpeg",parents:[folderId]};
+  const ext = EXTENSOES_MIME[mimeType] || "bin";
+  const nomeBase = "scan_"+(cpfPaciente||"sem_cpf")+"_"+(nomePaciente||"").replace(/[\/\\:*?"<>|]/g,"_").slice(0,25);
+  const nome = nomeBase+"_"+Date.now()+"_"+indice+"."+ext;
+  const metadata = {name:nome,mimeType,parents:[folderId]};
   const form = new FormData();
   form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
   form.append("file",blob);
-  const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,thumbnailLink",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+  const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,thumbnailLink,mimeType",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
   const dados = await res.json();
   if(!res.ok || dados.error) throw new Error((dados.error&&dados.error.message)||("Falha no upload (HTTP "+res.status+")"));
   return dados;
 }
-async function gdriveUploadScan(blob, cpfPaciente, nomePaciente, indice) {
+async function gdriveUploadScan(blob, mimeType, cpfPaciente, nomePaciente, indice) {
   if(!_gdriveToken) throw new Error("Não autenticado");
   // O Drive pode falhar de forma passageira (token renovando, instabilidade momentânea)
   // sem que isso apareça como erro de rede — por isso confirmamos o resultado de verdade
   // e tentamos mais uma vez automaticamente antes de desistir.
   try {
-    return await gdriveUploadScanUmaVez(blob, cpfPaciente, nomePaciente, indice);
+    return await gdriveUploadScanUmaVez(blob, mimeType, cpfPaciente, nomePaciente, indice);
   } catch(e) {
     await new Promise(r=>setTimeout(r,1200));
-    return await gdriveUploadScanUmaVez(blob, cpfPaciente, nomePaciente, indice);
+    return await gdriveUploadScanUmaVez(blob, mimeType, cpfPaciente, nomePaciente, indice);
   }
 }
 
@@ -4546,7 +4568,7 @@ async function gdriveListarScans(cpfPaciente) {
   if(!_gdriveToken) throw new Error("Não autenticado");
   const folderId = await gdriveGetScansFolder();
   const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27scan_%27";
-  const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name,webViewLink,thumbnailLink,createdTime)&orderBy=createdTime",{headers:{Authorization:"Bearer "+_gdriveToken}});
+  const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name,webViewLink,thumbnailLink,createdTime,mimeType)&orderBy=createdTime",{headers:{Authorization:"Bearer "+_gdriveToken}});
   const d = await res.json();
   const all = d.files||[];
   if(!cpfPaciente) return all;
@@ -4570,8 +4592,9 @@ async function gdriveBaixarPreview(fileId) {
 async function gdriveListarScansComPreview(cpfPaciente) {
   const lista = await gdriveListarScans(cpfPaciente);
   return Promise.all(lista.map(async f => {
-    try { return {...f, _previewUrl: await gdriveBaixarPreview(f.id)}; }
-    catch(e) { return {...f, _previewUrl: null}; }
+    const ehImagem = (f.mimeType||"").startsWith("image/");
+    try { return {...f, _ehImagem: ehImagem, _previewUrl: await gdriveBaixarPreview(f.id)}; }
+    catch(e) { return {...f, _ehImagem: ehImagem, _previewUrl: null}; }
   }));
 }
 
@@ -4687,7 +4710,7 @@ async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
   if(!_gdriveToken) throw new Error("Não autenticado");
   const folderId = await gdriveGetFolder();
   const cpfDigits = (atendimento.cpf||"").replace(/\D/g,"") || "semcpf";
-  const nomeBase = "integra_"+cpfDigits+"_"+(atendimento.paciente||"p").replace(/[^a-z0-9]/gi,"_");
+  const nomeBase = "integra_"+cpfDigits+"_"+(atendimento.paciente||"p").replace(/[\/\\:*?"<>|]/g,"_");
   const json = JSON.stringify(atendimento,null,2);
 
   if(sobrepor !== "novo") {
@@ -4726,6 +4749,7 @@ async function gdriveListarTodos() {
   do {
     const url = "https://www.googleapis.com/drive/v3/files?q=%27"+folderId+"%27+in+parents+and+trashed%3Dfalse&fields=files(id,name,modifiedTime,createdTime,size),nextPageToken&pageSize=100"+(pageToken?"&pageToken="+pageToken:"");
     const res = await fetch(url, {headers:{Authorization:"Bearer "+_gdriveToken}});
+    if(res.status===401) { _gdriveToken=null; notifyDriveLogin(); throw new Error("Sessão do Google expirou — entre novamente."); }
     const d = await res.json();
     if(d.files) all = all.concat(d.files);
     pageToken = d.nextPageToken || "";
@@ -5115,7 +5139,8 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
     setStatus("saving");
     try {
       const folderId = await gdriveGetFolder();
-      const nomeBase = "integra_"+(p1.nome||"p").replace(/[^a-z0-9]/gi,"_");
+      const cpfDigits = (p1.cpf||"").replace(/\D/g,"") || "semcpf";
+      const nomeBase = "integra_"+cpfDigits+"_"+(p1.nome||"p").replace(/[\/\\:*?"<>|]/g,"_");
       const atendimento = {
         id: _driveFileId ? undefined : Date.now(),
         data: new Date().toISOString(),
@@ -5130,12 +5155,10 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
       };
       const json = JSON.stringify(atendimento,null,2);
       if(!_driveFileId) {
-        const nomeNorm = (p1.nome||"").replace(/[^a-z0-9]/gi,"_").toLowerCase();
-        const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27integra_%27";
-        const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name)",{headers:{Authorization:"Bearer "+_gdriveToken}});
-        const d = await res.json();
-        const existente = (d.files||[]).find(f=>f.name.toLowerCase().includes(nomeNorm.slice(0,15)));
-        if(existente) { _driveFileId=existente.id; _driveFileName=existente.name; }
+        // Correspondência exata por CPF (não por nome) — mesma correção já aplicada
+        // no salvamento manual, evita confundir pacientes com nomes parecidos.
+        const existentes = await gdriveListarArquivos(folderId, p1.cpf);
+        if(existentes.length>0) { _driveFileId=existentes[0].id; _driveFileName=existentes[0].name; }
       }
       if(_driveFileId) {
         const form = new FormData();
@@ -5322,6 +5345,7 @@ function Prontuario({p1, equipeGlobal}) {
   const [filtroHistorico, setFiltroHistorico] = React.useState({procedimentos:true, faltas:true, pagamentos:true});
   const [galeriaIndex, setGaleriaIndex] = React.useState(null);
   const [galeriaZoom, setGaleriaZoom] = React.useState(false);
+  const [imprimindoFotos, setImprimindoFotos] = React.useState(false);
   const [showFalta, setShowFalta] = React.useState(false);
   const [editandoFaltaKey, setEditandoFaltaKey] = React.useState(null);
   const [faltaOcorrencia, setFaltaOcorrencia] = React.useState(null);
@@ -5624,14 +5648,16 @@ function Prontuario({p1, equipeGlobal}) {
     for(let i=0;i<lista.length;i++){
       setScanProgresso("Enviando "+(i+1)+" de "+lista.length+"...");
       try {
-        const comprimida = await comprimirImagem(lista[i]);
-        await gdriveUploadScan(comprimida, cpfPaciente, p1.nome||"", i);
-      } catch(e) { showToast("Erro ao enviar uma das imagens: "+e.message,"error"); }
+        const ehImagem = lista[i].type.startsWith("image/");
+        const arquivo = ehImagem ? await comprimirImagem(lista[i]) : lista[i];
+        const mimeType = ehImagem ? "image/jpeg" : (lista[i].type || "application/octet-stream");
+        await gdriveUploadScan(arquivo, mimeType, cpfPaciente, p1.nome||"", i);
+      } catch(e) { showToast("Erro ao enviar um dos arquivos: "+e.message,"error"); }
     }
     setScanProgresso("");
     setEnviandoScans(false);
     try { setScans(await gdriveListarScansComPreview(cpfPaciente)); } catch(e) {}
-    showToast("Páginas anexadas.");
+    showToast("Arquivos anexados.");
   };
 
   const excluirScanArquivo = async (fileId) => {
@@ -5641,6 +5667,23 @@ function Prontuario({p1, equipeGlobal}) {
       setScans(prev=>(prev||[]).filter(s=>s.id!==fileId));
     } catch(e) { showToast("Erro ao excluir: "+e.message,"error"); }
   };
+
+  if(imprimindoFotos) {
+    return (
+      <div style={{maxWidth:900,margin:"0 auto",padding:"16px 20px 60px"}}>
+        <div className="no-print" style={{display:"flex",gap:10,marginBottom:16}}>
+          <div onClick={()=>setImprimindoFotos(false)} style={{padding:"10px 16px",border:"1px solid "+BORDER,borderRadius:6,fontSize:12,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>← Voltar</div>
+          <div onClick={()=>window.print()} style={{padding:"10px 16px",background:GOLD_DARK,color:"#fff",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>🖨 Imprimir / Salvar PDF</div>
+        </div>
+        <div className="no-print" style={{fontSize:11,color:"#9A8060",marginBottom:16}}>Cada página/documento é impresso em tamanho real, um por folha, para manter a leitura do que estava escrito.</div>
+        {(scans||[]).filter(s=>s._ehImagem&&s._previewUrl).map((s,i)=>(
+          <div key={s.id} style={{pageBreakAfter:"always",breakAfter:"page",marginBottom:20,textAlign:"center"}}>
+            <img src={s._previewUrl} alt={s.name} style={{maxWidth:"100%",width:"100%",height:"auto"}}/>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   if(showHistorico) {
     return (
@@ -5674,14 +5717,25 @@ function Prontuario({p1, equipeGlobal}) {
         {(!entradas||entradas.filter(e=>(e.tipo==="falta"&&filtroHistorico.faltas)||(e.tipo==="pagamento"&&filtroHistorico.pagamentos)||(e.tipo!=="falta"&&e.tipo!=="pagamento"&&filtroHistorico.procedimentos)).length===0) && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Nenhum registro encontrado com esse filtro.</div>}
 
         {scans&&scans.length>0 && (
-          <div style={{marginTop:24,breakInside:"avoid"}}>
-            <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,marginBottom:10,borderTop:"2px solid "+GOLD,paddingTop:14}}>Páginas do prontuário em papel (digitalizadas)</div>
+          <div className="no-print" style={{marginTop:24,breakInside:"avoid"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,borderTop:"2px solid "+GOLD,paddingTop:14,marginBottom:10}}>
+              <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:GOLD_DARK,fontWeight:700,flex:1}}>Páginas e documentos do prontuário em papel</div>
+              <div onClick={()=>setImprimindoFotos(true)} style={{fontSize:10,fontWeight:700,color:GOLD_DARK,cursor:"pointer",padding:"4px 10px",border:"1px solid "+GOLD,borderRadius:20,whiteSpace:"nowrap"}}>🖼 Imprimir em tamanho real</div>
+            </div>
+            <div style={{fontSize:10,color:"#9A8060",marginBottom:10}}>Essas páginas não entram na impressão/PDF do histórico acima — a maioria é foto de texto impresso, que fica pequena demais pra ler nesse formato. Use o botão acima pra imprimir só elas, em tamanho real.</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
               {scans.map((s,idx)=>(
-                <div key={s.id} onClick={()=>s._previewUrl&&setGaleriaIndex(idx)} style={{border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",aspectRatio:"1",background:"#F5F2EC",cursor:s._previewUrl?"pointer":"default"}}>
-                  {s._previewUrl ? (
+                <div key={s.id} onClick={()=>{if(!s._previewUrl)return; if(s._ehImagem) setGaleriaIndex(idx); else window.open(s._previewUrl,"_blank");}} style={{border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",aspectRatio:"1",background:"#F5F2EC",cursor:s._previewUrl?"pointer":"default"}}>
+                  {!s._previewUrl ? (
+                    <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#9A8060"}}>...</div>
+                  ) : s._ehImagem ? (
                     <img src={s._previewUrl} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-                  ) : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#9A8060"}}>...</div>}
+                  ) : (
+                    <div style={{width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,padding:6}}>
+                      <span style={{fontSize:22}}>📄</span>
+                      <span style={{fontSize:8,color:"#9A8060",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",width:"100%"}}>{s.name}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -5885,7 +5939,7 @@ function Prontuario({p1, equipeGlobal}) {
 
             <label style={{display:"block",textAlign:"center",padding:"16px",border:"2px dashed "+GOLD,borderRadius:6,background:GOLD_PALE,color:GOLD_DARK,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:16}}>
               {enviandoScans ? scanProgresso||"Enviando..." : "📷 Tirar foto ou escolher imagens"}
-              <input type="file" accept="image/*" multiple disabled={enviandoScans} onChange={e=>{if(e.target.files&&e.target.files.length)enviarScans(e.target.files);e.target.value="";}} style={{display:"none"}}/>
+              <input type="file" accept="image/*,application/pdf,.doc,.docx" multiple disabled={enviandoScans} onChange={e=>{if(e.target.files&&e.target.files.length)enviarScans(e.target.files);e.target.value="";}} style={{display:"none"}}/>
             </label>
 
             {scans===null && <div style={{fontSize:12,color:"#9A8060",textAlign:"center",padding:12}}>Carregando...</div>}
@@ -5894,12 +5948,17 @@ function Prontuario({p1, equipeGlobal}) {
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
                 {scans.map((s,idx)=>(
                   <div key={s.id} style={{position:"relative",border:"1px solid "+BORDER,borderRadius:4,overflow:"hidden",aspectRatio:"1",background:"#F5F2EC"}}>
-                    {s._previewUrl ? (
+                    {!s._previewUrl ? (
+                      <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#9A8060"}}>...</div>
+                    ) : s._ehImagem ? (
                       <div onClick={()=>setGaleriaIndex(idx)} style={{cursor:"pointer",width:"100%",height:"100%"}}>
                         <img src={s._previewUrl} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
                       </div>
                     ) : (
-                      <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#9A8060"}}>...</div>
+                      <div onClick={()=>window.open(s._previewUrl,"_blank")} style={{cursor:"pointer",width:"100%",height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,padding:6}}>
+                        <span style={{fontSize:22}}>📄</span>
+                        <span style={{fontSize:8,color:"#9A8060",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",width:"100%"}}>{s.name}</span>
+                      </div>
                     )}
                     <div onClick={()=>excluirScanArquivo(s.id)} style={{position:"absolute",top:3,right:3,width:22,height:22,borderRadius:"50%",background:"rgba(0,0,0,0.6)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,cursor:"pointer"}}>✕</div>
                   </div>
@@ -5953,6 +6012,7 @@ function Prontuario({p1, equipeGlobal}) {
               {aberto && (
                 <div style={{padding:"0 14px 12px"}}>
                   {e.dentistaResponsavel && <div style={{fontSize:10,fontWeight:700,color:PURPLE,marginBottom:8}}>{e.dentistaResponsavel}</div>}
+                  {e.obsInterna && <div style={{fontSize:12,color:"#5C4A2A",lineHeight:1.5,marginBottom:10,padding:"8px 10px",background:"#fff",border:"1px solid "+BORDER,borderRadius:4}}>{e.obsInterna}</div>}
                   <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:10}}>
                     {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Assinatura de quem atendeu</div><img src={e.assinaturaDentista} alt="Assinatura" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
                     {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
@@ -6839,6 +6899,7 @@ function FormulariosRecebidos({onImportar}) {
   const [formularios, setFormularios] = React.useState(null);
   const [erro, setErro] = React.useState(null);
   const [ordenacao, setOrdenacao] = React.useState("recentes"); // "recentes" | "nome"
+  const [filtro, setFiltro] = React.useState("");
 
   React.useEffect(()=>{
     onFirebaseReady(()=>{
@@ -6882,16 +6943,20 @@ function FormulariosRecebidos({onImportar}) {
   if(!formularios) return <div style={{fontSize:11,color:"#9A8060",padding:12}}>Carregando formulários...</div>;
   if(!formularios.length) return <div style={{fontSize:11,color:"#9A8060",padding:12,textAlign:"center"}}>Nenhum formulário recebido ainda.</div>;
 
-  const formulariosOrdenados = [...formularios].sort((a,b) => ordenacao==="nome"
+  const formulariosOrdenados = [...formularios]
+    .filter(f => !filtro || (f.nome||"").toLowerCase().includes(filtro.toLowerCase()))
+    .sort((a,b) => ordenacao==="nome"
     ? (a.nome||"").localeCompare(b.nome||"","pt-BR")
     : (b.dataEnvio||"").localeCompare(a.dataEnvio||""));
 
   return (
     <div>
+      <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar por nome..." style={{width:"100%",padding:"9px 12px",border:"1px solid "+BORDER,borderRadius:5,fontSize:13,outline:"none",marginBottom:8,boxSizing:"border-box"}}/>
       <div style={{display:"flex",gap:6,marginBottom:8}}>
         <div onClick={()=>setOrdenacao("recentes")} style={{padding:"4px 12px",borderRadius:20,fontSize:10,fontWeight:700,cursor:"pointer",border:"1px solid "+(ordenacao==="recentes"?GOLD_DARK:BORDER),background:ordenacao==="recentes"?GOLD_DARK:"#fff",color:ordenacao==="recentes"?"#fff":"#9A8060"}}>Mais recentes</div>
         <div onClick={()=>setOrdenacao("nome")} style={{padding:"4px 12px",borderRadius:20,fontSize:10,fontWeight:700,cursor:"pointer",border:"1px solid "+(ordenacao==="nome"?GOLD_DARK:BORDER),background:ordenacao==="nome"?GOLD_DARK:"#fff",color:ordenacao==="nome"?"#fff":"#9A8060"}}>Nome (A-Z)</div>
       </div>
+      {formulariosOrdenados.length===0 && <div style={{fontSize:11,color:"#9A8060",textAlign:"center",padding:12}}>Nenhum formulário encontrado.</div>}
       <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:560,overflowY:"auto",paddingRight:4}}>
       {formulariosOrdenados.map(f=>(
         <div key={f._key} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",border:"1px solid "+(f.status==="importado"?BORDER:GOLD),borderRadius:4,background:f.status==="importado"?"#FAFAF8":"#FFF"}}>
@@ -7398,7 +7463,7 @@ function App() {
         p4State={p4State}
         modoRel={p3.modoRel||"soma"} setModoRel={v=>sp3("modoRel",v)}
       />}
-      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSetModoRel={v=>sp3("modoRel",v)} onAjustesChange={v=>sp3("relatorioAjustes",v)} onSalvar={()=>{
+      {pag==="rel"&&<Relatorio p1={p1} p2={p2} p3={p3} p4State={p4State} onSetModoRel={v=>sp3("modoRel",v)} onAjustesChange={v=>sp3("relatorioAjustes",v)} onOrdemAlternativasChange={v=>sp3("ordemAlternativas",v)} onSalvar={()=>{
   const dup = verificarDuplicata(p1);
   if(dup) {
     setModalSalvar({
