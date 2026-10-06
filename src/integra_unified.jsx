@@ -5658,6 +5658,7 @@ function Prontuario({p1, equipeGlobal}) {
     if(!_gdriveToken) { showToast("Conecte o Google Drive primeiro (aba Arquivo).","error"); return; }
     setEnviandoScans(true);
     const lista = Array.from(files);
+    const novosArquivos = [];
     for(let i=0;i<lista.length;i++){
       setScanProgresso("Enviando "+(i+1)+" de "+lista.length+"...");
       try {
@@ -5674,13 +5675,26 @@ function Prontuario({p1, equipeGlobal}) {
             arquivo = lista[i]; mimeType = lista[i].type || "application/octet-stream";
           }
         }
-        await gdriveUploadScan(arquivo, mimeType, cpfPaciente, p1.nome||"", i);
+        const resultado = await gdriveUploadScan(arquivo, mimeType, cpfPaciente, p1.nome||"", i);
+        if(resultado && resultado.id) novosArquivos.push(resultado);
       } catch(e) { showToast("Erro ao enviar um dos arquivos: "+e.message,"error"); }
     }
     setScanProgresso("");
     setEnviandoScans(false);
-    try { setScans(await gdriveListarScansComPreview(cpfPaciente)); } catch(e) {}
-    showToast("Arquivos anexados.");
+    if(novosArquivos.length>0) {
+      // Usa a confirmação que o próprio envio devolveu, em vez de buscar tudo de novo no
+      // Drive — essa busca às vezes demora alguns segundos pra indexar um arquivo
+      // recém-criado, fazendo ele "sumir" mesmo tendo subido certinho.
+      const comPreview = await Promise.all(novosArquivos.map(async f => {
+        const ehImg = (f.mimeType||"").startsWith("image/");
+        try { return {...f, _ehImagem: ehImg, _previewUrl: await gdriveBaixarPreview(f.id, f.mimeType)}; }
+        catch(e) { return {...f, _ehImagem: ehImg, _previewUrl: null}; }
+      }));
+      setScans(prev => [...(prev||[]), ...comPreview]);
+      showToast(novosArquivos.length+" de "+lista.length+" arquivo(s) anexado(s).");
+    } else {
+      showToast("Não foi possível anexar — nenhum arquivo foi enviado.","error");
+    }
   };
 
   const excluirScanArquivo = async (fileId) => {
