@@ -4572,9 +4572,17 @@ async function gdriveListarScans(cpfPaciente) {
   if(!_gdriveToken) throw new Error("Não autenticado");
   const folderId = await gdriveGetScansFolder();
   const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27scan_%27";
-  const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name,webViewLink,thumbnailLink,createdTime,mimeType)&orderBy=createdTime",{headers:{Authorization:"Bearer "+_gdriveToken}});
-  const d = await res.json();
-  const all = d.files||[];
+  // A pasta de escaneamentos é compartilhada entre todos os pacientes, e o Drive só
+  // devolve até 100 arquivos por vez — sem percorrer as páginas seguintes, arquivos de
+  // pacientes mais antigos ficavam de fora da busca conforme a pasta crescia.
+  let all = [], pageToken = "";
+  do {
+    const url = "https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name,webViewLink,thumbnailLink,createdTime,mimeType),nextPageToken&orderBy=createdTime&pageSize=100"+(pageToken?"&pageToken="+pageToken:"");
+    const res = await fetch(url, {headers:{Authorization:"Bearer "+_gdriveToken}});
+    const d = await res.json();
+    if(d.files) all = all.concat(d.files);
+    pageToken = d.nextPageToken || "";
+  } while(pageToken);
   if(!cpfPaciente) return all;
   return all.filter(f=>f.name.includes("scan_"+cpfPaciente));
 }
