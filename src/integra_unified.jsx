@@ -23,13 +23,23 @@ if(typeof document !== "undefined") {
     const s2 = document.createElement("script");
     s2.src = "https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js";
     s2.onload = () => {
-      try {
-        const app = window.firebase.initializeApp(FIREBASE_CONFIG);
-        _fbDb = window.firebase.database();
-        _fbReady = true;
-        _fbReadyCallbacks.forEach(fn=>fn());
-        _fbReadyCallbacks.length = 0;
-      } catch(e) { console.error("Firebase init error:", e); }
+      const s3 = document.createElement("script");
+      s3.src = "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js";
+      s3.onload = () => {
+        try {
+          const app = window.firebase.initializeApp(FIREBASE_CONFIG);
+          _fbDb = window.firebase.database();
+          // Autenticação anônima — invisível pro usuário (sem tela de login), mas exigida
+          // pelas regras de segurança do banco de dados. Sem isso, o banco fica aberto
+          // pra qualquer pessoa na internet ler/gravar diretamente, sem passar pelo site.
+          window.firebase.auth().signInAnonymously().then(()=>{
+            _fbReady = true;
+            _fbReadyCallbacks.forEach(fn=>fn());
+            _fbReadyCallbacks.length = 0;
+          }).catch(e=>console.error("Firebase auth error:", e));
+        } catch(e) { console.error("Firebase init error:", e); }
+      };
+      document.head.appendChild(s3);
     };
     document.head.appendChild(s2);
   };
@@ -6333,7 +6343,12 @@ function AssinaturaVisitaPublica({visitaId}) {
               </div>
             </div>
           );
-        })() : (
+        })() : entrada.tipo==="falta" ? (
+          <div style={{marginBottom:18}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#C62828",textTransform:"uppercase",marginBottom:6}}>A confirmar</div>
+            <div style={{fontSize:13,color:"#2A1538",background:"#FDEAEA",border:"1px solid #C62828",padding:"10px 12px",borderRadius:4}}>{entrada.ocorrencia==="remarcou"?"Remarcação da consulta.":"Falta na consulta."}</div>
+          </div>
+        ) : (
           <React.Fragment>
             <div style={{fontSize:11,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase",marginBottom:6}}>Hoje foram realizados:</div>
             <div style={{fontSize:13,color:"#2A1538",background:GOLD_PALE,padding:"10px 12px",borderRadius:4,marginBottom:entrada.pagamentoPendente?12:18,whiteSpace:"pre-wrap"}}>{entrada.descricao}</div>
@@ -6443,14 +6458,17 @@ function AssinaturaGrupoPublica({groupId}) {
         {entradas.map((entrada,i)=>{
           const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
           const ehPagamento = entrada.tipo==="pagamento";
+          const ehFalta = entrada.tipo==="falta";
           return (
-            <div key={entrada._key||i} style={{marginBottom:10,padding:"10px 12px",borderRadius:4,background: ehPagamento?"#F4FAF5":GOLD_PALE,border:"1px solid "+(ehPagamento?"#2E7D32":BORDER)}}>
+            <div key={entrada._key||i} style={{marginBottom:10,padding:"10px 12px",borderRadius:4,background: ehPagamento?"#F4FAF5":ehFalta?"#FDEAEA":GOLD_PALE,border:"1px solid "+(ehPagamento?"#2E7D32":ehFalta?"#C62828":BORDER)}}>
               <div style={{fontSize:10,color:"#9A8060",marginBottom:3}}>{dataFmt(entrada.data)}</div>
               {ehPagamento ? (
                 <div style={{fontSize:13,color:"#2A1538"}}>
                   <div><b>Valor:</b> {fmt(entrada.valor||0)}</div>
                   <div style={{marginTop:2}}><b>Forma:</b> {nomesForma[entrada.forma]||entrada.forma}</div>
                 </div>
+              ) : ehFalta ? (
+                <div style={{fontSize:13,color:"#2A1538"}}>{entrada.ocorrencia==="remarcou"?"Remarcação da consulta.":"Falta na consulta."}</div>
               ) : (
                 <div style={{fontSize:13,color:"#2A1538",whiteSpace:"pre-wrap"}}>{entrada.descricao}</div>
               )}
