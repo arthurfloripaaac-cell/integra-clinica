@@ -5349,6 +5349,7 @@ const GRUPO_ASSINATURA_FB_PATH = "assinaturas_grupo";
 
 function Prontuario({p1, equipeGlobal}) {
   const equipe = equipeGlobal || EQUIPE;
+  const driveLogado = useDriveLogado();
   const cpfPaciente = (p1.cpf||"").replace(/\D/g,"");
   const [todasEntradas, setTodasEntradas] = React.useState(null);
   const [showNova, setShowNova] = React.useState(false);
@@ -5375,6 +5376,9 @@ function Prontuario({p1, equipeGlobal}) {
   const [faltaAntecedencia, setFaltaAntecedencia] = React.useState(null);
   const [faltaDentista, setFaltaDentista] = React.useState("");
   const [faltaAssinatura, setFaltaAssinatura] = React.useState("");
+  const [faltaPedirAssPaciente, setFaltaPedirAssPaciente] = React.useState(false);
+  const [faltaModoAssPaciente, setFaltaModoAssPaciente] = React.useState("presencial");
+  const [faltaAssPaciente, setFaltaAssPaciente] = React.useState("");
   const [faltaSalvando, setFaltaSalvando] = React.useState(false);
   const [showPagamento, setShowPagamento] = React.useState(false);
   const [editandoPagamentoKey, setEditandoPagamentoKey] = React.useState(null);
@@ -5415,6 +5419,7 @@ function Prontuario({p1, equipeGlobal}) {
     return todasEntradas.filter(e=>e.cpfPaciente===cpfPaciente)
       .sort((a,b)=>(b.data||"").localeCompare(a.data||"")||(b.criadoEm||"").localeCompare(a.criadoEm||""));
   },[todasEntradas,cpfPaciente]);
+  const pendenciasCount = (entradas||[]).filter(e=>e.statusPaciente==="pendente").length;
 
   const resetForm = () => {
     setEditandoKey(null);
@@ -5544,6 +5549,7 @@ function Prontuario({p1, equipeGlobal}) {
     setFaltaOcorrencia(null); setFaltaConfirmou(null); setFaltaAntecedencia(null);
     setFaltaData(new Date().toISOString().split("T")[0]);
     setFaltaDentista(""); setFaltaAssinatura("");
+    setFaltaPedirAssPaciente(false); setFaltaModoAssPaciente("presencial"); setFaltaAssPaciente("");
   };
 
   const iniciarEdicaoFalta = (e) => {
@@ -5554,6 +5560,10 @@ function Prontuario({p1, equipeGlobal}) {
     setFaltaData(e.data||new Date().toISOString().split("T")[0]);
     setFaltaDentista(e.dentistaResponsavel||"");
     setFaltaAssinatura(e.assinaturaDentista||"");
+    const pediuAss = e.statusPaciente==="assinado" || e.statusPaciente==="pendente";
+    setFaltaPedirAssPaciente(pediuAss);
+    setFaltaModoAssPaciente(e.assinaturaPaciente ? "presencial" : "link");
+    setFaltaAssPaciente(e.assinaturaPaciente||"");
     setShowFalta(true);
   };
 
@@ -5563,6 +5573,7 @@ function Prontuario({p1, equipeGlobal}) {
     if(!faltaAntecedencia) { showToast("Informe a antecedência do aviso.","error"); return; }
     if(!faltaDentista) { showToast("Selecione o responsável.","error"); return; }
     if(!faltaAssinatura) { showToast("Colete a assinatura de quem atendeu.","error"); return; }
+    if(faltaPedirAssPaciente && faltaModoAssPaciente==="presencial" && !faltaAssPaciente) { showToast("Colete a assinatura do paciente, ou escolha \"Enviar link depois\".","error"); return; }
     if(!cpfPaciente) { showToast("Preencha o CPF do paciente na aba Paciente antes de registrar.","error"); return; }
     if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
     setFaltaSalvando(true);
@@ -5570,13 +5581,15 @@ function Prontuario({p1, equipeGlobal}) {
     const descricao = (faltaOcorrencia==="remarcou" ? "Paciente remarcou a consulta." : "Paciente não compareceu à consulta.")
       + (faltaConfirmou ? " Consulta estava confirmada previamente." : " Consulta não havia sido confirmada previamente.")
       + (onus ? " Aviso com menos de 24h (ou sem aviso) — sujeito a ônus para convênio." : " Aviso com mais de 24h de antecedência — sem ônus para convênio.");
+    const statusPacienteFalta = !faltaPedirAssPaciente ? "nao_compareceu" : (faltaModoAssPaciente==="presencial" ? "assinado" : "pendente");
     const campos = {
       cpfPaciente, nomePaciente: p1.nome||"", data: faltaData, descricao,
       tipo:"falta", ocorrencia: faltaOcorrencia, confirmouAntes: faltaConfirmou, antecedencia: faltaAntecedencia, onus,
       agravante: !!faltaConfirmou,
       dentistaResponsavel: faltaDentista,
-      assinaturaDentista: faltaAssinatura, assinaturaPaciente: "",
-      statusPaciente: "nao_compareceu",
+      assinaturaDentista: faltaAssinatura,
+      assinaturaPaciente: (faltaPedirAssPaciente && faltaModoAssPaciente==="presencial") ? faltaAssPaciente : "",
+      statusPaciente: statusPacienteFalta,
     };
     const aoTerminar = () => {
       setFaltaSalvando(false); setShowFalta(false); resetFalta();
@@ -5810,6 +5823,12 @@ function Prontuario({p1, equipeGlobal}) {
 
   return (
     <div style={{padding:"16px 16px 90px",maxWidth:640,margin:"0 auto"}}>
+      {!driveLogado && (
+        <div className="no-print" onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();}catch(e){showToast("Erro ao entrar: "+e.message,"error");}}} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6,marginBottom:14,cursor:"pointer"}}>
+          <span style={{fontSize:18}}>⚠</span>
+          <div style={{fontSize:12,color:"#C62828",fontWeight:600,lineHeight:1.4}}>Google Drive desconectado — toque para entrar. Enquanto isso, o que você preencher aqui pode não ser salvo na nuvem.</div>
+        </div>
+      )}
       <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:6,padding:"16px 18px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
         <div style={{minWidth:0}}>
           <div style={{fontSize:9,letterSpacing:2,textTransform:"uppercase",color:PURPLE,fontWeight:700}}>Prontuário Clínico</div>
@@ -5825,7 +5844,7 @@ function Prontuario({p1, equipeGlobal}) {
         <div onClick={()=>{resetPagamento();setShowPagamento(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #2E7D32",color:"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>💰 Pagamento</div>
         <div onClick={abrirScans} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+GOLD_DARK,color:GOLD_DARK,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>📎 Arquivos anexados</div>
         {cpfPaciente&&<div onClick={()=>{setShowHistorico(true);carregarScans();}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+PURPLE,color:PURPLE,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🖨 Histórico completo</div>}
-        {cpfPaciente&&<div onClick={()=>{setPendenciasSel(new Set());setLinkGrupo(null);setShowPendencias(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #2E7D32",color:"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🔗 Pendências</div>}
+        {cpfPaciente&&<div onClick={()=>{setPendenciasSel(new Set());setLinkGrupo(null);setShowPendencias(true);}} style={{padding:"9px 14px",background:pendenciasCount>0?"#2E7D32":"#fff",border:"1.5px solid #2E7D32",color:pendenciasCount>0?"#fff":"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🔗 Pendências{pendenciasCount>0?" · "+pendenciasCount:""}</div>}
       </div>
 
       {showFalta && (
@@ -5868,6 +5887,27 @@ function Prontuario({p1, equipeGlobal}) {
             <label style={{fontSize:10,fontWeight:700,color:GOLD_DARK,textTransform:"uppercase"}}>Assinatura de quem atendeu</label>
             <div style={{marginTop:4,marginBottom:16}}><AssinaturaCanvas value={faltaAssinatura} onChange={setFaltaAssinatura}/></div>
 
+            <div onClick={()=>setFaltaPedirAssPaciente(!faltaPedirAssPaciente)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 4px",marginBottom:faltaPedirAssPaciente?10:16}}>
+              <div style={{width:20,height:20,borderRadius:4,border:"2px solid "+(faltaPedirAssPaciente?"#C62828":BORDER),background:faltaPedirAssPaciente?"#C62828":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {faltaPedirAssPaciente&&<span style={{color:"#fff",fontSize:13,fontWeight:900}}>✓</span>}
+              </div>
+              <div style={{fontSize:13,fontWeight:700,color:faltaPedirAssPaciente?"#C62828":"#2A1538"}}>Também pedir assinatura do paciente (opcional)</div>
+            </div>
+
+            {faltaPedirAssPaciente && (
+              <div style={{marginBottom:16,padding:"12px 14px",background:"#FDF4F4",border:"1px solid #C62828",borderRadius:6}}>
+                <div style={{display:"flex",gap:8,marginBottom:10}}>
+                  <div onClick={()=>setFaltaModoAssPaciente("presencial")} style={{flex:1,textAlign:"center",padding:"9px 7px",borderRadius:4,fontSize:12,fontWeight:700,cursor:"pointer",background:faltaModoAssPaciente==="presencial"?"#C62828":"#fff",color:faltaModoAssPaciente==="presencial"?"#fff":"#C62828"}}>Assinar agora</div>
+                  <div onClick={()=>setFaltaModoAssPaciente("link")} style={{flex:1,textAlign:"center",padding:"9px 7px",borderRadius:4,fontSize:12,fontWeight:700,cursor:"pointer",background:faltaModoAssPaciente==="link"?"#C62828":"#fff",color:faltaModoAssPaciente==="link"?"#fff":"#C62828"}}>Enviar link depois</div>
+                </div>
+                {faltaModoAssPaciente==="presencial" ? (
+                  <AssinaturaCanvas value={faltaAssPaciente} onChange={setFaltaAssPaciente}/>
+                ) : (
+                  <div style={{fontSize:11,color:"#9A8060",lineHeight:1.5}}>Depois de salvar, essa falta entra na Central de Pendências — gere o link por lá quando o paciente puder assinar.</div>
+                )}
+              </div>
+            )}
+
             <div style={{display:"flex",gap:10}}>
               <div onClick={()=>{setShowFalta(false);resetFalta();}} style={{flex:1,padding:"14px",textAlign:"center",border:"1px solid "+BORDER,borderRadius:4,fontSize:13,fontWeight:700,color:"#9A8060",cursor:"pointer"}}>Cancelar</div>
               <div onClick={registrarFalta} style={{flex:1,padding:"14px",textAlign:"center",background:faltaSalvando?"#ccc":"#C62828",color:"#fff",borderRadius:4,fontSize:13,fontWeight:700,cursor:faltaSalvando?"default":"pointer"}}>{faltaSalvando?"Salvando...":(editandoFaltaKey?"Salvar alterações":"Confirmar")}</div>
@@ -5886,7 +5926,7 @@ function Prontuario({p1, equipeGlobal}) {
             <div style={{fontSize:11,color:"#9A8060",marginBottom:14}}>Selecione o que ainda está aguardando assinatura. Marcando mais de um, gera um único link — o paciente vê tudo junto e assina uma vez só.</div>
 
             {(()=>{
-              const pendentes = (entradas||[]).filter(e=>e.tipo!=="falta" && e.statusPaciente!=="assinado");
+              const pendentes = (entradas||[]).filter(e=>e.statusPaciente==="pendente");
               if(pendentes.length===0) return <div style={{fontSize:12,color:"#9A8060",textAlign:"center",padding:20}}>Nenhuma pendência de assinatura no momento.</div>;
               return pendentes.map(e=>(
                 <div key={e._key} onClick={()=>togglePendencia(e._key)} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 8px",borderBottom:"1px solid "+BORDER,cursor:"pointer"}}>
@@ -6027,12 +6067,20 @@ function Prontuario({p1, equipeGlobal}) {
                 <div style={{fontSize:12,fontWeight:700,color:"#2A1538",flexShrink:0}}>{dataFmt(e.data)}</div>
                 <div style={{fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:12,whiteSpace:"nowrap",background:"#FDEAEA",color:"#C62828"}}>{e.ocorrencia==="remarcou"?"Remarcou":"Faltou"}{e.confirmouAntes?" · confirmada":""}</div>
                 {e.antecedencia && <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:e.onus?"#FDEAEA":"#E8F5E9",color:e.onus?"#C62828":"#2E7D32"}}>{e.onus?"Com ônus":"Sem ônus"}</div>}
+                {e.statusPaciente==="pendente" && <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:GOLD_PALE,color:GOLD_DARK}}>Aguardando assinatura</div>}
+                {e.statusPaciente==="assinado" && <div style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:12,whiteSpace:"nowrap",background:"#E8F5E9",color:"#2E7D32"}}>✓ Paciente assinou</div>}
                 <div style={{marginLeft:"auto",fontSize:11,color:"#9A8060",flexShrink:0}}>{aberto?"▲":"▼"}</div>
               </div>
               {aberto && (
                 <div style={{padding:"0 14px 12px"}}>
                   {e.dentistaResponsavel && <div style={{fontSize:10,fontWeight:700,color:PURPLE,marginBottom:8}}>{e.dentistaResponsavel}</div>}
-                  {e.assinaturaDentista && <div style={{marginBottom:10}}><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Assinatura de quem atendeu</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+                  <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:10}}>
+                    {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Assinatura de quem atendeu</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+                    {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+                  </div>
+                  {e.statusPaciente==="pendente" && (
+                    <div onClick={()=>copiarLink(e._key)} style={{marginBottom:10,padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
+                  )}
                   <div style={{display:"flex",gap:10,paddingTop:8,borderTop:"1px solid "+BORDER}}>
                     <div onClick={()=>iniciarEdicaoFalta(e)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
                     <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
