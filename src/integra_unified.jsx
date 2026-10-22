@@ -5362,6 +5362,7 @@ function Prontuario({p1, equipeGlobal}) {
   const driveLogado = useDriveLogado();
   const cpfPaciente = (p1.cpf||"").replace(/\D/g,"");
   const [todasEntradas, setTodasEntradas] = React.useState(null);
+  const [erroCarregamento, setErroCarregamento] = React.useState(null);
   const [showNova, setShowNova] = React.useState(false);
   const [editandoKey, setEditandoKey] = React.useState(null);
   const [novaData, setNovaData] = React.useState(()=>new Date().toISOString().split("T")[0]);
@@ -5419,7 +5420,7 @@ function Prontuario({p1, equipeGlobal}) {
       _fbDb.ref(PRONTUARIO_FB_PATH).on("value",(snap)=>{
         const data = snap.val();
         setTodasEntradas(!data ? [] : Object.entries(data).map(([key,v])=>({...v,_key:key})));
-      });
+      }, (err)=>{ setErroCarregamento(err.message); });
     });
     return ()=>{ if(_fbDb) _fbDb.ref(PRONTUARIO_FB_PATH).off(); };
   },[]);
@@ -5837,6 +5838,12 @@ function Prontuario({p1, equipeGlobal}) {
         <div className="no-print" onClick={async()=>{try{await gdriveEnsureScript();await gdriveLogin();}catch(e){showToast("Erro ao entrar: "+e.message,"error");}}} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6,marginBottom:14,cursor:"pointer"}}>
           <span style={{fontSize:18}}>⚠</span>
           <div style={{fontSize:12,color:"#C62828",fontWeight:600,lineHeight:1.4}}>Google Drive desconectado — toque para entrar. Enquanto isso, o que você preencher aqui pode não ser salvo na nuvem.</div>
+        </div>
+      )}
+      {erroCarregamento && (
+        <div className="no-print" style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6,marginBottom:14}}>
+          <span style={{fontSize:18}}>⚠</span>
+          <div style={{fontSize:12,color:"#C62828",fontWeight:600,lineHeight:1.4}}>Erro ao carregar o prontuário: {erroCarregamento} — tente atualizar a página (Ctrl+Shift+R).</div>
         </div>
       )}
       <div style={{background:"#fff",border:"1px solid "+BORDER,borderRadius:6,padding:"16px 18px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
@@ -7019,6 +7026,10 @@ function FormulariosRecebidos({onImportar}) {
         if(!data) { setFormularios([]); return; }
         const list = Object.entries(data).map(([k,v])=>({...v,_key:k}));
         setFormularios(list);
+      }, (err)=>{
+        // Antes, uma falha aqui (ex: permissão negada) deixava a tela presa em
+        // "Carregando..." para sempre, sem nenhum aviso — agora mostra o erro de verdade.
+        setErro(err.message);
       });
     });
     return ()=>{ if(_fbDb) _fbDb.ref("formularios").off(); };
@@ -7051,6 +7062,7 @@ function FormulariosRecebidos({onImportar}) {
 
   const fmtData = (iso) => { if(!iso) return ""; const d=new Date(iso); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
 
+  if(erro) return <div style={{fontSize:11,color:"#C62828",padding:12,textAlign:"center"}}>Erro ao carregar: {erro}</div>;
   if(!formularios) return <div style={{fontSize:11,color:"#9A8060",padding:12}}>Carregando formulários...</div>;
   if(!formularios.length) return <div style={{fontSize:11,color:"#9A8060",padding:12,textAlign:"center"}}>Nenhum formulário recebido ainda.</div>;
 
