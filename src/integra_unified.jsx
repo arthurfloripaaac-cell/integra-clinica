@@ -5622,6 +5622,24 @@ function Prontuario({p1, equipeGlobal}) {
     setPagDentista(""); setPagAssDentista(""); setPagAssPaciente(""); setPagModoAss("presencial");
   };
 
+  // Trocar de paciente (pela lista de pacientes, acessível de qualquer tela) não
+  // desmontava esse componente — qualquer formulário deixado aberto (Nova entrada, Falta,
+  // Pagamento) continuava com o texto já digitado, mas passava a salvar com o CPF do
+  // novo paciente assim que confirmado, misturando o conteúdo de um com o cadastro do
+  // outro. Agora, trocar de paciente fecha e descarta qualquer formulário em edição.
+  const cpfPacienteRef = React.useRef(cpfPaciente);
+  React.useEffect(()=>{
+    if(cpfPacienteRef.current !== cpfPaciente) {
+      cpfPacienteRef.current = cpfPaciente;
+      if(showNova || showFalta || showPagamento) {
+        showToast("Paciente trocado — formulário em aberto foi descartado por segurança.","error");
+      }
+      setShowNova(false); resetForm();
+      setShowFalta(false); resetFalta();
+      setShowPagamento(false); resetPagamento();
+    }
+  },[cpfPaciente]);
+
   const iniciarEdicaoPagamento = (e) => {
     setEditandoPagamentoKey(e._key);
     setPagData(e.data||new Date().toISOString().split("T")[0]);
