@@ -5354,6 +5354,25 @@ function AssinaturaCanvas({value, onChange}) {
 // ditado por voz) + assinatura do dentista (feita na hora, a cada entrada)
 // + assinatura do paciente (na hora OU depois via link, mesmo mecanismo
 // técnico do link de anamnese via WhatsApp).
+// Carimbo de assinatura: horário do SERVIDOR do Firebase (não o relógio do aparelho do paciente).
+function carimboAssinatura(original, novaAssinatura) {
+  if(!novaAssinatura) return {assinadoEm: null};
+  if(original && original.assinaturaPaciente === novaAssinatura) return {};
+  return {assinadoEm: window.firebase.database.ServerValue.TIMESTAMP};
+}
+function fmtAssinadoEm(ts) {
+  if(!ts) return "";
+  const d = new Date(ts);
+  if(isNaN(d.getTime())) return "";
+  const data = d.toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"});
+  const hora = d.toLocaleTimeString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
+  return "Assinado em "+data+" às "+hora;
+}
+function CarimboAssinatura({ts}) {
+  const txt = fmtAssinadoEm(ts);
+  if(!txt) return null;
+  return <div style={{fontSize:8,color:"#9A8060",marginTop:2,lineHeight:1.3}}>{txt}</div>;
+}
 const PRONTUARIO_FB_PATH = "prontuario_visitas";
 const GRUPO_ASSINATURA_FB_PATH = "assinaturas_grupo";
 
@@ -5491,6 +5510,9 @@ function Prontuario({p1, equipeGlobal}) {
         valor: pagValorNum, forma: pagForma, destinatario: pagDestinatario, obsInterna: pagObs.trim()
       } : null,
     };
+    const entradaOriginal = editandoKey ? (todasEntradas||[]).find(x=>x._key===editandoKey) : null;
+    Object.assign(campos, carimboAssinatura(entradaOriginal, campos.assinaturaPaciente));
+    const assinaturaMantida = !!(entradaOriginal && entradaOriginal.assinaturaPaciente === assPaciente);
     const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
     const criarPagamentoVinculado = () => {
       if(!incluirPagamento || modoAssPaciente!=="presencial") return Promise.resolve();
@@ -5501,6 +5523,7 @@ function Prontuario({p1, equipeGlobal}) {
         obsInterna: pagObs.trim(), dentistaResponsavel: novoDentistaResp,
         assinaturaDentista: assDentista, assinaturaPaciente: assPaciente,
         statusPaciente: "assinado", criadoEm: new Date().toISOString(),
+        assinadoEm: assinaturaMantida ? (entradaOriginal.assinadoEm||null) : window.firebase.database.ServerValue.TIMESTAMP,
       };
       const keyPag = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
       return _fbDb.ref(PRONTUARIO_FB_PATH+"/"+keyPag).set(camposPag);
@@ -5602,6 +5625,8 @@ function Prontuario({p1, equipeGlobal}) {
       assinaturaPaciente: (faltaPedirAssPaciente && faltaModoAssPaciente==="presencial") ? faltaAssPaciente : "",
       statusPaciente: statusPacienteFalta,
     };
+    const faltaOriginal = editandoFaltaKey ? (todasEntradas||[]).find(x=>x._key===editandoFaltaKey) : null;
+    Object.assign(campos, carimboAssinatura(faltaOriginal, campos.assinaturaPaciente));
     const aoTerminar = () => {
       setFaltaSalvando(false); setShowFalta(false); resetFalta();
       showToast(editandoFaltaKey ? "Falta atualizada." : "Falta registrada no prontuário.");
@@ -5674,6 +5699,8 @@ function Prontuario({p1, equipeGlobal}) {
       assinaturaDentista: pagAssDentista, assinaturaPaciente: pagModoAss==="presencial" ? pagAssPaciente : "",
       statusPaciente: pagModoAss==="presencial" ? "assinado" : "pendente",
     };
+    const pagOriginal = editandoPagamentoKey ? (todasEntradas||[]).find(x=>x._key===editandoPagamentoKey) : null;
+    Object.assign(campos, carimboAssinatura(pagOriginal, campos.assinaturaPaciente));
     const aoTerminar = () => {
       setPagSalvando(false); setShowPagamento(false); resetPagamento();
       showToast(editandoPagamentoKey ? "Pagamento atualizado." : (pagModoAss==="presencial" ? "Pagamento registrado no prontuário." : "Pagamento salvo — copie o link para o paciente assinar."));
@@ -5799,6 +5826,7 @@ function Prontuario({p1, equipeGlobal}) {
             </div>
             {e.dentistaResponsavel && <div style={{fontSize:10,color:PURPLE,fontWeight:600,marginBottom:3}}>{e.dentistaResponsavel}</div>}
             <div style={{fontSize:12,color:"#5C4A2A",lineHeight:1.5,whiteSpace:"pre-wrap"}}>{e.descricao}</div>
+            {e.assinadoEm && fmtAssinadoEm(e.assinadoEm) && <div style={{fontSize:9,color:"#9A8060",marginTop:4}}>Paciente — {fmtAssinadoEm(e.assinadoEm)}</div>}
           </div>
         ))}
         {(!entradas||entradas.filter(e=>(e.tipo==="falta"&&filtroHistorico.faltas)||(e.tipo==="pagamento"&&filtroHistorico.pagamentos)||(e.tipo!=="falta"&&e.tipo!=="pagamento"&&filtroHistorico.procedimentos)).length===0) && <div style={{fontSize:12,color:"#9A8060",padding:20,textAlign:"center"}}>Nenhum registro encontrado com esse filtro.</div>}
@@ -5879,7 +5907,7 @@ function Prontuario({p1, equipeGlobal}) {
         <div onClick={()=>{resetPagamento();setShowPagamento(true);}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid #2E7D32",color:"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>💰 Pagamento</div>
         <div onClick={abrirScans} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+GOLD_DARK,color:GOLD_DARK,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>📎 Arquivos anexados</div>
         {cpfPaciente&&<div onClick={()=>{setShowHistorico(true);carregarScans();}} style={{padding:"9px 14px",background:"#fff",border:"1.5px solid "+PURPLE,color:PURPLE,borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🖨 Histórico completo</div>}
-        {cpfPaciente&&<div onClick={()=>{setPendenciasSel(new Set());setLinkGrupo(null);setShowPendencias(true);}} style={{padding:"9px 14px",background:pendenciasCount>0?"#2E7D32":"#fff",border:"1.5px solid #2E7D32",color:pendenciasCount>0?"#fff":"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>🔗 Pendências{pendenciasCount>0?" · "+pendenciasCount:""}</div>}
+        {cpfPaciente&&<div onClick={()=>{setPendenciasSel(new Set());setLinkGrupo(null);setShowPendencias(true);}} style={{padding:"9px 14px",background:pendenciasCount>0?"#C62828":"#fff",border:"1.5px solid "+(pendenciasCount>0?"#C62828":"#2E7D32"),color:pendenciasCount>0?"#fff":"#2E7D32",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>⚠️ Assinaturas pendentes{pendenciasCount>0?" · "+pendenciasCount:""}</div>}
       </div>
 
       {showFalta && (
@@ -6111,7 +6139,7 @@ function Prontuario({p1, equipeGlobal}) {
                   {e.dentistaResponsavel && <div style={{fontSize:10,fontWeight:700,color:PURPLE,marginBottom:8}}>{e.dentistaResponsavel}</div>}
                   <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:10}}>
                     {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Assinatura de quem atendeu</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
-                    {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+                    {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/><CarimboAssinatura ts={e.assinadoEm}/></div>}
                   </div>
                   {e.statusPaciente==="pendente" && (
                     <div onClick={()=>copiarLink(e._key)} style={{marginBottom:10,padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
@@ -6143,7 +6171,7 @@ function Prontuario({p1, equipeGlobal}) {
                   {e.obsInterna && <div style={{fontSize:12,color:"#5C4A2A",lineHeight:1.5,marginBottom:10,padding:"8px 10px",background:"#fff",border:"1px solid "+BORDER,borderRadius:4}}>{e.obsInterna}</div>}
                   <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:10}}>
                     {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Assinatura de quem atendeu</div><img src={e.assinaturaDentista} alt="Assinatura" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
-                    {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+                    {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/><CarimboAssinatura ts={e.assinadoEm}/></div>}
                   </div>
                   {e.statusPaciente!=="assinado" && (
                     <div onClick={()=>copiarLink(e._key)} style={{marginBottom:10,padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
@@ -6173,7 +6201,7 @@ function Prontuario({p1, equipeGlobal}) {
           <div style={{fontSize:12.5,color:"#5C4A2A",lineHeight:1.5,whiteSpace:"pre-wrap",marginBottom:8}}>{e.descricao}</div>
           <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
             {e.assinaturaDentista && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Quem atendeu</div><img src={e.assinaturaDentista} alt="Assinatura dentista" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
-            {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/></div>}
+            {e.assinaturaPaciente && <div><div style={{fontSize:9,color:"#9A8060",marginBottom:2}}>Paciente</div><img src={e.assinaturaPaciente} alt="Assinatura paciente" style={{height:36,border:"1px solid "+BORDER,borderRadius:3,background:"#fff"}}/><CarimboAssinatura ts={e.assinadoEm}/></div>}
           </div>
           {e.statusPaciente!=="assinado" && (
             <div onClick={()=>copiarLink(e._key)} style={{marginTop:10,padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
@@ -6299,6 +6327,7 @@ function AssinaturaVisitaPublica({visitaId}) {
   const [assinatura, setAssinatura] = React.useState("");
   const [enviando, setEnviando] = React.useState(false);
   const [enviado, setEnviado] = React.useState(false);
+  const [assinadoEm, setAssinadoEm] = React.useState(null);
   const [erro, setErro] = React.useState("");
 
   const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
@@ -6317,7 +6346,7 @@ function AssinaturaVisitaPublica({visitaId}) {
     setEnviando(true);
     const pend = entrada.pagamentoPendente;
     const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
-    const criarPagamento = () => {
+    const criarPagamento = (ts) => {
       if(!pend) return Promise.resolve();
       const descricaoPag = "Pagamento de "+fmt(pend.valor||0)+" via "+(nomesForma[pend.forma]||pend.forma)+" — repassado para "+(pend.destinatario==="dentista"?"o dentista":"a clínica")+".";
       const camposPag = {
@@ -6326,13 +6355,20 @@ function AssinaturaVisitaPublica({visitaId}) {
         obsInterna: pend.obsInterna||"", dentistaResponsavel: entrada.dentistaResponsavel,
         assinaturaDentista: entrada.assinaturaDentista, assinaturaPaciente: assinatura,
         statusPaciente: "assinado", criadoEm: new Date().toISOString(),
+        assinadoEm: ts || window.firebase.database.ServerValue.TIMESTAMP,
       };
       const keyPag = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
       return _fbDb.ref(PRONTUARIO_FB_PATH+"/"+keyPag).set(camposPag);
     };
-    _fbDb.ref(PRONTUARIO_FB_PATH+"/"+visitaId).update({assinaturaPaciente:assinatura, statusPaciente:"assinado", pagamentoPendente:null}).then(criarPagamento).then(()=>{
-      setEnviando(false); setEnviado(true);
-    }).catch(e=>{ setEnviando(false); setErro("Erro ao enviar: "+e.message); });
+    // Carimbo de data/hora gravado pelo servidor (não pelo relógio do celular do paciente);
+    // lido de volta em seguida para o pagamento vinculado usar exatamente o mesmo instante.
+    const refEntrada = _fbDb.ref(PRONTUARIO_FB_PATH+"/"+visitaId);
+    refEntrada.update({assinaturaPaciente:assinatura, statusPaciente:"assinado", pagamentoPendente:null, assinadoEm:window.firebase.database.ServerValue.TIMESTAMP})
+      .then(()=>refEntrada.child("assinadoEm").once("value"))
+      .then(snap=>{ const ts = snap.val(); setAssinadoEm(ts); return criarPagamento(ts); })
+      .then(()=>{
+        setEnviando(false); setEnviado(true);
+      }).catch(e=>{ setEnviando(false); setErro("Erro ao enviar: "+e.message); });
   };
 
   if(entrada===undefined) return <div style={{padding:40,textAlign:"center",fontFamily:"inherit"}}>Carregando...</div>;
@@ -6345,6 +6381,7 @@ function AssinaturaVisitaPublica({visitaId}) {
           <div style={{fontSize:40,marginBottom:10}}>✓</div>
           <div style={{fontSize:16,fontWeight:700,color:"#2A1538"}}>Assinatura confirmada!</div>
           <div style={{fontSize:13,color:"#9A8060",marginTop:6}}>Obrigado, {entrada.nomePaciente}.</div>
+          {fmtAssinadoEm(assinadoEm||entrada.assinadoEm) && <div style={{fontSize:11,color:"#9A8060",marginTop:6}}>{fmtAssinadoEm(assinadoEm||entrada.assinadoEm)}</div>}
         </div>
       </div>
     );
@@ -6408,6 +6445,7 @@ function AssinaturaGrupoPublica({groupId}) {
   const [assinatura, setAssinatura] = React.useState("");
   const [enviando, setEnviando] = React.useState(false);
   const [enviado, setEnviado] = React.useState(false);
+  const [assinadoEm, setAssinadoEm] = React.useState(null);
   const [erro, setErro] = React.useState("");
 
   const dataFmt = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
@@ -6434,7 +6472,7 @@ function AssinaturaGrupoPublica({groupId}) {
     setErro("");
     setEnviando(true);
     const nomesForma = {dinheiro:"Dinheiro",pix:"PIX",debito:"Cartão de débito",credito:"Cartão de crédito",boleto:"Boleto"};
-    const operacoes = entradas.map(entrada => {
+    const montarOperacoes = (ts) => entradas.map(entrada => {
       const pend = entrada.pagamentoPendente;
       const criarPagamento = () => {
         if(!pend) return Promise.resolve();
@@ -6445,15 +6483,21 @@ function AssinaturaGrupoPublica({groupId}) {
           obsInterna: pend.obsInterna||"", dentistaResponsavel: entrada.dentistaResponsavel,
           assinaturaDentista: entrada.assinaturaDentista, assinaturaPaciente: assinatura,
           statusPaciente: "assinado", criadoEm: new Date().toISOString(),
+          assinadoEm: ts,
         };
         const keyPag = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
         return _fbDb.ref(PRONTUARIO_FB_PATH+"/"+keyPag).set(camposPag);
       };
-      return _fbDb.ref(PRONTUARIO_FB_PATH+"/"+entrada._key).update({assinaturaPaciente:assinatura, statusPaciente:"assinado", pagamentoPendente:null}).then(criarPagamento);
+      return _fbDb.ref(PRONTUARIO_FB_PATH+"/"+entrada._key).update({assinaturaPaciente:assinatura, statusPaciente:"assinado", pagamentoPendente:null, assinadoEm:ts}).then(criarPagamento);
     });
-    Promise.all(operacoes).then(()=>{
-      setEnviando(false); setEnviado(true);
-    }).catch(e=>{ setEnviando(false); setErro("Erro ao enviar: "+e.message); });
+    // Um único carimbo de data/hora do servidor para todos os itens assinados de uma vez.
+    const refCarimbo = _fbDb.ref(GRUPO_ASSINATURA_FB_PATH+"/"+groupId+"/assinadoEm");
+    refCarimbo.set(window.firebase.database.ServerValue.TIMESTAMP)
+      .then(()=>refCarimbo.once("value"))
+      .then(snap=>{ const ts = snap.val(); setAssinadoEm(ts); return Promise.all(montarOperacoes(ts)); })
+      .then(()=>{
+        setEnviando(false); setEnviado(true);
+      }).catch(e=>{ setEnviando(false); setErro("Erro ao enviar: "+e.message); });
   };
 
   if(grupo===undefined) return <div style={{padding:40,textAlign:"center",fontFamily:"inherit"}}>Carregando...</div>;
@@ -6467,6 +6511,7 @@ function AssinaturaGrupoPublica({groupId}) {
           <div style={{fontSize:40,marginBottom:10}}>✓</div>
           <div style={{fontSize:16,fontWeight:700,color:"#2A1538"}}>Assinatura confirmada!</div>
           <div style={{fontSize:13,color:"#9A8060",marginTop:6}}>Obrigado, {entradas[0]?.nomePaciente}.</div>
+          {fmtAssinadoEm(assinadoEm||(entradas.find(e=>e.assinadoEm)||{}).assinadoEm) && <div style={{fontSize:11,color:"#9A8060",marginTop:6}}>{fmtAssinadoEm(assinadoEm||(entradas.find(e=>e.assinadoEm)||{}).assinadoEm)}</div>}
         </div>
       </div>
     );
