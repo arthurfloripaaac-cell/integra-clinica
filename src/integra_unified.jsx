@@ -306,6 +306,7 @@ const GOLD_PALE = "#F5EED8", CREAM = "#FDFAF4", BORDER = "#E8DCC8", PURPLE = "#5
 const NEUTRO = "#5C5850", NEUTRO_LIGHT = "#7A7568", NEUTRO_PALE = "#E9E7E1";
 
 const fmt = v => "R$ " + (v||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmt2 = fmt; // usada na calculadora (P3), onde não havia definição local
 const PARTICULAS_NOME = new Set(["de","da","do","das","dos","e"]);
 function formatarNomeProprio(str) {
   if(!str) return str;
@@ -2762,6 +2763,35 @@ function ArquivoDriveSection({onCarregar}) {
   const [ordenacao, setOrdenacao] = React.useState("recentes"); // "recentes" | "nome"
   const [confirmandoExclusao, setConfirmandoExclusao] = React.useState(null); // {ids:[...]} | null
 
+  const [baixandoBackup, setBaixandoBackup] = React.useState("");
+  const baixarBackupCompleto = async () => {
+    try {
+      setBaixandoBackup("Preparando...");
+      const lista = await gdriveListarTodos();
+      const pacientes = [];
+      for(let i=0;i<lista.length;i+=5) {
+        setBaixandoBackup("Baixando "+Math.min(i+5,lista.length)+" de "+lista.length+"...");
+        const lote = await Promise.all(lista.slice(i,i+5).map(async a=>{
+          try { return {arquivo:a.name, id:a.id, conteudo:await gdriveCarregarArquivo(a.id)}; }
+          catch(e) { return {arquivo:a.name, id:a.id, erro:e.message}; }
+        }));
+        pacientes.push(...lote);
+      }
+      let prontuarioVisitas = null;
+      try {
+        prontuarioVisitas = await new Promise((res,rej)=>onFirebaseReady(()=>{ _fbDb.ref(PRONTUARIO_FB_PATH).once("value").then(sn=>res(sn.val())).catch(rej); }));
+      } catch(e) { console.error("Backup: prontuário não incluído:", e); }
+      const pacote = {exportadoEm:new Date().toISOString(), totalPacientes:pacientes.length, pacientes, prontuarioVisitas};
+      const url = URL.createObjectURL(new Blob([JSON.stringify(pacote)],{type:"application/json"}));
+      const a = document.createElement("a");
+      a.href = url; a.download = "backup_integra_"+new Date().toISOString().slice(0,10)+".json";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),15000);
+      setBaixandoBackup("");
+      showToast("Backup completo baixado — "+pacientes.length+" pacientes"+(prontuarioVisitas?" e o histórico do Prontuário.":"."));
+    } catch(e) { setBaixandoBackup(""); showToast("Erro no backup: "+e.message,"error"); }
+  };
+
   const login = async () => {
     if(!window.location.hostname.includes("integra-clinica") && window.location.hostname !== "localhost") {
       window.location.href = GDRIVE_ORIGIN + window.location.pathname;
@@ -2843,6 +2873,7 @@ function ArquivoDriveSection({onCarregar}) {
         <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar paciente..." style={{flex:1,padding:"12px 14px",border:"1px solid "+BORDER,borderRadius:5,fontSize:14,outline:"none"}}/>
         {filtrados.length>0&&<div onClick={()=>{if(selecionados.size===filtrados.length)setSelecionados(new Set());else setSelecionados(new Set(filtrados.map(a=>a.id)));}} style={{padding:"8px 12px",border:"1px solid "+BORDER,borderRadius:5,cursor:"pointer",fontSize:11,color:"#9A8060",whiteSpace:"nowrap"}}>{selecionados.size===filtrados.length?"Desmarcar":"Sel. tudo"}</div>}
         <div onClick={listar} style={{padding:"10px 14px",background:"#fff",border:"1px solid "+BORDER,borderRadius:5,cursor:"pointer",fontSize:13,color:"#9A8060"}}>↻</div>
+        <div onClick={baixandoBackup?undefined:baixarBackupCompleto} title="Baixa para o seu computador uma cópia de todos os pacientes e do histórico do Prontuário" style={{padding:"9px 12px",background:"#fff",border:"1px solid "+GOLD,borderRadius:5,cursor:baixandoBackup?"default":"pointer",fontSize:11,fontWeight:700,color:GOLD_DARK,whiteSpace:"nowrap"}}>{baixandoBackup||"⬇ Backup"}</div>
         <div onClick={()=>{_gdriveToken=null;_gdriveFolderId=null;notifyDriveLogin();setArquivos(null);}} style={{fontSize:11,color:"#9A8060",cursor:"pointer",whiteSpace:"nowrap"}}>Sair</div>
       </div>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
@@ -4625,7 +4656,9 @@ async function gdriveListarScansComPreview(cpfPaciente) {
 }
 
 async function gdriveListarArquivos(folderId, cpf) {
-  const cpfDigits = (cpf||"").replace(/\D/g,"") || "semcpf";
+  const cpfDigits = (cpf||"").replace(/\D/g,"");
+  // Sem CPF não há como saber de quem é um arquivo — nunca casar com "paciente sem CPF" de ninguém.
+  if(!cpfDigits) return [];
   const q = "%27"+folderId+"%27+in+parents+and+trashed%3Dfalse+and+name+contains+%27integra_%27";
   const res = await fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id,name)",{headers:{Authorization:"Bearer "+_gdriveToken}});
   const d = await res.json();
@@ -4732,12 +4765,24 @@ async function carregarModelosProcedimentos() {
   return [];
 }
 
-async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
+async function gdriveSalvarAtendimento(atendimento, sobrepor=false, alvo=null) {
   if(!_gdriveToken) throw new Error("Não autenticado");
   const folderId = await gdriveGetFolder();
   const cpfDigits = (atendimento.cpf||"").replace(/\D/g,"") || "semcpf";
   const nomeBase = "integra_"+cpfDigits+"_"+(atendimento.paciente||"p").replace(/[\/\\:*?"<>|]/g,"_");
   const json = JSON.stringify(atendimento,null,2);
+
+  // Arquivo já vinculado a ESTE paciente (conferido pelo dono): atualiza direto, sem perguntar.
+  if(alvo && sobrepor !== "novo") {
+    await gdriveCopiarParaBackup(alvo.id, alvo.name);
+    const form = new FormData();
+    form.append("metadata",new Blob([JSON.stringify({name:alvo.name})],{type:"application/json"}));
+    form.append("file",new Blob([json],{type:"application/json"}));
+    const rp = await fetch("https://www.googleapis.com/upload/drive/v3/files/"+alvo.id+"?uploadType=multipart",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+    if(!rp.ok) throw new Error("Falha ao atualizar o arquivo (HTTP "+rp.status+")");
+    gdriveBackupAtendimento(atendimento);
+    return {salvo:true, id:alvo.id, name:alvo.name};
+  }
 
   if(sobrepor !== "novo") {
     // Verificar se existe arquivo do mesmo paciente (por CPF, não por nome)
@@ -4749,12 +4794,14 @@ async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
     if(sobrepor === true && existentes.length > 0) {
       // Atualizar o primeiro encontrado
       const fileId = existentes[0].id;
+      await gdriveCopiarParaBackup(fileId, existentes[0].name, true);
       const form = new FormData();
       form.append("metadata",new Blob([JSON.stringify({name:existentes[0].name})],{type:"application/json"}));
       form.append("file",new Blob([json],{type:"application/json"}));
-      await fetch("https://www.googleapis.com/upload/drive/v3/files/"+fileId+"?uploadType=multipart",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+      const rp = await fetch("https://www.googleapis.com/upload/drive/v3/files/"+fileId+"?uploadType=multipart",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+      if(!rp.ok) throw new Error("Falha ao atualizar o arquivo (HTTP "+rp.status+")");
       gdriveBackupAtendimento(atendimento);
-      return {salvo:true};
+      return {salvo:true, id:fileId, name:existentes[0].name};
     }
   }
 
@@ -4763,9 +4810,11 @@ async function gdriveSalvarAtendimento(atendimento, sobrepor=false) {
   const form = new FormData();
   form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
   form.append("file",new Blob([json],{type:"application/json"}));
-  await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+  const rc = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+  const criadoJson = await rc.json();
+  if(!rc.ok || !criadoJson.id) throw new Error("Falha ao criar o arquivo (HTTP "+rc.status+")");
   gdriveBackupAtendimento(atendimento);
-  return {salvo:true};
+  return {salvo:true, id:criadoJson.id, name:nome, criado:true};
 }
 
 async function gdriveListarTodos() {
@@ -5142,9 +5191,119 @@ function savePersisted(key, val) {
 let _lastSyncHash = "";
 let _driveFileId = null;
 let _driveFileName = null;
+let _driveFileCpf = "";        // CPF (só dígitos) de quem é o arquivo vinculado
+let _driveFileNome = "";       // nome do paciente (minúsculo) gravado nesse arquivo
+let _driveFileCriado = false;  // true = arquivo criado nesta sessão (e não aberto de antes)
+let _driveFileRenomear = false;
+const _ultimoBackupPorArquivo = {};
 
+// Vincula (ou desvincula) o arquivo do Drive que o salvamento automático pode atualizar.
+function driveVincular(arq, p1, criado) {
+  _driveFileId = arq ? arq.id : null;
+  _driveFileName = arq ? arq.name : null;
+  _driveFileCpf = arq ? ((p1&&p1.cpf)||"").replace(/\D/g,"") : "";
+  _driveFileNome = arq ? ((p1&&p1.nome)||"").trim().toLowerCase() : "";
+  _driveFileCriado = !!criado;
+  _driveFileRenomear = false;
+}
+function driveDesvincular() { driveVincular(null,null,false); _lastSyncHash = ""; }
+
+// O arquivo vinculado só vale para o paciente aberto se o dono conferir.
+function driveVerificarVinculo(p1) {
+  if(!_driveFileId) return "sem_arquivo";
+  const cpf = (p1.cpf||"").replace(/\D/g,"");
+  const nome = (p1.nome||"").trim().toLowerCase();
+  if(cpf && cpf===_driveFileCpf) return "ok";
+  if(cpf && !_driveFileCpf) return (_driveFileCriado || (_driveFileNome && _driveFileNome===nome)) ? "adotar" : "conflito";
+  if(!cpf && !_driveFileCpf) return (_driveFileCriado || _driveFileNome===nome) ? "ok" : "conflito";
+  return "conflito";
+}
+function driveArquivoDoPaciente(p1) {
+  const v = driveVerificarVinculo(p1);
+  return (v==="ok") ? {id:_driveFileId, name:_driveFileName} : null;
+}
+function nomeArquivoPaciente(cpfDigits, nome, nomeAnterior) {
+  const m = (nomeAnterior||"").match(/_(\d+)\.json$/);
+  const sufixo = m ? m[1] : String(Date.now());
+  return "integra_"+(cpfDigits||"semcpf")+"_"+(nome||"p").replace(/[\/\\:*?"<>|]/g,"_")+"_"+sufixo+".json";
+}
+
+// Telas 2, 3 e 4 "em branco" (mesma base do botão "+ Novo").
+function p2EmBranco() { return {...p2Initial, achados: getAchadosInicial()}; }
+function p3EmBranco(prev) {
+  const manter = {};
+  ["ds","ci","quemPaga","plano"].forEach(k=>{ if(prev && prev[k]!==undefined) manter[k]=prev[k]; });
+  return {...p3Initial, ...manter};
+}
+function p4EmBranco(prev) {
+  return {...p4Initial, procsBase:(prev&&prev.procsBase)||null, customProcs:((prev&&prev.customProcs)||[]).map(c=>({...c,ativo:false,dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}))};
+}
+
+// Monta o estado COMPLETO de um paciente salvo. Nada do paciente que estava aberto antes
+// sobra: se o arquivo não tem alguma parte, ela vem em branco (não a do paciente anterior).
+function estadoDoPacienteSalvo(dados, p3Atual, p4Atual) {
+  const p1 = dados._p1
+    ? {...p1Initial, ...dados._p1}
+    : {...p1Initial, nome:dados.paciente||"", cpf:dados.cpf||"", telefone:dados.telefone||"", dataNasc:dados.dataNasc||"", responsavel:dados.responsavel||""};
+  const p2 = dados._p2 ? sanitizeP2(dados._p2) : p2EmBranco();
+  const p3 = dados._p3 ? {...p3Initial, ...dados._p3, ct:false, bt:false} : p3EmBranco(p3Atual);
+  let p4;
+  if(dados._p4) {
+    const p4r = {...dados._p4};
+    if(!p4r.procsBase) p4r.procsBase = PROC_BASE.map(p=>({...p}));
+    if(!p4r.itens) p4r.itens = p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}));
+    p4 = p4r;
+  } else { p4 = p4EmBranco(p4Atual); }
+  return {p1,p2,p3,p4};
+}
+function aplicarPacienteSalvo(dados, arq, set, atual) {
+  const est = estadoDoPacienteSalvo(dados, atual&&atual.p3, atual&&atual.p4);
+  set.p1(est.p1); set.p2(est.p2); set.p3(est.p3); set.p4(est.p4);
+  driveVincular(arq, est.p1, false);
+  _lastSyncHash = driveDataHash(est.p1, est.p2, est.p3, est.p4);
+  return est;
+}
+
+// Cópia de segurança do arquivo ANTES de ele ser sobrescrito (cópia feita no próprio Drive,
+// na pasta de Backup). No salvamento automático, no máximo uma a cada 30 minutos por arquivo.
+async function gdriveCopiarParaBackup(fileId, nomeArquivo, forcar=false) {
+  try {
+    const agora = Date.now();
+    if(!forcar && _ultimoBackupPorArquivo[fileId] && agora-_ultimoBackupPorArquivo[fileId] < 30*60*1000) return;
+    _ultimoBackupPorArquivo[fileId] = agora;
+    const pastaBackup = await gdriveGetBackupFolder();
+    const base = (nomeArquivo||"integra").replace(/_\d+\.json$/,"").replace(/\.json$/,"");
+    await fetch("https://www.googleapis.com/drive/v3/files/"+fileId+"/copy",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken,"Content-Type":"application/json"},body:JSON.stringify({name:base+"_"+agora+".json",parents:[pastaBackup]})});
+  } catch(e) { console.error("Cópia de segurança falhou:", e); }
+}
+
+// Impressão digital do estado COMPLETO do paciente (cadastro, avaliação, calculadora e procedimentos).
+// Antes só alguns campos eram observados, então edições pequenas (detalhes de um procedimento,
+// textos, valores individuais) só eram gravadas quando outra coisa mudava. Campos que começam com
+// "_" são só estado de tela (ex.: janela aberta) e não contam como mudança.
+function estadoEstavel(v) {
+  if(Array.isArray(v)) return v.map(estadoEstavel);
+  if(v && typeof v==="object") {
+    const o = {};
+    Object.keys(v).filter(k=>k[0]!=="_").sort().forEach(k=>{ o[k] = estadoEstavel(v[k]); });
+    return o;
+  }
+  return v;
+}
+function hashDeTexto(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for(let i=0, ch; i<str.length; i++) {
+    ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+  return (4294967296*(2097151&h2) + (h1>>>0)).toString(36) + "." + str.length;
+}
 function driveDataHash(p1,p2,p3,p4) {
-  return JSON.stringify({p1:p1.nome+p1.cpf+p1.telefone+p1.dataNasc+p1.dataConsulta+p1.responsavel,p2k:Object.keys(p2.achadosDente||{}).length,p2o:(p2.obsTexto||"").length,p2n:(p2.notasInternas||"").length,p2f:p2.faltouConsulta?1:0,p3v:p3.vb,p4a:((p4?.itens||[]).filter(i=>i.ativo).length)});
+  try { return hashDeTexto(JSON.stringify(estadoEstavel({p1:p1,p2:p2,p3:p3,p4:p4}))); }
+  catch(e) { return "erro-"+Date.now(); }
 }
 
 function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
@@ -5157,6 +5316,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
   const logado = useDriveLogado();
 
   const temDados = p1.nome && p1.nome !== "João da Silva" && p1.nome.trim().length > 2;
+  const [aviso, setAviso] = React.useState("");
 
   const salvarNoDrive = React.useCallback(async (forcar=false) => {
     if(!_gdriveToken || !temDados) return;
@@ -5165,8 +5325,37 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
     setStatus("saving");
     try {
       const folderId = await gdriveGetFolder();
-      const cpfDigits = (p1.cpf||"").replace(/\D/g,"") || "semcpf";
-      const nomeBase = "integra_"+cpfDigits+"_"+(p1.nome||"p").replace(/[\/\\:*?"<>|]/g,"_");
+      const cpfDigits = (p1.cpf||"").replace(/\D/g,"");
+      const nomeAtual = (p1.nome||"").trim().toLowerCase();
+
+      // REGRA DE OURO: o salvamento automático só escreve em (a) um arquivo que o usuário abriu
+      // nesta sessão ou (b) um arquivo que ele mesmo criou nesta sessão — e só depois de
+      // conferir que o arquivo é do paciente que está aberto. Nunca escolhe um arquivo "por palpite".
+      const vinculo = driveVerificarVinculo(p1);
+      if(vinculo==="conflito") {
+        setStatus("conflict");
+        setAviso("Este paciente não corresponde ao arquivo aberto (CPF ou nome diferente). Salvamento automático pausado para não sobrescrever o cadastro de outra pessoa — use o botão Salvar do topo para decidir.");
+        return;
+      }
+      if(vinculo==="adotar") {
+        // CPF acabou de ser preenchido num cadastro que já tem arquivo: só segue se nenhum OUTRO arquivo usa esse CPF.
+        const outros = (await gdriveListarArquivos(folderId, p1.cpf)).filter(x=>x.id!==_driveFileId);
+        if(outros.length>0) {
+          setStatus("conflict");
+          setAviso("Já existe outro arquivo salvo com este CPF. Salvamento automático pausado — abra o paciente pela lista ☁ Pacientes ou use o botão Salvar do topo para decidir.");
+          return;
+        }
+        _driveFileCpf = cpfDigits; _driveFileRenomear = true;
+      }
+      if(!_driveFileId && cpfDigits) {
+        const existentes = await gdriveListarArquivos(folderId, p1.cpf);
+        if(existentes.length>0) {
+          setStatus("conflict");
+          setAviso("Já existe um arquivo salvo com este CPF. Para não sobrescrever, o salvamento automático foi pausado — abra o paciente pela lista ☁ Pacientes ou use o botão Salvar do topo para decidir.");
+          return;
+        }
+      }
+
       const atendimento = {
         id: _driveFileId ? undefined : Date.now(),
         data: new Date().toISOString(),
@@ -5180,29 +5369,29 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
         _p1:p1, _p2:p2, _p3:p3, _p4:p4State,
       };
       const json = JSON.stringify(atendimento,null,2);
-      if(!_driveFileId) {
-        // Correspondência exata por CPF (não por nome) — mesma correção já aplicada
-        // no salvamento manual, evita confundir pacientes com nomes parecidos.
-        const existentes = await gdriveListarArquivos(folderId, p1.cpf);
-        if(existentes.length>0) { _driveFileId=existentes[0].id; _driveFileName=existentes[0].name; }
-      }
       if(_driveFileId) {
+        const nomeArquivo = _driveFileRenomear ? nomeArquivoPaciente(cpfDigits, p1.nome, _driveFileName) : _driveFileName;
+        await gdriveCopiarParaBackup(_driveFileId, _driveFileName); // guarda a versão anterior antes de sobrescrever
         const form = new FormData();
-        form.append("metadata",new Blob([JSON.stringify({name:_driveFileName})],{type:"application/json"}));
+        form.append("metadata",new Blob([JSON.stringify({name:nomeArquivo})],{type:"application/json"}));
         form.append("file",new Blob([json],{type:"application/json"}));
-        await fetch("https://www.googleapis.com/upload/drive/v3/files/"+_driveFileId+"?uploadType=multipart",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+        const rp = await fetch("https://www.googleapis.com/upload/drive/v3/files/"+_driveFileId+"?uploadType=multipart",{method:"PATCH",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
+        if(!rp.ok) throw new Error("HTTP "+rp.status);
+        _driveFileName = nomeArquivo; _driveFileRenomear = false;
+        if(_driveFileCriado) _driveFileNome = nomeAtual;
       } else {
-        const nome = nomeBase+"_"+Date.now()+".json";
-        _driveFileName = nome;
+        const nome = nomeArquivoPaciente(cpfDigits, p1.nome, null);
         const metadata = {name:nome,mimeType:"application/json",parents:[folderId]};
         const form = new FormData();
         form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
         form.append("file",new Blob([json],{type:"application/json"}));
         const r = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+_gdriveToken},body:form});
         const created = await r.json();
-        _driveFileId = created.id;
+        if(!r.ok || !created.id) throw new Error("HTTP "+r.status);
+        driveVincular({id:created.id,name:nome}, p1, true);
       }
       _lastSyncHash = hash;
+      setAviso("");
       setLastSaved(new Date());
       setStatus("saved");
     } catch(e) {
@@ -5210,23 +5399,6 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
       setStatus("error");
     }
   },[p1,p2,p3,p4State,temDados]);
-
-  const sincronizar = React.useCallback(async () => {
-    if(!_gdriveToken || !_driveFileId) return;
-    setStatus("loading");
-    try {
-      const dados = await gdriveCarregarArquivo(_driveFileId);
-      if(dados._p1) setP1(dados._p1);
-      if(dados._p2) setP2(sanitizeP2(dados._p2));
-      if(dados._p3) setP3(prev=>({...prev,...dados._p3,ct:false,bt:false}));
-      if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
-      _lastSyncHash = driveDataHash(dados._p1||p1,dados._p2||p2,dados._p3||p3,dados._p4||p4State);
-      setStatus("saved");
-    } catch(e) {
-      console.error("Sync erro:",e);
-      setStatus("error");
-    }
-  },[p1,p2,p3,p4State,setP1,setP2,setP3,setP4State]);
 
   React.useEffect(()=>{
     if(!autoOn || !logado || !temDados) return;
@@ -5237,21 +5409,15 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
   const [showPastaGlobal, setShowPastaGlobal] = React.useState(false);
 
   const carregarDoDrive = React.useCallback((dados, arq) => {
-    if(dados._p1) setP1(dados._p1);
-    if(dados._p2) setP2(sanitizeP2(dados._p2));
-    if(dados._p3) setP3(prev=>({...prev,...dados._p3,ct:false,bt:false}));
-    if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
-    // Essencial: fixa qual arquivo do Drive é "o atual" assim que um paciente é aberto.
-    // Sem isso, o salvamento automático (a cada 30s) podia continuar mirando no arquivo
-    // do paciente visto anteriormente, sobrescrevendo-o com os dados do paciente novo.
-    if(arq) { _driveFileId = arq.id; _driveFileName = arq.name; } else { _driveFileId = null; _driveFileName = null; }
-    _lastSyncHash = driveDataHash(dados._p1||{}, dados._p2||{}, dados._p3||{}, dados._p4||{});
-  },[setP1,setP2,setP3,setP4State]);
+    // Abre o paciente com TODAS as partes substituídas e vincula o arquivo certo para o salvamento automático.
+    aplicarPacienteSalvo(dados, arq, {p1:setP1,p2:setP2,p3:setP3,p4:setP4State}, {p3,p4:p4State});
+    setAviso("");
+  },[setP1,setP2,setP3,setP4State,p3,p4State]);
 
   if(!logado) return null;
 
-  const statusIcon = status==="saving"?"⏳":status==="saved"?"✅":status==="error"?"⚠️":status==="loading"?"🔄":"⚪";
-  const statusText = status==="saving"?"Salvando...":status==="saved"?"Sincronizado":status==="error"?"Erro ao salvar":status==="loading"?"Carregando...":"";
+  const statusIcon = status==="saving"?"⏳":status==="saved"?"✅":status==="error"?"⚠️":status==="conflict"?"⛔":status==="loading"?"🔄":"⚪";
+  const statusText = status==="saving"?"Salvando...":status==="saved"?"Sincronizado":status==="error"?"Erro ao salvar":status==="conflict"?"Salvamento pausado":status==="loading"?"Carregando...":"";
   const timeFmt = lastSaved ? lastSaved.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
 
   return (<>
@@ -5260,6 +5426,7 @@ function DriveAutoSync({p1,p2,p3,p4State,setP1,setP2,setP3,setP4State}) {
       <div style={{display:"flex",flexDirection:"column",gap:1}}>
         {statusText&&<span style={{color:status==="error"?"#C62828":status==="saved"?"#2E7D32":"#5C4A2A",fontWeight:600,fontSize:11}}>{statusText}</span>}
         {timeFmt&&status==="saved"&&<span style={{color:"#9A8060",fontSize:9}}>às {timeFmt}</span>}
+        {aviso&&status==="conflict"&&<span style={{color:"#C62828",fontSize:9,maxWidth:230,lineHeight:1.3,whiteSpace:"normal"}}>{aviso}</span>}
       </div>
       <div style={{width:1,height:24,background:BORDER,margin:"0 2px"}}/>
       <div onClick={()=>{setAutoOn(!autoOn);if(!autoOn)salvarNoDrive(true);}} style={{padding:"5px 12px",borderRadius:8,cursor:"pointer",background:autoOn?"#E8F5E9":"#fff",border:"1.5px solid "+(autoOn?"#4CAF50":BORDER),color:autoOn?"#2E7D32":"#9A8060",fontWeight:700,fontSize:10}}>
@@ -7345,15 +7512,17 @@ function App() {
     if(!_gdriveToken) return;
     try {
       const rel = {id:Date.now()+Math.floor(Math.random()*1000), data:new Date().toISOString(), paciente:dadosP1.nome||"Sem nome", cpf:dadosP1.cpf||"", telefone:dadosP1.telefone||"", dataNasc:dadosP1.dataNasc||"", responsavel:dadosP1.responsavel||"", dataConsulta:dadosP1.dataConsulta||"", valorTotal:parseFloat(dadosP3.vb)||0, _p1:dadosP1, _p2:dadosP2, _p3:dadosP3, _p4:dadosP4};
-      const res = await gdriveSalvarAtendimento(rel,false);
+      const alvo = driveArquivoDoPaciente(dadosP1);
+      const res = await gdriveSalvarAtendimento(rel,false,alvo);
       if(res && res.precisaConfirmar) {
         setModalSalvar({
           msg: "Já existe um arquivo para "+(dadosP1.nome||"este paciente")+" no Google Drive.",
-          onSobrepor: async()=>{ setModalSalvar(null); try{ await gdriveSalvarAtendimento(rel,true); showToast("Salvo na nuvem"); notifyDriveDataChanged(); }catch(e2){ showToast("Erro ao salvar: "+e2.message,"error"); } },
-          onDuplicar: async()=>{ setModalSalvar(null); try{ await gdriveSalvarAtendimento(rel,"novo"); showToast("Salvo na nuvem como novo arquivo"); notifyDriveDataChanged(); }catch(e2){ showToast("Erro ao salvar: "+e2.message,"error"); } },
+          onSobrepor: async()=>{ setModalSalvar(null); try{ const r2 = await gdriveSalvarAtendimento(rel,true); if(r2&&r2.id) { driveVincular({id:r2.id,name:r2.name}, dadosP1, false); _lastSyncHash=""; } showToast("Salvo na nuvem"); notifyDriveDataChanged(); }catch(e2){ showToast("Erro ao salvar: "+e2.message,"error"); } },
+          onDuplicar: async()=>{ setModalSalvar(null); try{ const r2 = await gdriveSalvarAtendimento(rel,"novo"); if(r2&&r2.id) { driveVincular({id:r2.id,name:r2.name}, dadosP1, true); _lastSyncHash=""; } showToast("Salvo na nuvem como novo arquivo"); notifyDriveDataChanged(); }catch(e2){ showToast("Erro ao salvar: "+e2.message,"error"); } },
           onCancelar: ()=>setModalSalvar(null),
         });
       } else {
+        if(res && res.id) driveVincular({id:res.id,name:res.name}, dadosP1, !!res.criado);
         showToast("Salvo na nuvem");
         notifyDriveDataChanged();
       }
@@ -7469,12 +7638,7 @@ function App() {
 
       {/* Modal Pasta Drive Global */}
       {showGlobalPasta&&<DrivePastaModal onClose={()=>setShowGlobalPasta(false)} onCarregar={(dados,arq)=>{
-        if(dados._p1) setP1(dados._p1);
-        if(dados._p2) setP2(sanitizeP2(dados._p2));
-        if(dados._p3) setP3(prev=>({...prev,...dados._p3,ct:false,bt:false}));
-        if(dados._p4) { const p4r=dados._p4; if(!p4r.procsBase) p4r.procsBase=null; setP4State(p4r); }
-        if(arq) { _driveFileId = arq.id; _driveFileName = arq.name; } else { _driveFileId = null; _driveFileName = null; }
-        _lastSyncHash = driveDataHash(dados._p1||{}, dados._p2||{}, dados._p3||{}, dados._p4||{});
+        aplicarPacienteSalvo(dados, arq, {p1:setP1,p2:setP2,p3:setP3,p4:setP4State}, {p3,p4:p4State});
         setShowGlobalPasta(false);
       }}/>}
 
@@ -7565,34 +7729,42 @@ function App() {
 
       {pag==="p1"&&<P1 data={p1} setData={setP1} equipeGlobal={equipeGlobal} setEquipeGlobal={setEquipeGlobal} onNovoPaciente={()=>{
   setP1(p1Initial);
-  _setP2Raw({...p2Initial, achados: getAchadosInicial()});
-  setP3(prev=>({...p3Initial, ds:prev.ds, ci:prev.ci, quemPaga:prev.quemPaga, plano:prev.plano}));
-  setP4State(prev=>({...p4Initial, procsBase:prev.procsBase, customProcs:(prev.customProcs||[]).map(c=>({...c,ativo:false,dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}}))}));
-  _driveFileId=null; _driveFileName=null; _lastSyncHash="";
+  _setP2Raw(p2EmBranco());
+  setP3(prev=>p3EmBranco(prev));
+  setP4State(prev=>p4EmBranco(prev));
+  driveDesvincular();
 }} onImportarFormulario={async (f)=>{
-  const novoP1 = {...p1, nome:f.nome, cpf:f.cpf, telefone:f.telefone, email:f.email||"", dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||"", anamnese:f.anamnese||null, anamneseEspecialidade:f.anamneseEspecialidade||""};
-  setP1(novoP1);
-  if(!_gdriveToken) return;
-  // Esse paciente já pode ter Avaliação/Procedimentos salvos de antes (de uma sessão
-  // anterior). Como reimportar o formulário não necessariamente parte da mesma sessão
-  // onde esses dados foram preenchidos, buscamos o que já existe no Drive para esse CPF
-  // e preservamos — nunca salvamos por cima usando o que estiver (ou não) na tela agora.
-  try {
-    const folderId = await gdriveGetFolder();
-    const existentes = await gdriveListarArquivos(folderId, novoP1.cpf);
-    if(existentes.length>0) {
-      const dados = await gdriveCarregarArquivo(existentes[0].id);
-      const p2Existente = dados._p2 || p2;
-      const p3Existente = dados._p3 || p3;
-      const p4Existente = dados._p4 || p4State;
-      if(dados._p2) setP2(p2Existente);
-      if(dados._p3) setP3(prev=>({...prev,...p3Existente}));
-      if(dados._p4) setP4State(p4Existente);
-      await salvarNoDriveAgora(novoP1, p2Existente, p3Existente, p4Existente);
-      return;
-    }
-  } catch(e) { console.error("Erro ao verificar dados existentes do paciente:", e); }
-  salvarNoDriveAgora(novoP1, p2, p3, p4State);
+  const camposForm = {nome:f.nome, cpf:f.cpf, telefone:f.telefone, email:f.email||"", dataNasc:f.dataNasc, idade:f.idade, isMinor:f.isMinor, respNome:f.respNome, respCpf:f.respCpf, assinatura:f.assinatura||"", anamnese:f.anamnese||null, anamneseEspecialidade:f.anamneseEspecialidade||""};
+  const cpfForm = (f.cpf||"").replace(/\D/g,"");
+  // Paciente em branco: só o responsável clínico e a data já escolhidos na tela são mantidos.
+  const p1Novo = {...p1Initial, responsavel:p1.responsavel, dataConsulta:p1.dataConsulta, ...camposForm};
+
+  // Esse CPF já tem arquivo salvo? Se tiver (e for mesmo dele), abre com TUDO que já estava salvo.
+  let existente = null, dadosExistentes = null, divergente = false;
+  if(_gdriveToken && cpfForm) {
+    try {
+      const folderId = await gdriveGetFolder();
+      const lista = await gdriveListarArquivos(folderId, f.cpf);
+      if(lista.length>0) {
+        const dados = await gdriveCarregarArquivo(lista[0].id);
+        const cpfDentro = ((((dados._p1||{}).cpf)||dados.cpf)||"").replace(/\D/g,"");
+        if(cpfDentro===cpfForm) { existente = lista[0]; dadosExistentes = dados; } else { divergente = true; }
+      }
+    } catch(e) { console.error("Erro ao verificar arquivo existente:", e); }
+  }
+  if(existente) {
+    const dadosComForm = {...dadosExistentes, _p1:{...(dadosExistentes._p1||p1Novo), ...camposForm}};
+    aplicarPacienteSalvo(dadosComForm, existente, {p1:setP1,p2:setP2,p3:setP3,p4:setP4State}, {p3,p4:p4State});
+    _lastSyncHash = ""; // força o próximo salvamento automático a gravar o cadastro atualizado (com cópia de segurança antes)
+    showToast("Paciente já existia — abri o cadastro salvo, com avaliação e procedimentos, e atualizei com os dados do formulário.");
+    return;
+  }
+  // Paciente novo: telas 2, 3 e 4 começam em branco — nunca herdam as do paciente que estava aberto.
+  const p2b = p2EmBranco(), p3b = p3EmBranco(p3), p4b = p4EmBranco(p4State);
+  setP1(p1Novo); _setP2Raw(p2b); setP3(p3b); setP4State(p4b);
+  driveDesvincular();
+  if(divergente) { showToast("O arquivo salvo com este CPF parece ser de outra pessoa — por segurança nada foi gravado. Use o botão Salvar do topo para decidir.","error"); return; }
+  if(_gdriveToken) salvarNoDriveAgora(p1Novo, p2b, p3b, p4b);
 }}/>}
       {pag==="p2"&&<P2 data={p2} setData={setP2}/>}
       {pag==="p4"&&<P4 onTotalChange={(total) => { setP4Total(total); if(total > 0) sp3("vb", String(total)); else if(p3.vb === String(p4Total)) sp3("vb",""); }} p4State={p4State} setP4State={setP4State} modelos={modelos} setModelos={setModelos} p3={p3} setP3={v=>setP3(prev=>({...prev,...v}))}/>}
@@ -7684,21 +7856,13 @@ function App() {
     salvarRelatorio(p1,p2,p3,p4State,false);
     setRelatorioSalvo(true);setTimeout(()=>setRelatorioSalvo(false),3000);
   }
-}} salvoOk={relatorioSalvo} onCarregarDrive={(r)=>{
-  if(r._p1) setP1(r._p1);
-  if(r._p2) setP2(sanitizeP2(r._p2));
-  if(r._p3) setP3({...p3Initial,...r._p3,ct:false,bt:false});
-  if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
+}} salvoOk={relatorioSalvo} onCarregarDrive={(r,arq)=>{
+  aplicarPacienteSalvo(r, arq, {p1:setP1,p2:setP2,p3:setP3,p4:setP4State}, {p3,p4:p4State});
   setPag("p1");
 }}/>}
       {pag==="p5"&&<Prontuario p1={p1} equipeGlobal={equipeGlobal}/>}
       {pag==="arq"&&<Arquivo onCarregar={(r,arq)=>{
-        if(r._p1) setP1(r._p1);
-        if(r._p2) setP2(sanitizeP2(r._p2));
-        if(r._p3) setP3({...p3Initial,...r._p3,ct:false,bt:false});
-        if(r._p4) { const p4r=r._p4; if(!p4r.procsBase) p4r.procsBase=PROC_BASE.map(p=>({...p})); if(!p4r.itens) p4r.itens=p4r.procsBase.map(p=>({id:p.id,ativo:false,valor:String(p.valorPadrao).replace(".",","),dentes:[],obs:"",subtopics:[],proposta:null,valoresDente:{}})); setP4State(p4r); }
-        if(arq) { _driveFileId = arq.id; _driveFileName = arq.name; } else { _driveFileId = null; _driveFileName = null; }
-        _lastSyncHash = driveDataHash(r._p1||{}, r._p2||{}, r._p3||{}, r._p4||{});
+        aplicarPacienteSalvo(r, arq, {p1:setP1,p2:setP2,p3:setP3,p4:setP4State}, {p3,p4:p4State});
         setPag("p1");
       }}/>}
       {/* Botão desfazer flutuante por aba */}
