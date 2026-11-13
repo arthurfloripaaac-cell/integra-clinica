@@ -12,9 +12,43 @@ const FIREBASE_CONFIG = {
 
 let _fbDb = null;
 let _fbReady = false;
+let _fbAuthErro = ""; // preenchido se o navegador não conseguir abrir a conexão com o Firebase
 const _fbReadyCallbacks = [];
 
 function onFirebaseReady(fn) { if(_fbReady) fn(); else _fbReadyCallbacks.push(fn); }
+
+// Espera o Firebase ficar pronto, mas desiste depois de um tempo (antes, uma falha de conexão
+// deixava o formulário do paciente em "Enviando..." para sempre, sem nenhum aviso).
+function aguardarFirebase(ms) {
+  return new Promise((resolve, reject) => {
+    let feito = false;
+    const t = setTimeout(()=>{ if(!feito){ feito = true; reject(new Error("tempo_esgotado")); } }, ms);
+    onFirebaseReady(()=>{ if(!feito){ feito = true; clearTimeout(t); resolve(); } });
+  });
+}
+
+// Grava o formulário do paciente SEM nunca apagar o de outra pessoa: se o link já tem um
+// formulário de outro CPF, o novo vai para um registro separado. Mesmo CPF = mesmo paciente
+// reenviando, e atualiza o próprio registro.
+function gravarFormularioSemSobrescrever(idBase, registro) {
+  return new Promise((resolve, reject) => {
+    const cpfNovo = String(registro.cpf||"").replace(/\D/g,"");
+    _fbDb.ref("formularios/"+idBase).transaction(atual => {
+      if(atual === null) return registro;
+      const cpfAtual = String(atual.cpf||"").replace(/\D/g,"");
+      if(cpfNovo && cpfAtual === cpfNovo) return registro;
+      return undefined; // já é de outra pessoa: não mexe
+    }, (erro, confirmado) => {
+      if(erro) { reject(erro); return; }
+      if(confirmado) { resolve(idBase); return; }
+      const outraChave = idBase+"-"+Math.random().toString(36).slice(2,7);
+      _fbDb.ref("formularios/"+outraChave).set({...registro, formId:idBase}).then(()=>resolve(outraChave)).catch(reject);
+    }, false);
+  });
+}
+
+// Identificador de link de formulário: um novo para cada paciente.
+function novoIdFormulario() { return "f"+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 
 if(typeof document !== "undefined") {
   const s1 = document.createElement("script");
@@ -36,13 +70,16 @@ if(typeof document !== "undefined") {
             _fbReady = true;
             _fbReadyCallbacks.forEach(fn=>fn());
             _fbReadyCallbacks.length = 0;
-          }).catch(e=>console.error("Firebase auth error:", e));
-        } catch(e) { console.error("Firebase init error:", e); }
+          }).catch(e=>{ _fbAuthErro = (e&&(e.code||e.message))||"erro"; console.error("Firebase auth error:", e); });
+        } catch(e) { _fbAuthErro = (e&&(e.code||e.message))||"erro"; console.error("Firebase init error:", e); }
       };
+      s3.onerror = () => { _fbAuthErro = "script_bloqueado"; };
       document.head.appendChild(s3);
     };
+    s2.onerror = () => { _fbAuthErro = "script_bloqueado"; };
     document.head.appendChild(s2);
   };
+  s1.onerror = () => { _fbAuthErro = "script_bloqueado"; };
   document.head.appendChild(s1);
 }
 
@@ -464,7 +501,21 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, 
   const [showFormRecebidos, setShowFormRecebidos] = React.useState(false);
   const [showAnamnese, setShowAnamnese] = React.useState(false);
   const [linkCopiado, setLinkCopiado] = React.useState(false);
-  const [formLinkId, setFormLinkId] = React.useState("f"+Date.now().toString(36));
+  const [formLinkId, setFormLinkId] = React.useState(novoIdFormulario());
+  const [novosFormularios, setNovosFormularios] = React.useState(0);
+  // Depois de copiar ou abrir o WhatsApp, o link muda: cada paciente recebe o seu, e o
+  // dentista precisa ser escolhido de novo (mesma regra do botão "novo link").
+  const gerarNovoLinkFormulario = () => {
+    setTimeout(()=>{ setFormLinkId(novoIdFormulario()); setDentistaLinkForm(""); }, 400);
+  };
+  // Contador de formulários que chegaram e ainda não foram importados (aparece na barra mesmo recolhida).
+  React.useEffect(()=>{
+    if(!onImportarFormulario) return;
+    let ref = null;
+    const cb = (snap)=>{ const d = snap.val()||{}; setNovosFormularios(Object.values(d).filter(f=>f && f.status!=="importado").length); };
+    onFirebaseReady(()=>{ ref = _fbDb.ref("formularios"); ref.on("value", cb, ()=>{}); });
+    return ()=>{ if(ref) ref.off("value", cb); };
+  },[]);
   const [espLinkForm, setEspLinkForm] = React.useState("geral");
   const [dentistaLinkForm, setDentistaLinkForm] = React.useState("");
 
@@ -525,7 +576,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, 
             }} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#fff",border:"1px solid "+GOLD,borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:GOLD_DARK}}>
               + Novo
             </div>
-            <div onClick={()=>{if(!showEnviarForm){setFormLinkId("f"+Date.now().toString(36));setDentistaLinkForm("");}setShowEnviarForm(true);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
+            <div onClick={()=>{if(!showEnviarForm){setFormLinkId(novoIdFormulario());setDentistaLinkForm("");}setShowEnviarForm(true);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 14px",background:showEnviarForm?"#25D366":"#fff",border:"1px solid "+(showEnviarForm?"#25D366":BORDER),borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:600,color:showEnviarForm?"#fff":"#25D366"}}>
               📱 WhatsApp
             </div>
           </div>}
@@ -536,7 +587,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, 
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <div style={{fontSize:12,fontWeight:700,color:"#2E7D32"}}>Enviar formulário via WhatsApp</div>
               <div style={{display:"flex",gap:6}}>
-                <div onClick={()=>{setFormLinkId("f"+Date.now().toString(36));setDentistaLinkForm("");}} style={{fontSize:10,color:"#2E7D32",cursor:"pointer",padding:"3px 8px",border:"1px solid #4CAF50",borderRadius:20}}>+ Novo link</div>
+                <div onClick={()=>{setFormLinkId(novoIdFormulario());setDentistaLinkForm("");}} style={{fontSize:10,color:"#2E7D32",cursor:"pointer",padding:"3px 8px",border:"1px solid #4CAF50",borderRadius:20}}>+ Novo link</div>
                 <div onClick={()=>setShowEnviarForm(false)} style={{fontSize:10,color:"#9A8060",cursor:"pointer",padding:"3px 8px",border:"1px solid "+BORDER,borderRadius:20}}>✕</div>
               </div>
             </div>
@@ -567,10 +618,10 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, 
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   <div style={{padding:"10px 12px",background:"#fff",border:"1px solid "+BORDER,borderRadius:3,fontSize:11,wordBreak:"break-all",color:GOLD_DARK,fontWeight:500}}>{link}</div>
                   <div style={{display:"flex",gap:8,opacity:liberado?1:0.5,pointerEvents:liberado?"auto":"none"}}>
-                    <div onClick={()=>{if(!liberado)return;navigator.clipboard.writeText(link);setLinkCopiado(true);setTimeout(()=>setLinkCopiado(false),2000);}} style={{flex:1,padding:"10px",background:linkCopiado?"#4CAF50":"#fff",border:"1px solid "+(linkCopiado?"#4CAF50":BORDER),borderRadius:4,cursor:liberado?"pointer":"default",fontSize:11,fontWeight:600,color:linkCopiado?"#fff":"#5C4A2A",textAlign:"center"}}>
+                    <div onClick={()=>{if(!liberado)return;navigator.clipboard.writeText(link);setLinkCopiado(true);setTimeout(()=>setLinkCopiado(false),2000);gerarNovoLinkFormulario();}} style={{flex:1,padding:"10px",background:linkCopiado?"#4CAF50":"#fff",border:"1px solid "+(linkCopiado?"#4CAF50":BORDER),borderRadius:4,cursor:liberado?"pointer":"default",fontSize:11,fontWeight:600,color:linkCopiado?"#fff":"#5C4A2A",textAlign:"center"}}>
                       {linkCopiado?"✓ Copiado!":"📋 Copiar link"}
                     </div>
-                    <a href={liberado?waLink:undefined} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"10px",background:"#25D366",borderRadius:4,fontSize:11,fontWeight:700,color:"#fff",textAlign:"center",textDecoration:"none",display:"block"}}>
+                    <a href={liberado?waLink:undefined} onClick={()=>{if(liberado)gerarNovoLinkFormulario();}} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"10px",background:"#25D366",borderRadius:4,fontSize:11,fontWeight:700,color:"#fff",textAlign:"center",textDecoration:"none",display:"block"}}>
                       Abrir WhatsApp
                     </a>
                   </div>
@@ -585,6 +636,7 @@ function P1({data, setData, onNovoPaciente, onImportarFormulario, equipeGlobal, 
             <div onClick={()=>setShowFormRecebidos&&setShowFormRecebidos(!showFormRecebidos)} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"8px 12px",background:showFormRecebidos?"#E8F5E9":"#fff",border:"1px solid "+(showFormRecebidos?"#4CAF50":BORDER),borderRadius:4}}>
               <span style={{fontSize:14}}>📩</span>
               <span style={{fontSize:11,fontWeight:700,color:showFormRecebidos?"#2E7D32":GOLD_DARK,flex:1}}>Formulários recebidos via WhatsApp</span>
+              {novosFormularios>0 && <span style={{fontSize:10,fontWeight:700,padding:"2px 9px",borderRadius:12,background:"#2E7D32",color:"#fff",whiteSpace:"nowrap"}}>{novosFormularios} {novosFormularios===1?"novo":"novos"}</span>}
               <span style={{fontSize:12,color:"#9A8060"}}>{showFormRecebidos?"▲":"▼"}</span>
             </div>
             {showFormRecebidos&&(
@@ -5540,6 +5592,10 @@ function CarimboAssinatura({ts}) {
   if(!txt) return null;
   return <div style={{fontSize:8,color:"#9A8060",marginTop:2,lineHeight:1.3}}>{txt}</div>;
 }
+// Registro assinado pelo paciente fica protegido, como no papel: não edita nem exclui.
+// (Mesmo critério da regra de segurança do banco: assinatura do paciente preenchida.)
+function entradaAssinadaPeloPaciente(e) { return !!(e && e.assinaturaPaciente && String(e.assinaturaPaciente).length>0); }
+const MSG_REGISTRO_TRAVADO = "Este registro já foi assinado pelo paciente e não pode ser alterado nem excluído. Para corrigir, crie uma nova entrada com a informação certa e peça uma nova assinatura.";
 const PRONTUARIO_FB_PATH = "prontuario_visitas";
 const GRUPO_ASSINATURA_FB_PATH = "assinaturas_grupo";
 
@@ -5626,6 +5682,7 @@ function Prontuario({p1, equipeGlobal}) {
   };
 
   const iniciarEdicao = (e) => {
+    if(entradaAssinadaPeloPaciente(e)) { showToast(MSG_REGISTRO_TRAVADO,"error"); return; }
     setEditandoKey(e._key);
     setNovaData(e.data||new Date().toISOString().split("T")[0]);
     setNovaDescricao(e.descricao||"");
@@ -5647,6 +5704,7 @@ function Prontuario({p1, equipeGlobal}) {
   };
 
   const excluirEntrada = (key) => {
+    if(entradaAssinadaPeloPaciente((todasEntradas||[]).find(x=>x._key===key))) { showToast(MSG_REGISTRO_TRAVADO,"error"); return; }
     if(!window.confirm("Excluir esta entrada do prontuário? Esta ação não pode ser desfeita.")) return;
     if(!_fbDb) { showToast("Sem conexão com a nuvem no momento.","error"); return; }
     _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).remove()
@@ -5701,7 +5759,8 @@ function Prontuario({p1, equipeGlobal}) {
     };
     const aoFalhar = e => { setSalvando(false); showToast("Erro ao salvar: "+e.message,"error"); };
     if(editandoKey) {
-      _fbDb.ref(PRONTUARIO_FB_PATH+"/"+editandoKey).update({...campos, editadoEm:new Date().toISOString()}).then(criarPagamentoVinculado).then(aoTerminar).catch(aoFalhar);
+      if(entradaAssinadaPeloPaciente((todasEntradas||[]).find(x=>x._key===editandoKey))) { setSalvando(false); showToast(MSG_REGISTRO_TRAVADO,"error"); return; }
+      _fbDb.ref(PRONTUARIO_FB_PATH+"/"+editandoKey).update(campos).then(criarPagamentoVinculado).then(aoTerminar).catch(aoFalhar);
     } else {
       const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
       _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).set({...campos, criadoEm:new Date().toISOString()}).then(criarPagamentoVinculado).then(aoTerminar).catch(aoFalhar);
@@ -5754,6 +5813,7 @@ function Prontuario({p1, equipeGlobal}) {
   };
 
   const iniciarEdicaoFalta = (e) => {
+    if(entradaAssinadaPeloPaciente(e)) { showToast(MSG_REGISTRO_TRAVADO,"error"); return; }
     setEditandoFaltaKey(e._key);
     setFaltaOcorrencia(e.ocorrencia || "faltou");
     setFaltaConfirmou(e.confirmouAntes!==undefined ? e.confirmouAntes : !!e.agravante);
@@ -5800,7 +5860,8 @@ function Prontuario({p1, equipeGlobal}) {
     };
     const aoFalhar = e => { setFaltaSalvando(false); showToast("Erro ao salvar: "+e.message,"error"); };
     if(editandoFaltaKey) {
-      _fbDb.ref(PRONTUARIO_FB_PATH+"/"+editandoFaltaKey).update({...campos, editadoEm:new Date().toISOString()}).then(aoTerminar).catch(aoFalhar);
+      if(entradaAssinadaPeloPaciente((todasEntradas||[]).find(x=>x._key===editandoFaltaKey))) { setFaltaSalvando(false); showToast(MSG_REGISTRO_TRAVADO,"error"); return; }
+      _fbDb.ref(PRONTUARIO_FB_PATH+"/"+editandoFaltaKey).update(campos).then(aoTerminar).catch(aoFalhar);
     } else {
       const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
       _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).set({...campos, criadoEm:new Date().toISOString()}).then(aoTerminar).catch(aoFalhar);
@@ -5833,6 +5894,7 @@ function Prontuario({p1, equipeGlobal}) {
   },[cpfPaciente]);
 
   const iniciarEdicaoPagamento = (e) => {
+    if(entradaAssinadaPeloPaciente(e)) { showToast(MSG_REGISTRO_TRAVADO,"error"); return; }
     setEditandoPagamentoKey(e._key);
     setPagData(e.data||new Date().toISOString().split("T")[0]);
     setPagValor(e.valor!=null?String(e.valor):"");
@@ -5874,7 +5936,8 @@ function Prontuario({p1, equipeGlobal}) {
     };
     const aoFalhar = e => { setPagSalvando(false); showToast("Erro ao salvar: "+e.message,"error"); };
     if(editandoPagamentoKey) {
-      _fbDb.ref(PRONTUARIO_FB_PATH+"/"+editandoPagamentoKey).update({...campos, editadoEm:new Date().toISOString()}).then(aoTerminar).catch(aoFalhar);
+      if(entradaAssinadaPeloPaciente((todasEntradas||[]).find(x=>x._key===editandoPagamentoKey))) { setPagSalvando(false); showToast(MSG_REGISTRO_TRAVADO,"error"); return; }
+      _fbDb.ref(PRONTUARIO_FB_PATH+"/"+editandoPagamentoKey).update(campos).then(aoTerminar).catch(aoFalhar);
     } else {
       const key = _fbDb.ref(PRONTUARIO_FB_PATH).push().key;
       _fbDb.ref(PRONTUARIO_FB_PATH+"/"+key).set({...campos, criadoEm:new Date().toISOString()}).then(aoTerminar).catch(aoFalhar);
@@ -6311,11 +6374,14 @@ function Prontuario({p1, equipeGlobal}) {
                   {e.statusPaciente==="pendente" && (
                     <div onClick={()=>copiarLink(e._key)} style={{marginBottom:10,padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
                   )}
-                  <div style={{display:"flex",gap:10,paddingTop:8,borderTop:"1px solid "+BORDER}}>
+                  {entradaAssinadaPeloPaciente(e) ? (
+<div style={{padding:"10px 12px",background:"#F3EDF6",border:"1px solid "+PURPLE_BORDER,borderRadius:6,fontSize:11,color:PURPLE,lineHeight:1.5}}>🔒 Assinado pelo paciente — registro protegido. Para corrigir, crie uma nova entrada com a informação certa e peça uma nova assinatura.</div>
+) : (
+<div style={{display:"flex",gap:10,paddingTop:8,borderTop:"1px solid "+BORDER}}>
                     <div onClick={()=>iniciarEdicaoFalta(e)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
                     <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
                   </div>
-                  {e.editadoEm && <div style={{fontSize:9,color:"#B0A090",marginTop:6}}>Editado em {new Date(e.editadoEm).toLocaleDateString("pt-BR")}</div>}
+)}
                 </div>
               )}
             </div>
@@ -6343,11 +6409,14 @@ function Prontuario({p1, equipeGlobal}) {
                   {e.statusPaciente!=="assinado" && (
                     <div onClick={()=>copiarLink(e._key)} style={{marginBottom:10,padding:"13px 16px",textAlign:"center",background:"#F3EDF6",border:"1.5px solid "+PURPLE,borderRadius:6,fontSize:13,color:PURPLE,fontWeight:700,cursor:"pointer"}}>🔗 Copiar link para o paciente assinar</div>
                   )}
-                  <div style={{display:"flex",gap:10,paddingTop:8,borderTop:"1px solid "+BORDER}}>
+                  {entradaAssinadaPeloPaciente(e) ? (
+<div style={{padding:"10px 12px",background:"#F3EDF6",border:"1px solid "+PURPLE_BORDER,borderRadius:6,fontSize:11,color:PURPLE,lineHeight:1.5}}>🔒 Assinado pelo paciente — registro protegido. Para corrigir, crie uma nova entrada com a informação certa e peça uma nova assinatura.</div>
+) : (
+<div style={{display:"flex",gap:10,paddingTop:8,borderTop:"1px solid "+BORDER}}>
                     <div onClick={()=>iniciarEdicaoPagamento(e)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
                     <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"10px",fontSize:12,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
                   </div>
-                  {e.editadoEm && <div style={{fontSize:9,color:"#B0A090",marginTop:6}}>Editado em {new Date(e.editadoEm).toLocaleDateString("pt-BR")}</div>}
+)}
                 </div>
               )}
             </div>
@@ -6381,11 +6450,14 @@ function Prontuario({p1, equipeGlobal}) {
               {obsAbertas[e._key] && <div style={{marginTop:6,padding:"10px 12px",background:GOLD_PALE,border:"1px solid "+GOLD,borderRadius:4,fontSize:12.5,color:"#5C4A2A",whiteSpace:"pre-wrap"}}>{e.obsInterna}</div>}
             </div>
           )}
-          <div style={{display:"flex",gap:10,marginTop:12,paddingTop:12,borderTop:"1px solid "+BORDER}}>
+          {entradaAssinadaPeloPaciente(e) ? (
+<div style={{marginTop:12,padding:"10px 12px",background:"#F3EDF6",border:"1px solid "+PURPLE_BORDER,borderRadius:6,fontSize:11,color:PURPLE,lineHeight:1.5}}>🔒 Assinado pelo paciente — registro protegido. Para corrigir, crie uma nova entrada com a informação certa e peça uma nova assinatura.</div>
+) : (
+<div style={{display:"flex",gap:10,marginTop:12,paddingTop:12,borderTop:"1px solid "+BORDER}}>
             <div onClick={()=>iniciarEdicao(e)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:GOLD_DARK,fontWeight:700,cursor:"pointer",background:GOLD_PALE,border:"1.5px solid "+GOLD,borderRadius:6}}>✎ Editar</div>
             <div onClick={()=>excluirEntrada(e._key)} style={{flex:1,textAlign:"center",padding:"12px 10px",fontSize:13,color:"#C62828",fontWeight:700,cursor:"pointer",background:"#FDEAEA",border:"1.5px solid #C62828",borderRadius:6}}>🗑 Excluir</div>
           </div>
-          {e.editadoEm && <div style={{fontSize:9,color:"#B0A090",marginTop:6}}>Editado em {new Date(e.editadoEm).toLocaleDateString("pt-BR")}</div>}
+)}
         </div>
         );
       })}
@@ -6961,30 +7033,36 @@ function FormularioPaciente({formId, especialidade}) {
     if(err){ setErro(err); return; }
     setErro("");
     setEnviando(true);
+    const registro = {
+      nome: formatarNomeProprio(nome.trim()),
+      cpf: cpf.trim(),
+      telefone: telefone.replace(/\D/g,""),
+      email: email.trim(),
+      dataNasc,
+      idade: idade+" anos",
+      isMinor,
+      respNome: isMinor?formatarNomeProprio(respNome.trim()):"",
+      respCpf: isMinor?respCpf.trim():"",
+      assinatura,
+      especialidade: especialidade||"geral",
+      anamnese: an,
+      dataEnvio: new Date().toISOString(),
+      formId,
+      status: "pendente",
+    };
     try {
-      await new Promise((res)=>{
-        onFirebaseReady(()=>{
-          _fbDb.ref("formularios/"+formId).set({
-            nome: formatarNomeProprio(nome.trim()),
-            cpf: cpf.trim(),
-            telefone: telefone.replace(/\D/g,""),
-            email: email.trim(),
-            dataNasc,
-            idade: idade+" anos",
-            isMinor,
-            respNome: isMinor?formatarNomeProprio(respNome.trim()):"",
-            respCpf: isMinor?respCpf.trim():"",
-            assinatura,
-            especialidade: especialidade||"geral",
-            anamnese: an,
-            dataEnvio: new Date().toISOString(),
-            formId,
-            status: "pendente",
-          }).then(res).catch(e=>{setErro("Erro ao enviar: "+e.message);setEnviando(false);});
-        });
-      });
+      await aguardarFirebase(15000);
+      await Promise.race([
+        gravarFormularioSemSobrescrever(formId, registro),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error("tempo_esgotado")),20000)),
+      ]);
       setEnviado(true);
-    } catch(e) { setErro("Erro: "+e.message); setEnviando(false); }
+    } catch(e) {
+      setEnviando(false);
+      if(_fbAuthErro) setErro("Este navegador bloqueou a conexão necessária para enviar. Abra este mesmo link no Chrome ou no Safari e toque em Enviar de novo.");
+      else if(e && e.message==="tempo_esgotado") setErro("Não conseguimos enviar agora. Confira sua internet e toque em Enviar de novo. Se continuar, abra este link no Chrome ou no Safari.");
+      else setErro("Erro ao enviar: "+((e&&e.message)||"tente novamente"));
+    }
   };
 
   // Estilos responsivos e grandes (idosos frequentes na clínica)
@@ -7250,19 +7328,22 @@ function FormulariosRecebidos({onImportar}) {
   const [filtro, setFiltro] = React.useState("");
 
   React.useEffect(()=>{
+    let consulta = null;
+    const cb = (snap)=>{
+      const data = snap.val();
+      if(!data) { setFormularios([]); return; }
+      const list = Object.entries(data).map(([k,v])=>({...v,_key:k}));
+      setFormularios(list);
+    };
     onFirebaseReady(()=>{
-      _fbDb.ref("formularios").orderByChild("dataEnvio").on("value", (snap)=>{
-        const data = snap.val();
-        if(!data) { setFormularios([]); return; }
-        const list = Object.entries(data).map(([k,v])=>({...v,_key:k}));
-        setFormularios(list);
-      }, (err)=>{
+      consulta = _fbDb.ref("formularios").orderByChild("dataEnvio");
+      consulta.on("value", cb, (err)=>{
         // Antes, uma falha aqui (ex: permissão negada) deixava a tela presa em
         // "Carregando..." para sempre, sem nenhum aviso — agora mostra o erro de verdade.
         setErro(err.message);
       });
     });
-    return ()=>{ if(_fbDb) _fbDb.ref("formularios").off(); };
+    return ()=>{ if(consulta) consulta.off("value", cb); };
   },[]);
 
   const importar = (f) => {
